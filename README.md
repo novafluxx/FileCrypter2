@@ -4,9 +4,9 @@ FileCrypter is a local-first file encryption product for protecting files before
 
 ## Current Phase
 
-Phase 0: repository and solution setup.
+Phase 1: file format draft and header parser.
 
-This phase establishes the .NET solution, project layout, shared build defaults, and baseline documentation. It intentionally does not define the encrypted file format, crypto APIs, CLI commands, compression behavior, or archive workflows yet.
+The repository now has the initial .NET solution scaffold plus a draft v1 encrypted file format and internal header parser validation tests. It intentionally does not implement encryption, decryption, CLI commands, compression behavior, or archive workflows yet.
 
 ## Solution Layout
 
@@ -21,6 +21,7 @@ FileCrypterDotNet/
   docs/
     planning-brief.md
     file-format.md
+    current-status.md
     security.md
   product.md
 ```
