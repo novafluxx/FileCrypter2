@@ -275,7 +275,8 @@ internal sealed class FileCrypterCommand
 
             If no password option is supplied, FileCrypter prompts without echoing the password when run interactively.
             If output is omitted, encryption appends .encrypted and decryption removes .encrypted when present.
-            Use --key-file with an existing key file for password plus key-file protection.
+            Use --key-file with an existing key file for password plus key-file protection. The same key file is required
+            for decryption; lost or changed key files cannot be recovered. Existing key files may be up to 16 MiB.
             """);
     }
 

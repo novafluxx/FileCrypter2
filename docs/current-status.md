@@ -42,6 +42,8 @@ codex/phase-1-file-format
 - Path APIs enforce the 16 MiB existing key-file cap and avoid overwriting the selected key file as an output.
 - CLI encrypt/decrypt commands accept `--key-file` and report a clear missing-key-file hint for protected payloads.
 - Tests cover key-file round trips, wrong key files, missing key files, oversized key files, and password-only compatibility when an extra key file is supplied during decrypt.
+- Phase 2 CLI command-polish boundary is settled: keep a single nonzero failure exit code for now and defer stable exit-code categories until the CLI contract hardens.
+- CLI help now documents key-file recovery limitations and the 16 MiB existing-key-file cap.
 
 ## Current Format Decisions
 
@@ -60,13 +62,13 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest Phase 2 key-file pass:
+These commands passed after the latest Phase 2 CLI polish pass:
 
 ```bash
 dotnet test --no-restore
 ```
 
-Latest test count at handoff: 78 passed, 0 failed.
+Latest test count at handoff: 79 passed, 0 failed.
 
 CLI smoke test also passed:
 
@@ -119,13 +121,15 @@ Remaining product-level gaps are expected for later phases:
 
 ## Recommended Next Step
 
-Decide the remaining Phase 2 CLI command-polish boundary before starting compression.
+Start compression.
 
 Immediate next slice:
 
-- Decide whether the CLI should keep a single failure exit code for Phase 2 or introduce stable categories now.
-- Add or defer CLI help text for key-file recovery limitations and the 16 MiB existing-key-file cap.
+- Extend the v1 format implementation to write and read compressed single-file payloads.
+- Add automatic decompression during decrypt based on the header compression marker.
+- Keep compression streaming and bounded-memory, matching the existing chunked file APIs.
+- Cover compressed round trips, wrong-password behavior, malformed compressed payloads, and password plus key-file combinations.
 
 Recommended follow-up work:
 
-- Start compression once the remaining CLI command-polish scope is settled.
+- Add CLI compression controls after the core compression path is tested.

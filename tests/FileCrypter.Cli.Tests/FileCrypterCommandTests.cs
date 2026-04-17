@@ -74,6 +74,19 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task Help_IncludesKeyFileRecoveryAndSizeWarnings()
+    {
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("lost or changed key files cannot be recovered", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Existing key files may be up to 16 MiB", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
     public async Task Encrypt_WhenInputFileIsMissing_Fails()
     {
         using var directory = new TemporaryDirectory();
