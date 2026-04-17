@@ -54,7 +54,9 @@ internal static class FileCrypterHeaderWriter
             keyFileRequired ? FileCrypterFormatConstants.HeaderFlagKeyFileRequired : (ushort)0);
         destination[FileCrypterFormatConstants.AeadAlgorithmOffset] = FileCrypterFormatConstants.AeadAlgorithmAes256Gcm;
         destination[FileCrypterFormatConstants.KdfAlgorithmOffset] = FileCrypterFormatConstants.KdfAlgorithmArgon2Id;
-        destination[FileCrypterFormatConstants.CompressionAlgorithmOffset] = FileCrypterFormatConstants.CompressionNone;
+        destination[FileCrypterFormatConstants.CompressionAlgorithmOffset] = options.EnableCompression
+            ? FileCrypterFormatConstants.CompressionZstd
+            : FileCrypterFormatConstants.CompressionNone;
         destination[FileCrypterFormatConstants.PayloadKindOffset] = FileCrypterFormatConstants.PayloadKindSingleFile;
         WriteUInt32(destination, FileCrypterFormatConstants.ChunkSizeOffset, (uint)options.ChunkSize);
         salt.CopyTo(destination.Slice(FileCrypterFormatConstants.SaltOffset, FileCrypterFormatConstants.SaltLength));

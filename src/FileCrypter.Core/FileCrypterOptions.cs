@@ -10,6 +10,8 @@ public sealed class FileCrypterOptions
 
     public int Argon2Parallelism { get; init; } = (int)Format.FileCrypterFormatConstants.DefaultArgon2Parallelism;
 
+    public bool EnableCompression { get; init; }
+
     public IProgress<FileCrypterProgress>? Progress { get; init; }
 
     internal IFileCrypterRandomSource? RandomSource { get; init; }

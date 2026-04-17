@@ -25,4 +25,5 @@ public enum FileCrypterFormatErrorCode
     TooManyChunks,
     AuthenticationFailed,
     TrailingData,
+    InvalidCompressedPayload,
 }

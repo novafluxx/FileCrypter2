@@ -44,6 +44,9 @@ codex/phase-1-file-format
 - Tests cover key-file round trips, wrong key files, missing key files, oversized key files, and password-only compatibility when an extra key file is supplied during decrypt.
 - Phase 2 CLI command-polish boundary is settled: keep a single nonzero failure exit code for now and defer stable exit-code categories until the CLI contract hardens.
 - CLI help now documents key-file recovery limitations and the 16 MiB existing-key-file cap.
+- Core single-file compression is implemented with Zstandard before encryption and automatic decompression after authenticated decrypt.
+- `FileCrypterOptions.EnableCompression` writes the v1 Zstd compression marker while preserving uncompressed output compatibility by default.
+- Compression coverage includes password-only round trips, password plus key-file round trips, wrong-password failure, and authenticated malformed compressed payload failure.
 
 ## Current Format Decisions
 
@@ -54,6 +57,7 @@ codex/phase-1-file-format
 - Version: `1`.
 - AEAD: AES-256-GCM, 12-byte nonce, 16-byte tag.
 - KDF: Argon2id, version `0x13`, 32-byte derived key.
+- Compression: none by default, optional Zstandard for single-file payloads.
 - Key-file binding: SHA-256 digest of raw key-file bytes in the credential preimage when key-file protection is enabled.
 - Default Argon2id parameters: 65536 KiB memory, 3 iterations, 4 lanes.
 - Default chunk size: 1048576 bytes.
@@ -62,13 +66,13 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest Phase 2 CLI polish pass:
+These commands passed after the latest core compression pass:
 
 ```bash
-dotnet test --no-restore
+dotnet test
 ```
 
-Latest test count at handoff: 79 passed, 0 failed.
+Latest test count at handoff: 83 passed, 0 failed.
 
 CLI smoke test also passed:
 
@@ -88,7 +92,6 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 
 ## Not Started
 
-- Compression.
 - Archive mode.
 - Batch workflows.
 - Key-file generation.
@@ -113,7 +116,7 @@ The current implementation is aligned with the product outline for the foundatio
 Remaining product-level gaps are expected for later phases:
 
 - key-file generation and broader key-file UX/help
-- compression and automatic decompression
+- CLI compression controls
 - batch individual-file workflows
 - archive creation/extraction
 - broader CLI command polish
@@ -121,15 +124,15 @@ Remaining product-level gaps are expected for later phases:
 
 ## Recommended Next Step
 
-Start compression.
+Add CLI compression controls.
 
 Immediate next slice:
 
-- Extend the v1 format implementation to write and read compressed single-file payloads.
-- Add automatic decompression during decrypt based on the header compression marker.
-- Keep compression streaming and bounded-memory, matching the existing chunked file APIs.
-- Cover compressed round trips, wrong-password behavior, malformed compressed payloads, and password plus key-file combinations.
+- Add an `encrypt --compress` switch that passes `EnableCompression = true` into the core options.
+- Consider a matching `--no-compress` shape now only if a default-compression setting lands in the same slice.
+- Keep decrypt automatic; it should continue to rely on the header compression marker and not require a CLI flag.
+- Cover CLI compressed encrypt/decrypt success, progress reporting, wrong-password failure, and key-file combinations.
 
 Recommended follow-up work:
 
-- Add CLI compression controls after the core compression path is tested.
+- Start key-file generation or batch individual-file compression defaults after CLI compression controls are tested.

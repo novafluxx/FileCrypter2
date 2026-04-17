@@ -64,4 +64,25 @@ public sealed class FileCrypterHeaderWriterTests
         Assert.Equal(noncePrefix, header.NoncePrefix.ToArray());
         Assert.Equal(0u, BinaryPrimitives.ReadUInt32LittleEndian(headerBytes.AsSpan(FileCrypterFormatConstants.ReservedOffset)));
     }
+
+    [Fact]
+    public void WritePasswordOnly_WithCompression_WritesZstdCompressionId()
+    {
+        var options = new FileCrypterOptions
+        {
+            ChunkSize = (int)FileCrypterFormatConstants.MinimumChunkSize,
+            Argon2MemoryKiB = 1024,
+            Argon2Iterations = 1,
+            Argon2Parallelism = 1,
+            EnableCompression = true,
+        };
+        byte[] salt = Enumerable.Range(1, FileCrypterFormatConstants.SaltLength).Select(value => (byte)value).ToArray();
+        byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
+        byte[] headerBytes = new byte[FileCrypterFormatConstants.HeaderLength];
+
+        FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, options, salt, noncePrefix);
+
+        FileCrypterHeader header = FileCrypterHeaderParser.Parse(headerBytes);
+        Assert.Equal(FileCrypterFormatConstants.CompressionZstd, header.CompressionAlgorithmId);
+    }
 }

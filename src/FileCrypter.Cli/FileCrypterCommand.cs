@@ -219,6 +219,7 @@ internal sealed class FileCrypterCommand
             Argon2MemoryKiB = sourceOptions.Argon2MemoryKiB,
             Argon2Iterations = sourceOptions.Argon2Iterations,
             Argon2Parallelism = sourceOptions.Argon2Parallelism,
+            EnableCompression = sourceOptions.EnableCompression,
             Progress = new CliProgressReporter(
                 console.Error,
                 encrypt ? "Encrypting" : "Decrypting",
@@ -246,6 +247,8 @@ internal sealed class FileCrypterCommand
                 "Choose a FileCrypter .encrypted file produced by this app.",
             FileCrypterFormatErrorCode.TruncatedHeader or FileCrypterFormatErrorCode.TruncatedChunk =>
                 "The encrypted file appears incomplete or damaged. Try a fresh copy of the file.",
+            FileCrypterFormatErrorCode.InvalidCompressedPayload =>
+                "The compressed payload appears damaged. Try a fresh copy of the encrypted file.",
             FileCrypterFormatErrorCode.UnsupportedVersion or
             FileCrypterFormatErrorCode.UnsupportedCompressionAlgorithm or
             FileCrypterFormatErrorCode.UnsupportedPayloadKind or

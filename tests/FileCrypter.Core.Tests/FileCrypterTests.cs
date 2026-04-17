@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using FileCrypter.Core.Cryptography;
 using FileCrypter.Core.Format;
 
 namespace FileCrypter.Core.Tests;
@@ -506,6 +507,51 @@ public sealed class FileCrypterTests
     }
 
     [Fact]
+    public async Task EncryptAsyncDecryptAsync_WithCompression_RoundTripsAndMarksHeader()
+    {
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes(new string('A', 200_000));
+        FileCrypterOptions options = CreateFastOptions(enableCompression: true);
+        using var plaintext = new MemoryStream(plaintextBytes);
+        using var encrypted = new MemoryStream();
+        using var decrypted = new MemoryStream();
+
+        await FileCrypter.EncryptAsync(plaintext, encrypted, Password, options);
+
+        byte[] encryptedBytes = encrypted.ToArray();
+        FileCrypterHeader header = FileCrypterHeaderParser.Parse(encryptedBytes.AsSpan(0, FileCrypterFormatConstants.HeaderLength));
+        Assert.Equal(FileCrypterFormatConstants.CompressionZstd, header.CompressionAlgorithmId);
+        Assert.True(encryptedBytes.Length < plaintextBytes.Length);
+
+        encrypted.Position = 0;
+        await FileCrypter.DecryptAsync(encrypted, decrypted, Password, CreateFastOptions());
+
+        Assert.Equal(plaintextBytes, decrypted.ToArray());
+    }
+
+    [Fact]
+    public async Task EncryptAsyncDecryptAsync_WithCompressionAndKeyFile_RoundTrips()
+    {
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("keyed compressed payload\n", 10_000)));
+        byte[] keyFileBytes = Enumerable.Range(1, 64).Select(value => (byte)value).ToArray();
+        FileCrypterOptions options = CreateFastOptions(enableCompression: true);
+        using var plaintext = new MemoryStream(plaintextBytes);
+        using var encrypted = new MemoryStream();
+        using var decrypted = new MemoryStream();
+
+        await FileCrypter.EncryptAsync(plaintext, encrypted, Password, keyFileBytes, options);
+
+        byte[] encryptedBytes = encrypted.ToArray();
+        FileCrypterHeader header = FileCrypterHeaderParser.Parse(encryptedBytes.AsSpan(0, FileCrypterFormatConstants.HeaderLength));
+        Assert.True(header.IsKeyFileRequired);
+        Assert.Equal(FileCrypterFormatConstants.CompressionZstd, header.CompressionAlgorithmId);
+
+        encrypted.Position = 0;
+        await FileCrypter.DecryptAsync(encrypted, decrypted, Password, keyFileBytes, CreateFastOptions());
+
+        Assert.Equal(plaintextBytes, decrypted.ToArray());
+    }
+
+    [Fact]
     public async Task EncryptAsync_WithPayloadEndingOnChunkBoundary_EmitsZeroLengthFinalChunk()
     {
         FileCrypterOptions options = CreateFastOptions();
@@ -655,15 +701,37 @@ public sealed class FileCrypterTests
     }
 
     [Fact]
-    public async Task DecryptAsync_WithCompressedHeader_ThrowsUnsupportedCompressionAlgorithm()
+    public async Task DecryptAsync_WithCompressedPayloadAndWrongPassword_ThrowsAuthenticationFailed()
     {
-        byte[] headerBytes = CreateSupportedHeader();
-        headerBytes[FileCrypterFormatConstants.CompressionAlgorithmOffset] = FileCrypterFormatConstants.CompressionZstd;
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("compressed secret");
+        using var plaintext = new MemoryStream(plaintextBytes);
+        using var encrypted = new MemoryStream();
+        using var decrypted = new MemoryStream();
+
+        await FileCrypter.EncryptAsync(
+            plaintext,
+            encrypted,
+            Password,
+            CreateFastOptions(enableCompression: true));
+
+        encrypted.Position = 0;
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.DecryptAsync(encrypted, decrypted, "wrong password", CreateFastOptions()));
+
+        Assert.Equal(FileCrypterFormatErrorCode.AuthenticationFailed, exception.Code);
+    }
+
+    [Fact]
+    public async Task DecryptAsync_WithMalformedCompressedPayload_ThrowsInvalidCompressedPayload()
+    {
+        byte[] encryptedBytes = EncryptSingleChunkPayload(
+            Encoding.UTF8.GetBytes("this is authenticated, but it is not zstandard"),
+            CreateFastOptions(enableCompression: true));
 
         FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
-            () => FileCrypter.DecryptAsync(new MemoryStream(headerBytes), new MemoryStream(), Password, CreateFastOptions()));
+            () => FileCrypter.DecryptAsync(new MemoryStream(encryptedBytes), new MemoryStream(), Password, CreateFastOptions()));
 
-        Assert.Equal(FileCrypterFormatErrorCode.UnsupportedCompressionAlgorithm, exception.Code);
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidCompressedPayload, exception.Code);
     }
 
     [Fact]
@@ -742,6 +810,48 @@ public sealed class FileCrypterTests
         byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
         FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, CreateFastOptions(), salt, noncePrefix);
         return headerBytes;
+    }
+
+    private static byte[] EncryptSingleChunkPayload(byte[] payload, FileCrypterOptions options)
+    {
+        byte[] headerBytes = new byte[FileCrypterFormatConstants.HeaderLength];
+        byte[] salt = Enumerable.Range(1, FileCrypterFormatConstants.SaltLength).Select(value => (byte)value).ToArray();
+        byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
+        FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, options, salt, noncePrefix);
+        FileCrypterHeader header = FileCrypterHeaderParser.Parse(headerBytes);
+        byte[] key = FileCrypterKeyDeriver.DerivePasswordOnlyKey(Password, header);
+
+        try
+        {
+            byte[] prefix = new byte[FileCrypterFormatConstants.ChunkFramePrefixLength];
+            BinaryPrimitives.WriteUInt32LittleEndian(prefix.AsSpan(0, sizeof(uint)), (uint)payload.Length);
+            BinaryPrimitives.WriteUInt16LittleEndian(
+                prefix.AsSpan(4, sizeof(ushort)),
+                FileCrypterFormatConstants.ChunkFlagFinal);
+
+            byte[] nonce = new byte[FileCrypterFormatConstants.AesGcmNonceLength];
+            header.NoncePrefix.CopyTo(nonce);
+            byte[] associatedData = new byte[
+                FileCrypterFormatConstants.HeaderLength + FileCrypterFormatConstants.ChunkFramePrefixLength];
+            headerBytes.CopyTo(associatedData, 0);
+            prefix.CopyTo(associatedData, FileCrypterFormatConstants.HeaderLength);
+            byte[] ciphertext = new byte[payload.Length];
+            byte[] tag = new byte[FileCrypterFormatConstants.AesGcmTagLength];
+
+            using var aesGcm = new AesGcm(key, FileCrypterFormatConstants.AesGcmTagLength);
+            aesGcm.Encrypt(nonce, payload, ciphertext, tag, associatedData);
+
+            using var encrypted = new MemoryStream();
+            encrypted.Write(headerBytes);
+            encrypted.Write(prefix);
+            encrypted.Write(ciphertext);
+            encrypted.Write(tag);
+            return encrypted.ToArray();
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+        }
     }
 
     public static IEnumerable<object[]> CompatibilityVectors()
@@ -866,7 +976,8 @@ public sealed class FileCrypterTests
 
     private static FileCrypterOptions CreateFastOptions(
         IFileCrypterRandomSource? randomSource = null,
-        IProgress<FileCrypterProgress>? progress = null)
+        IProgress<FileCrypterProgress>? progress = null,
+        bool enableCompression = false)
     {
         return new FileCrypterOptions
         {
@@ -874,6 +985,7 @@ public sealed class FileCrypterTests
             Argon2MemoryKiB = 1024,
             Argon2Iterations = 1,
             Argon2Parallelism = 1,
+            EnableCompression = enableCompression,
             RandomSource = randomSource,
             Progress = progress,
         };
