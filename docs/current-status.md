@@ -47,6 +47,8 @@ codex/phase-1-file-format
 - Core single-file compression is implemented with Zstandard before encryption and automatic decompression after authenticated decrypt.
 - `FileCrypterOptions.EnableCompression` writes the v1 Zstd compression marker while preserving uncompressed output compatibility by default.
 - Compression coverage includes password-only round trips, password plus key-file round trips, wrong-password failure, and authenticated malformed compressed payload failure.
+- CLI encryption now accepts `--compress`, passes `EnableCompression = true` into the core options, and keeps decryption automatic through the header compression marker.
+- CLI compression coverage includes compressed password-only round trips, progress reporting, wrong-password failure, password plus key-file round trips, and help text.
 
 ## Current Format Decisions
 
@@ -66,13 +68,19 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest core compression pass:
+These commands passed after the latest CLI compression controls pass:
 
 ```bash
 dotnet test
 ```
 
-Latest test count at handoff: 83 passed, 0 failed.
+Latest test count at handoff: 86 passed, 0 failed.
+
+Focused CLI coverage also passed:
+
+```bash
+dotnet test tests/FileCrypter.Cli.Tests/FileCrypter.Cli.Tests.csproj
+```
 
 CLI smoke test also passed:
 
@@ -116,7 +124,6 @@ The current implementation is aligned with the product outline for the foundatio
 Remaining product-level gaps are expected for later phases:
 
 - key-file generation and broader key-file UX/help
-- CLI compression controls
 - batch individual-file workflows
 - archive creation/extraction
 - broader CLI command polish
@@ -124,15 +131,15 @@ Remaining product-level gaps are expected for later phases:
 
 ## Recommended Next Step
 
-Add CLI compression controls.
+Start key-file generation.
 
 Immediate next slice:
 
-- Add an `encrypt --compress` switch that passes `EnableCompression = true` into the core options.
-- Consider a matching `--no-compress` shape now only if a default-compression setting lands in the same slice.
-- Keep decrypt automatic; it should continue to rely on the header compression marker and not require a CLI flag.
-- Cover CLI compressed encrypt/decrypt success, progress reporting, wrong-password failure, and key-file combinations.
+- Add a core helper/API for generating a key file with cryptographically random bytes.
+- Pick the first CLI shape for generation, likely an encrypt-only option that writes a new key file before encryption or a small standalone command.
+- Preserve existing-key-file behavior and keep recovery warnings visible.
+- Cover generated-key-file round trips, overwrite protection, path validation, and recovery/help messaging.
 
 Recommended follow-up work:
 
-- Start key-file generation or batch individual-file compression defaults after CLI compression controls are tested.
+- Start batch individual-file workflows or compression defaults after key-file generation is tested.

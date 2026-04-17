@@ -4,9 +4,11 @@ FileCrypter is a local-first file encryption product for protecting files before
 
 ## Current Phase
 
-Phase 1: file format draft and header parser.
+Phase 2: single-file encryption/decryption foundation.
 
-The repository now has the initial .NET solution scaffold plus a draft v1 encrypted file format and internal header parser validation tests. It intentionally does not implement encryption, decryption, CLI commands, compression behavior, or archive workflows yet.
+The repository has a reusable .NET core library, a minimal CLI host, a documented v1 encrypted file format, and tests for password-only and password plus key-file single-file workflows. The CLI supports safe staged encrypt/decrypt operations, overwrite protection, progress reporting, existing key files, and optional Zstandard compression with `encrypt --compress`.
+
+Archive mode, batch workflows, key-file generation, settings, and graphical UI work are still future phases.
 
 ## Solution Layout
 
@@ -18,6 +20,7 @@ FileCrypterDotNet/
     FileCrypter.Cli/
   tests/
     FileCrypter.Core.Tests/
+    FileCrypter.Cli.Tests/
   docs/
     planning-brief.md
     file-format.md

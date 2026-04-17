@@ -58,6 +58,7 @@ internal sealed class FileCrypterCommand
         string? password = null;
         string? keyFilePath = null;
         bool overwrite = false;
+        bool compress = false;
 
         for (int index = 2; index < args.Length; index++)
         {
@@ -88,6 +89,15 @@ internal sealed class FileCrypterCommand
 
                 case "--overwrite":
                     overwrite = true;
+                    break;
+
+                case "--compress":
+                    if (!encrypt)
+                    {
+                        return WriteError("--compress is only supported with encrypt.");
+                    }
+
+                    compress = true;
                     break;
 
                 default:
@@ -123,7 +133,8 @@ internal sealed class FileCrypterCommand
 
         outputPath ??= encrypt ? inputPath + DefaultEncryptedSuffix : GetDefaultDecryptedPath(inputPath);
         long inputLength = new FileInfo(inputPath).Length;
-        FileCrypterOptions transformOptions = CreateTransformOptionsWithProgress(inputLength, encrypt);
+        (FileCrypterOptions transformOptions, CliProgressReporter progressReporter) =
+            CreateTransformOptionsWithProgress(inputLength, encrypt, compress);
         string finalOutputPath;
 
         if (encrypt)
@@ -161,6 +172,7 @@ internal sealed class FileCrypterCommand
                     overwrite).ConfigureAwait(false);
         }
 
+        progressReporter.ReportComplete();
         console.Out.WriteLine(finalOutputPath);
         return 0;
     }
@@ -209,23 +221,29 @@ internal sealed class FileCrypterCommand
             : inputPath + ".decrypted";
     }
 
-    private FileCrypterOptions CreateTransformOptionsWithProgress(long inputLength, bool encrypt)
+    private (FileCrypterOptions Options, CliProgressReporter Reporter) CreateTransformOptionsWithProgress(
+        long inputLength,
+        bool encrypt,
+        bool compress)
     {
         FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
+        var progressReporter = new CliProgressReporter(
+            console.Error,
+            encrypt ? "Encrypting" : "Decrypting",
+            inputLength,
+            sourceOptions.Progress);
 
-        return new FileCrypterOptions
+        var transformOptions = new FileCrypterOptions
         {
             ChunkSize = sourceOptions.ChunkSize,
             Argon2MemoryKiB = sourceOptions.Argon2MemoryKiB,
             Argon2Iterations = sourceOptions.Argon2Iterations,
             Argon2Parallelism = sourceOptions.Argon2Parallelism,
-            EnableCompression = sourceOptions.EnableCompression,
-            Progress = new CliProgressReporter(
-                console.Error,
-                encrypt ? "Encrypting" : "Decrypting",
-                inputLength,
-                sourceOptions.Progress),
+            EnableCompression = sourceOptions.EnableCompression || compress,
+            Progress = progressReporter,
         };
+
+        return (transformOptions, progressReporter);
     }
 
     private int WriteError(string message)
@@ -273,11 +291,12 @@ internal sealed class FileCrypterCommand
         console.Out.WriteLine(
             """
             Usage:
-              filecrypter encrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+              filecrypter encrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--compress] [--overwrite]
               filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
 
             If no password option is supplied, FileCrypter prompts without echoing the password when run interactively.
             If output is omitted, encryption appends .encrypted and decryption removes .encrypted when present.
+            Use --compress during encryption to reduce compatible payloads before encryption. Decryption detects compressed files automatically.
             Use --key-file with an existing key file for password plus key-file protection. The same key file is required
             for decryption; lost or changed key files cannot be recovered. Existing key files may be up to 16 MiB.
             """);
@@ -324,6 +343,20 @@ internal sealed class FileCrypterCommand
                 string.Create(
                     CultureInfo.InvariantCulture,
                     $"{label}: {percent}% ({processedInputBytes}/{totalInputBytes} bytes)"));
+        }
+
+        public void ReportComplete()
+        {
+            if (lastPercent == 100)
+            {
+                return;
+            }
+
+            lastPercent = 100;
+            writer.WriteLine(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{label}: 100% ({totalInputBytes}/{totalInputBytes} bytes)"));
         }
     }
 }

@@ -4,6 +4,8 @@ using FileCrypter.Core;
 public sealed class FileCrypterCommandTests
 {
     private const string Password = "correct horse battery staple";
+    private const int CompressionAlgorithmOffset = 16;
+    private const byte CompressionZstd = 1;
 
     [Fact]
     public async Task EncryptAndDecrypt_WithExplicitOutputs_Succeeds()
@@ -59,6 +61,85 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task EncryptAndDecrypt_WithCompression_SucceedsAndReportsProgress()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("compress me\n", 512)));
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--compress"]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["decrypt", encryptedPath, decryptedPath, "--password", Password]);
+
+        byte[] encryptedBytes = await File.ReadAllBytesAsync(encryptedPath);
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(CompressionZstd, encryptedBytes[CompressionAlgorithmOffset]);
+        Assert.Equal(Path.GetFullPath(encryptedPath) + Environment.NewLine, encryptConsole.Output);
+        Assert.Equal(Path.GetFullPath(decryptedPath) + Environment.NewLine, decryptConsole.Output);
+        Assert.Contains($"Encrypting: 100% ({plaintextBytes.Length}/{plaintextBytes.Length} bytes)", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Decrypting: 100% (", decryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
+    public async Task EncryptAndDecrypt_WithCompressionAndKeyFile_Succeeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("keyed compression\n", 512)));
+        byte[] keyFileBytes = Enumerable.Range(1, 32).Select(value => (byte)value).ToArray();
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await File.WriteAllBytesAsync(keyFilePath, keyFileBytes);
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--key-file", keyFilePath, "--compress"]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["decrypt", encryptedPath, decryptedPath, "--password", Password, "--key-file", keyFilePath]);
+
+        byte[] encryptedBytes = await File.ReadAllBytesAsync(encryptedPath);
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(CompressionZstd, encryptedBytes[CompressionAlgorithmOffset]);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
+    public async Task Decrypt_WithCompressedPayloadAndWrongPassword_FailsSafely()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("do not open\n", 512)));
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--compress"]);
+
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["decrypt", encryptedPath, decryptedPath, "--password", "wrong"]);
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(1, decryptExitCode);
+        Assert.Contains("AuthenticationFailed", decryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Check the password and key file, then try again.", decryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.False(File.Exists(decryptedPath));
+    }
+
+    [Fact]
     public async Task Encrypt_WhenPasswordIsMissingAndInputIsRedirected_Fails()
     {
         using var directory = new TemporaryDirectory();
@@ -81,6 +162,8 @@ public sealed class FileCrypterCommandTests
         int exitCode = await CreateCommand(console).RunAsync(["--help"]);
 
         Assert.Equal(0, exitCode);
+        Assert.Contains("--compress", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Decryption detects compressed files automatically", console.Output, StringComparison.Ordinal);
         Assert.Contains("lost or changed key files cannot be recovered", console.Output, StringComparison.Ordinal);
         Assert.Contains("Existing key files may be up to 16 MiB", console.Output, StringComparison.Ordinal);
         Assert.Empty(console.ErrorOutput);
