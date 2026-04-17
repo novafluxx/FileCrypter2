@@ -4,6 +4,7 @@
     <Project Path="src/FileCrypter.Core/FileCrypter.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/FileCrypter.Cli.Tests/FileCrypter.Cli.Tests.csproj" />
     <Project Path="tests/FileCrypter.Core.Tests/FileCrypter.Core.Tests.csproj" />
   </Folder>
 </Solution>

@@ -1,6 +1,6 @@
 namespace FileCrypter.Core.Format;
 
-internal enum FileCrypterFormatErrorCode
+public enum FileCrypterFormatErrorCode
 {
     TruncatedHeader,
     InvalidMagic,
@@ -16,4 +16,12 @@ internal enum FileCrypterFormatErrorCode
     UnsupportedArgon2Version,
     InvalidKeyFileHashAlgorithm,
     InvalidReservedBytes,
+    UnsupportedKeyFileRequirement,
+    TruncatedChunk,
+    InvalidChunkFlags,
+    InvalidChunkLength,
+    InvalidChunkReservedBytes,
+    TooManyChunks,
+    AuthenticationFailed,
+    TrailingData,
 }

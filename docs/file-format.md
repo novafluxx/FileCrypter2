@@ -2,7 +2,7 @@
 
 This document defines the draft v1 FileCrypter encrypted file format. The format is new for the .NET implementation; compatibility with earlier FileCrypter outputs is not required.
 
-Phase 1 documents and validates the header format only. Encryption, decryption, compression, archive handling, and CLI inspection are implemented in later phases.
+Phase 1 documents and validates the header format. Phase 2 starts password-only encryption/decryption for uncompressed single-file streams. Compression, archive handling, and richer CLI inspection are implemented in later phases.
 
 ## Naming
 
@@ -66,7 +66,7 @@ The future key derivation input is:
 
 ## Chunk Layout
 
-Encrypted payload data is a sequence of chunk frames. Chunk encryption is implemented in a later phase.
+Encrypted payload data is a sequence of chunk frames.
 
 | Offset | Size | Field | Value |
 | ---: | ---: | --- | --- |

@@ -24,6 +24,7 @@ internal static class FileCrypterFormatConstants
     public const int AesGcmNonceLength = 12;
     public const int AesGcmTagLength = 16;
     public const int DerivedKeyLength = 32;
+    public const int ChunkFramePrefixLength = 8;
 
     public const uint DefaultChunkSize = 1_048_576;
     public const uint MinimumChunkSize = 65_536;
@@ -37,6 +38,9 @@ internal static class FileCrypterFormatConstants
 
     public const byte KeyFileHashNone = 0;
     public const byte KeyFileHashSha256 = 1;
+
+    public const ushort ChunkFlagFinal = 0x0001;
+    public const ushort KnownChunkFlags = ChunkFlagFinal;
 
     public const long MaximumKeyFileSizeBytes = 16L * 1_024L * 1_024L;
 
