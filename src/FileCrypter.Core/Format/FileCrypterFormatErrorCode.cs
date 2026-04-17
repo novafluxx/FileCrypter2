@@ -17,6 +17,7 @@ public enum FileCrypterFormatErrorCode
     InvalidKeyFileHashAlgorithm,
     InvalidReservedBytes,
     UnsupportedKeyFileRequirement,
+    KeyFileRequired,
     TruncatedChunk,
     InvalidChunkFlags,
     InvalidChunkLength,

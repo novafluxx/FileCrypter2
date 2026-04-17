@@ -12,8 +12,18 @@ internal static class FileCrypterKeyDeriver
 
     public static byte[] DerivePasswordOnlyKey(string password, FileCrypterHeader header)
     {
+        return DeriveKey(password, header, keyFileBytes: default, useKeyFile: false);
+    }
+
+    public static byte[] DeriveKey(
+        string password,
+        FileCrypterHeader header,
+        ReadOnlySpan<byte> keyFileBytes,
+        bool useKeyFile)
+    {
         byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
-        byte[] preimage = CreateCredentialPreimage(passwordBytes);
+        byte[]? keyFileDigest = useKeyFile ? SHA256.HashData(keyFileBytes) : null;
+        byte[] preimage = CreateCredentialPreimage(passwordBytes, keyFileDigest);
 
         try
         {
@@ -30,25 +40,32 @@ internal static class FileCrypterKeyDeriver
         finally
         {
             CryptographicOperations.ZeroMemory(passwordBytes);
+            if (keyFileDigest is not null)
+            {
+                CryptographicOperations.ZeroMemory(keyFileDigest);
+            }
+
             CryptographicOperations.ZeroMemory(preimage);
         }
     }
 
-    private static byte[] CreateCredentialPreimage(ReadOnlySpan<byte> passwordBytes)
+    private static byte[] CreateCredentialPreimage(
+        ReadOnlySpan<byte> passwordBytes,
+        ReadOnlySpan<byte> keyFileDigest)
     {
         checked
         {
             int preimageLength =
                 sizeof(uint) + CredentialDomain.Length +
                 sizeof(uint) + passwordBytes.Length +
-                sizeof(uint);
+                sizeof(uint) + keyFileDigest.Length;
 
             byte[] preimage = new byte[preimageLength];
             Span<byte> destination = preimage;
 
             WriteLengthPrefixed(CredentialDomain, ref destination);
             WriteLengthPrefixed(passwordBytes, ref destination);
-            BinaryPrimitives.WriteUInt32LittleEndian(destination.Slice(0, sizeof(uint)), 0);
+            WriteLengthPrefixed(keyFileDigest, ref destination);
 
             return preimage;
         }

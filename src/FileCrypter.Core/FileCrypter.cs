@@ -7,6 +7,8 @@ namespace FileCrypter.Core;
 
 public static class FileCrypter
 {
+    private const UnixFileMode PrivateFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+
     public static Task<string> EncryptFileAsync(
         string plaintextPath,
         string encryptedPath,
@@ -19,6 +21,27 @@ public static class FileCrypter
             plaintextPath,
             encryptedPath,
             password,
+            keyFilePath: null,
+            options,
+            overwrite,
+            encrypt: true,
+            cancellationToken);
+    }
+
+    public static Task<string> EncryptFileAsync(
+        string plaintextPath,
+        string encryptedPath,
+        string password,
+        string keyFilePath,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return TransformFileAsync(
+            plaintextPath,
+            encryptedPath,
+            password,
+            keyFilePath,
             options,
             overwrite,
             encrypt: true,
@@ -37,6 +60,27 @@ public static class FileCrypter
             encryptedPath,
             plaintextPath,
             password,
+            keyFilePath: null,
+            options,
+            overwrite,
+            encrypt: false,
+            cancellationToken);
+    }
+
+    public static Task<string> DecryptFileAsync(
+        string encryptedPath,
+        string plaintextPath,
+        string password,
+        string keyFilePath,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return TransformFileAsync(
+            encryptedPath,
+            plaintextPath,
+            password,
+            keyFilePath,
             options,
             overwrite,
             encrypt: false,
@@ -50,6 +94,40 @@ public static class FileCrypter
         FileCrypterOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        await EncryptAsyncCore(
+            plaintext,
+            encrypted,
+            password,
+            keyFileBytes: null,
+            options,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public static async Task EncryptAsync(
+        Stream plaintext,
+        Stream encrypted,
+        string password,
+        ReadOnlyMemory<byte> keyFileBytes,
+        FileCrypterOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        await EncryptAsyncCore(
+            plaintext,
+            encrypted,
+            password,
+            keyFileBytes,
+            options,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task EncryptAsyncCore(
+        Stream plaintext,
+        Stream encrypted,
+        string password,
+        ReadOnlyMemory<byte>? keyFileBytes,
+        FileCrypterOptions? options,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(plaintext);
         ArgumentNullException.ThrowIfNull(encrypted);
         ArgumentNullException.ThrowIfNull(password);
@@ -62,9 +140,22 @@ public static class FileCrypter
         byte[] noncePrefix = new byte[FileCrypterFormatConstants.NoncePrefixLength];
         FillRandom(salt, options);
         FillRandom(noncePrefix, options);
-        FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, options, salt, noncePrefix);
+        if (keyFileBytes.HasValue)
+        {
+            FileCrypterHeaderWriter.WriteKeyFileRequired(headerBytes, options, salt, noncePrefix);
+        }
+        else
+        {
+            FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, options, salt, noncePrefix);
+        }
+
         FileCrypterHeader header = FileCrypterHeaderParser.Parse(headerBytes);
-        byte[] key = FileCrypterKeyDeriver.DerivePasswordOnlyKey(password, header);
+        ReadOnlyMemory<byte> keyFileMaterial = keyFileBytes.GetValueOrDefault();
+        byte[] key = FileCrypterKeyDeriver.DeriveKey(
+            password,
+            header,
+            keyFileMaterial.Span,
+            useKeyFile: keyFileBytes.HasValue);
 
         try
         {
@@ -142,6 +233,40 @@ public static class FileCrypter
         FileCrypterOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        await DecryptAsyncCore(
+            encrypted,
+            plaintext,
+            password,
+            keyFileBytes: null,
+            options,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public static async Task DecryptAsync(
+        Stream encrypted,
+        Stream plaintext,
+        string password,
+        ReadOnlyMemory<byte> keyFileBytes,
+        FileCrypterOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        await DecryptAsyncCore(
+            encrypted,
+            plaintext,
+            password,
+            keyFileBytes,
+            options,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task DecryptAsyncCore(
+        Stream encrypted,
+        Stream plaintext,
+        string password,
+        ReadOnlyMemory<byte>? keyFileBytes,
+        FileCrypterOptions? options,
+        CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(encrypted);
         ArgumentNullException.ThrowIfNull(plaintext);
         ArgumentNullException.ThrowIfNull(password);
@@ -156,9 +281,14 @@ public static class FileCrypter
         }
 
         FileCrypterHeader header = FileCrypterHeaderParser.Parse(headerBytes);
-        ValidateSupportedPayload(header);
+        ValidateSupportedPayload(header, keyFileBytes.HasValue);
 
-        byte[] key = FileCrypterKeyDeriver.DerivePasswordOnlyKey(password, header);
+        ReadOnlyMemory<byte> keyFileMaterial = keyFileBytes.GetValueOrDefault();
+        byte[] key = FileCrypterKeyDeriver.DeriveKey(
+            password,
+            header,
+            keyFileMaterial.Span,
+            useKeyFile: header.IsKeyFileRequired);
 
         try
         {
@@ -279,6 +409,7 @@ public static class FileCrypter
         string inputPath,
         string outputPath,
         string password,
+        string? keyFilePath,
         FileCrypterOptions? options,
         bool overwrite,
         bool encrypt,
@@ -290,22 +421,42 @@ public static class FileCrypter
 
         string fullInputPath = Path.GetFullPath(inputPath);
         string fullOutputPath = Path.GetFullPath(outputPath);
+        string? fullKeyFilePath = keyFilePath is null ? null : Path.GetFullPath(keyFilePath);
+
+        ValidateInputPath(fullInputPath);
+        ValidateOutputPath(fullOutputPath, overwrite);
+        if (fullKeyFilePath is not null)
+        {
+            ValidateKeyFilePath(fullKeyFilePath);
+        }
 
         if (!overwrite)
         {
             fullOutputPath = GetAvailableOutputPath(fullOutputPath);
         }
 
-        if (PathsEqual(fullInputPath, fullOutputPath))
+        if (PathsEqual(ResolvePathForCollision(fullInputPath), ResolvePathForCollision(fullOutputPath)))
         {
             throw new ArgumentException("The input and output paths must be different.", nameof(outputPath));
         }
 
+        if (fullKeyFilePath is not null &&
+            PathsEqual(ResolvePathForCollision(fullKeyFilePath), ResolvePathForCollision(fullOutputPath)))
+        {
+            throw new ArgumentException("The key file and output paths must be different.", nameof(outputPath));
+        }
+
         string stagingPath = CreateStagingPath(fullOutputPath);
+        byte[]? keyFileBytes = null;
         bool completed = false;
 
         try
         {
+            if (fullKeyFilePath is not null)
+            {
+                keyFileBytes = await ReadKeyFileAsync(fullKeyFilePath, cancellationToken).ConfigureAwait(false);
+            }
+
             await using FileStream input = new(
                 fullInputPath,
                 FileMode.Open,
@@ -316,19 +467,29 @@ public static class FileCrypter
 
             await using (FileStream output = new(
                 stagingPath,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None,
-                bufferSize: 81920,
-                FileOptions.SequentialScan))
+                CreateOutputFileStreamOptions()))
             {
                 if (encrypt)
                 {
-                    await EncryptAsync(input, output, password, options, cancellationToken).ConfigureAwait(false);
+                    if (keyFileBytes is null)
+                    {
+                        await EncryptAsync(input, output, password, options, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await EncryptAsync(input, output, password, keyFileBytes, options, cancellationToken).ConfigureAwait(false);
+                    }
                 }
                 else
                 {
-                    await DecryptAsync(input, output, password, options, cancellationToken).ConfigureAwait(false);
+                    if (keyFileBytes is null)
+                    {
+                        await DecryptAsync(input, output, password, options, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await DecryptAsync(input, output, password, keyFileBytes, options, cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
 
@@ -338,11 +499,134 @@ public static class FileCrypter
         }
         finally
         {
+            if (keyFileBytes is not null)
+            {
+                CryptographicOperations.ZeroMemory(keyFileBytes);
+            }
+
             if (!completed)
             {
                 TryDeleteFile(stagingPath);
             }
         }
+    }
+
+    private static void ValidateInputPath(string fullInputPath)
+    {
+        if (Directory.Exists(fullInputPath))
+        {
+            throw new IOException("The input path points to a directory.");
+        }
+
+        if (IsSymbolicLink(fullInputPath))
+        {
+            throw new IOException("The input path must not be a symbolic link.");
+        }
+    }
+
+    private static void ValidateKeyFilePath(string fullKeyFilePath)
+    {
+        if (Directory.Exists(fullKeyFilePath))
+        {
+            throw new IOException("The key file path points to a directory.");
+        }
+
+        if (IsSymbolicLink(fullKeyFilePath))
+        {
+            throw new IOException("The key file path must not be a symbolic link.");
+        }
+    }
+
+    private static void ValidateOutputPath(string fullOutputPath, bool overwrite)
+    {
+        string? outputDirectory = Path.GetDirectoryName(fullOutputPath);
+        string outputFileName = Path.GetFileName(fullOutputPath);
+
+        if (string.IsNullOrEmpty(outputDirectory) || string.IsNullOrEmpty(outputFileName))
+        {
+            throw new ArgumentException("The output path must include a file name.", nameof(fullOutputPath));
+        }
+
+        if (!Directory.Exists(outputDirectory))
+        {
+            throw new DirectoryNotFoundException($"The output directory does not exist: {outputDirectory}");
+        }
+
+        if (Directory.Exists(fullOutputPath))
+        {
+            throw new IOException("The output path points to a directory.");
+        }
+
+        if (overwrite && IsSymbolicLink(fullOutputPath))
+        {
+            throw new IOException("The output path must not be a symbolic link.");
+        }
+    }
+
+    private static FileStreamOptions CreateOutputFileStreamOptions()
+    {
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+            BufferSize = 81920,
+            Options = FileOptions.SequentialScan,
+        };
+
+        if (!OperatingSystem.IsWindows())
+        {
+            options.UnixCreateMode = PrivateFileMode;
+        }
+
+        return options;
+    }
+
+    private static async Task<byte[]> ReadKeyFileAsync(string fullKeyFilePath, CancellationToken cancellationToken)
+    {
+        await using FileStream keyFile = new(
+            fullKeyFilePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 81920,
+            FileOptions.SequentialScan);
+
+        if (keyFile.Length > FileCrypterFormatConstants.MaximumKeyFileSizeBytes)
+        {
+            throw new IOException(
+                $"The key file is too large. The maximum supported key file size is {FileCrypterFormatConstants.MaximumKeyFileSizeBytes} bytes.");
+        }
+
+        byte[] keyFileBytes = new byte[checked((int)keyFile.Length)];
+        int bytesRead = await ReadChunkAsync(keyFile, keyFileBytes, cancellationToken).ConfigureAwait(false);
+        if (bytesRead != keyFileBytes.Length)
+        {
+            throw new IOException("The key file could not be read completely.");
+        }
+
+        byte[] trailingByte = new byte[1];
+        int trailingBytesRead = await keyFile.ReadAsync(trailingByte, cancellationToken).ConfigureAwait(false);
+        if (trailingBytesRead != 0)
+        {
+            CryptographicOperations.ZeroMemory(keyFileBytes);
+            throw new IOException(
+                $"The key file is too large. The maximum supported key file size is {FileCrypterFormatConstants.MaximumKeyFileSizeBytes} bytes.");
+        }
+
+        return keyFileBytes;
+    }
+
+    private static bool IsSymbolicLink(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        if (fileInfo.LinkTarget is not null)
+        {
+            return true;
+        }
+
+        var directoryInfo = new DirectoryInfo(path);
+        return directoryInfo.LinkTarget is not null;
     }
 
     private static void ValidateEncryptionOptions(FileCrypterOptions options)
@@ -386,7 +670,7 @@ public static class FileCrypter
 
     private static string GetAvailableOutputPath(string fullOutputPath)
     {
-        if (!File.Exists(fullOutputPath) && !Directory.Exists(fullOutputPath))
+        if (!PathExistsOrSymbolicLink(fullOutputPath))
         {
             return fullOutputPath;
         }
@@ -403,13 +687,92 @@ public static class FileCrypter
         for (int suffix = 1; suffix < int.MaxValue; suffix++)
         {
             string candidatePath = Path.Combine(directory, $"{fileNameWithoutExtension} ({suffix}){extension}");
-            if (!File.Exists(candidatePath) && !Directory.Exists(candidatePath))
+            if (!PathExistsOrSymbolicLink(candidatePath))
             {
                 return candidatePath;
             }
         }
 
         throw new IOException("No available auto-renamed output path could be found.");
+    }
+
+    private static bool PathExistsOrSymbolicLink(string path)
+    {
+        return File.Exists(path) || Directory.Exists(path) || IsSymbolicLink(path);
+    }
+
+    private static string ResolvePathForCollision(string fullPath)
+    {
+        string? directory = Path.GetDirectoryName(fullPath);
+        string fileName = Path.GetFileName(fullPath);
+        if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(fileName))
+        {
+            return fullPath;
+        }
+
+        string resolvedDirectory = ResolveExistingPath(directory);
+        string pathInResolvedDirectory = Path.Combine(resolvedDirectory, fileName);
+        return PathExistsOrSymbolicLink(pathInResolvedDirectory)
+            ? ResolveExistingPath(pathInResolvedDirectory)
+            : Path.GetFullPath(pathInResolvedDirectory);
+    }
+
+    private static string ResolveExistingPath(string fullPath)
+    {
+        string? root = Path.GetPathRoot(fullPath);
+        if (string.IsNullOrEmpty(root))
+        {
+            return Path.GetFullPath(fullPath);
+        }
+
+        string relativePath = Path.GetRelativePath(root, fullPath);
+        if (relativePath == ".")
+        {
+            return root;
+        }
+
+        string currentPath = root;
+        string[] pathParts = relativePath.Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (string pathPart in pathParts)
+        {
+            string candidatePath = Path.Combine(currentPath, pathPart);
+            string? targetPath = GetResolvedSymbolicLinkTarget(candidatePath);
+            currentPath = targetPath ?? candidatePath;
+        }
+
+        return Path.GetFullPath(currentPath);
+    }
+
+    private static string? GetResolvedSymbolicLinkTarget(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        if (fileInfo.LinkTarget is not null)
+        {
+            return ResolveSymbolicLinkTarget(fileInfo, path);
+        }
+
+        var directoryInfo = new DirectoryInfo(path);
+        return directoryInfo.LinkTarget is not null
+            ? ResolveSymbolicLinkTarget(directoryInfo, path)
+            : null;
+    }
+
+    private static string ResolveSymbolicLinkTarget(FileSystemInfo linkInfo, string linkPath)
+    {
+        FileSystemInfo? resolvedTarget = linkInfo.ResolveLinkTarget(returnFinalTarget: true);
+        if (resolvedTarget is not null)
+        {
+            return resolvedTarget.FullName;
+        }
+
+        string linkTarget = linkInfo.LinkTarget ?? throw new IOException($"The symbolic link target could not be read: {linkPath}");
+        return Path.GetFullPath(
+            Path.IsPathRooted(linkTarget)
+                ? linkTarget
+                : Path.Combine(Path.GetDirectoryName(linkPath) ?? string.Empty, linkTarget));
     }
 
     private static bool PathsEqual(string left, string right)
@@ -432,13 +795,13 @@ public static class FileCrypter
         }
     }
 
-    private static void ValidateSupportedPayload(FileCrypterHeader header)
+    private static void ValidateSupportedPayload(FileCrypterHeader header, bool keyFileSupplied)
     {
-        if (header.IsKeyFileRequired)
+        if (header.IsKeyFileRequired && !keyFileSupplied)
         {
             throw new FileCrypterFormatException(
-                FileCrypterFormatErrorCode.UnsupportedKeyFileRequirement,
-                "This FileCrypter operation does not support key-file encrypted payloads yet.");
+                FileCrypterFormatErrorCode.KeyFileRequired,
+                "This FileCrypter payload requires the matching key file.");
         }
 
         if (header.CompressionAlgorithmId != FileCrypterFormatConstants.CompressionNone)

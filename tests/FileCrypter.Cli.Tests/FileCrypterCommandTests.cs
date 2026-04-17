@@ -26,6 +26,35 @@ public sealed class FileCrypterCommandTests
         Assert.Equal(0, decryptExitCode);
         Assert.Equal(Path.GetFullPath(encryptedPath) + Environment.NewLine, encryptConsole.Output);
         Assert.Equal(Path.GetFullPath(decryptedPath) + Environment.NewLine, decryptConsole.Output);
+        Assert.Contains($"Encrypting: 100% ({plaintextBytes.Length}/{plaintextBytes.Length} bytes)", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Decrypting: 100% (", decryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
+    public async Task EncryptAndDecrypt_WithKeyFile_Succeeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("cli key file round trip");
+        byte[] keyFileBytes = Enumerable.Range(1, 32).Select(value => (byte)value).ToArray();
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await File.WriteAllBytesAsync(keyFilePath, keyFileBytes);
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--key-file", keyFilePath]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["decrypt", encryptedPath, decryptedPath, "--password", Password, "--key-file", keyFilePath]);
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(Path.GetFullPath(encryptedPath) + Environment.NewLine, encryptConsole.Output);
+        Assert.Equal(Path.GetFullPath(decryptedPath) + Environment.NewLine, decryptConsole.Output);
         Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
     }
 
@@ -98,6 +127,49 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task Decrypt_ReportsProgressToErrorWithoutChangingOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = plaintextPath + ".encrypted";
+        string decryptedPath = plaintextPath + ".decrypted";
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("secret");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await FileCrypter.Core.FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            CreateFastOptions());
+        long encryptedLength = new FileInfo(encryptedPath).Length;
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["decrypt", encryptedPath, decryptedPath, "--password", Password]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(Path.GetFullPath(decryptedPath) + Environment.NewLine, console.Output);
+        Assert.Contains($"Decrypting: 100% ({encryptedLength}/{encryptedLength} bytes)", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenProgressCallbackIsSupplied_ReportsToCallbackAndError()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = plaintextPath + ".encrypted";
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var progressReports = new List<FileCrypterProgress>();
+        var options = CreateFastOptions(new CallbackProgress(progressReports.Add));
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, options).RunAsync(["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+
+        Assert.Equal(0, exitCode);
+        Assert.NotEmpty(progressReports);
+        Assert.Contains("Encrypting: 100%", console.ErrorOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Encrypt_WhenOutputExistsWithoutOverwrite_AutoRenamesOutput()
     {
         using var directory = new TemporaryDirectory();
@@ -163,7 +235,114 @@ public sealed class FileCrypterCommandTests
 
         Assert.Equal(1, exitCode);
         Assert.Contains("AuthenticationFailed", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Check the password and key file, then try again.", console.ErrorOutput, StringComparison.Ordinal);
         Assert.False(File.Exists(decryptedPath));
+    }
+
+    [Fact]
+    public async Task Decrypt_WhenKeyFileIsRequiredButMissing_FailsWithHint()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        await FileCrypter.Core.FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            keyFilePath,
+            CreateFastOptions());
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["decrypt", encryptedPath, decryptedPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("KeyFileRequired", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Provide the matching key file with --key-file.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.False(File.Exists(decryptedPath));
+    }
+
+    [Fact]
+    public async Task Decrypt_WithMalformedInput_FailsWithTroubleshooting()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "not-filecrypter.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "out.txt");
+        await File.WriteAllBytesAsync(encryptedPath, Enumerable.Range(0, 64).Select(value => (byte)value).ToArray());
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["decrypt", encryptedPath, decryptedPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("InvalidMagic", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Choose a FileCrypter .encrypted file", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(decryptedPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenOutputDirectoryIsMissing_FailsWithPathTroubleshooting()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "missing", "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("output directory already exists", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(encryptedPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenKeyFileIsTooLarge_FailsWithPathTroubleshooting()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "too-large.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        await using (FileStream keyFile = File.Create(keyFilePath))
+        {
+            keyFile.SetLength((16L * 1_024L * 1_024L) + 1);
+        }
+
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--key-file", keyFilePath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("key file is too large", console.ErrorOutput, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(encryptedPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenOverwriteOutputMatchesInput_FailsWithPathTroubleshooting()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("keep the input");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["encrypt", plaintextPath, plaintextPath, "--password", Password, "--overwrite"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("input and output paths must be different", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(plaintextPath));
     }
 
     [Fact]
@@ -183,12 +362,12 @@ public sealed class FileCrypterCommandTests
         Assert.DoesNotContain(Password, console.ErrorOutput, StringComparison.Ordinal);
     }
 
-    private static FileCrypterCommand CreateCommand(TestConsole console)
+    private static FileCrypterCommand CreateCommand(TestConsole console, FileCrypterOptions? options = null)
     {
-        return new FileCrypterCommand(console, CreateFastOptions());
+        return new FileCrypterCommand(console, options ?? CreateFastOptions());
     }
 
-    private static FileCrypterOptions CreateFastOptions()
+    private static FileCrypterOptions CreateFastOptions(IProgress<FileCrypterProgress>? progress = null)
     {
         return new FileCrypterOptions
         {
@@ -196,7 +375,23 @@ public sealed class FileCrypterCommandTests
             Argon2MemoryKiB = 1024,
             Argon2Iterations = 1,
             Argon2Parallelism = 1,
+            Progress = progress,
         };
+    }
+
+    private sealed class CallbackProgress : IProgress<FileCrypterProgress>
+    {
+        private readonly Action<FileCrypterProgress> callback;
+
+        public CallbackProgress(Action<FileCrypterProgress> callback)
+        {
+            this.callback = callback;
+        }
+
+        public void Report(FileCrypterProgress value)
+        {
+            callback(value);
+        }
     }
 
     private sealed class TestConsole : IFileCrypterConsole

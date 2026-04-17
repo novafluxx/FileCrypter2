@@ -39,4 +39,29 @@ public sealed class FileCrypterHeaderWriterTests
         Assert.Equal(noncePrefix, header.NoncePrefix.ToArray());
         Assert.Equal(0u, BinaryPrimitives.ReadUInt32LittleEndian(headerBytes.AsSpan(FileCrypterFormatConstants.ReservedOffset)));
     }
+
+    [Fact]
+    public void WriteKeyFileRequired_WritesParseableHeader()
+    {
+        var options = new FileCrypterOptions
+        {
+            ChunkSize = (int)FileCrypterFormatConstants.MinimumChunkSize,
+            Argon2MemoryKiB = 1024,
+            Argon2Iterations = 1,
+            Argon2Parallelism = 1,
+        };
+        byte[] salt = Enumerable.Range(1, FileCrypterFormatConstants.SaltLength).Select(value => (byte)value).ToArray();
+        byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
+        byte[] headerBytes = new byte[FileCrypterFormatConstants.HeaderLength];
+
+        FileCrypterHeaderWriter.WriteKeyFileRequired(headerBytes, options, salt, noncePrefix);
+
+        FileCrypterHeader header = FileCrypterHeaderParser.Parse(headerBytes);
+        Assert.True(header.IsKeyFileRequired);
+        Assert.Equal(FileCrypterFormatConstants.HeaderFlagKeyFileRequired, header.HeaderFlags);
+        Assert.Equal(FileCrypterFormatConstants.KeyFileHashSha256, header.KeyFileHashAlgorithmId);
+        Assert.Equal(salt, header.Salt.ToArray());
+        Assert.Equal(noncePrefix, header.NoncePrefix.ToArray());
+        Assert.Equal(0u, BinaryPrimitives.ReadUInt32LittleEndian(headerBytes.AsSpan(FileCrypterFormatConstants.ReservedOffset)));
+    }
 }

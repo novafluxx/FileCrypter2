@@ -1,3 +1,4 @@
+using System.Globalization;
 using FileCrypter.Core;
 using FileCrypter.Core.Format;
 
@@ -33,11 +34,15 @@ internal sealed class FileCrypterCommand
         }
         catch (FileCrypterFormatException exception)
         {
-            return WriteError($"{exception.Message} ({exception.Code})");
+            return WriteFormatError(exception);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return WriteError(exception.Message);
+            return WritePathError(exception.Message);
+        }
+        catch (ArgumentException exception)
+        {
+            return WritePathError(exception.Message);
         }
     }
 
@@ -51,6 +56,7 @@ internal sealed class FileCrypterCommand
         string inputPath = args[1];
         string? outputPath = null;
         string? password = null;
+        string? keyFilePath = null;
         bool overwrite = false;
 
         for (int index = 2; index < args.Length; index++)
@@ -69,6 +75,15 @@ internal sealed class FileCrypterCommand
 
                 case "--password-stdin":
                     password = await console.In.ReadLineAsync().ConfigureAwait(false);
+                    break;
+
+                case "--key-file":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --key-file.");
+                    }
+
+                    keyFilePath = args[index];
                     break;
 
                 case "--overwrite":
@@ -107,25 +122,43 @@ internal sealed class FileCrypterCommand
         }
 
         outputPath ??= encrypt ? inputPath + DefaultEncryptedSuffix : GetDefaultDecryptedPath(inputPath);
+        long inputLength = new FileInfo(inputPath).Length;
+        FileCrypterOptions transformOptions = CreateTransformOptionsWithProgress(inputLength, encrypt);
         string finalOutputPath;
 
         if (encrypt)
         {
-            finalOutputPath = await FileCrypter.Core.FileCrypter.EncryptFileAsync(
-                inputPath,
-                outputPath,
-                password,
-                options,
-                overwrite).ConfigureAwait(false);
+            finalOutputPath = keyFilePath is null
+                ? await FileCrypter.Core.FileCrypter.EncryptFileAsync(
+                    inputPath,
+                    outputPath,
+                    password,
+                    transformOptions,
+                    overwrite).ConfigureAwait(false)
+                : await FileCrypter.Core.FileCrypter.EncryptFileAsync(
+                    inputPath,
+                    outputPath,
+                    password,
+                    keyFilePath,
+                    transformOptions,
+                    overwrite).ConfigureAwait(false);
         }
         else
         {
-            finalOutputPath = await FileCrypter.Core.FileCrypter.DecryptFileAsync(
-                inputPath,
-                outputPath,
-                password,
-                options,
-                overwrite).ConfigureAwait(false);
+            finalOutputPath = keyFilePath is null
+                ? await FileCrypter.Core.FileCrypter.DecryptFileAsync(
+                    inputPath,
+                    outputPath,
+                    password,
+                    transformOptions,
+                    overwrite).ConfigureAwait(false)
+                : await FileCrypter.Core.FileCrypter.DecryptFileAsync(
+                    inputPath,
+                    outputPath,
+                    password,
+                    keyFilePath,
+                    transformOptions,
+                    overwrite).ConfigureAwait(false);
         }
 
         console.Out.WriteLine(finalOutputPath);
@@ -176,9 +209,59 @@ internal sealed class FileCrypterCommand
             : inputPath + ".decrypted";
     }
 
+    private FileCrypterOptions CreateTransformOptionsWithProgress(long inputLength, bool encrypt)
+    {
+        FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
+
+        return new FileCrypterOptions
+        {
+            ChunkSize = sourceOptions.ChunkSize,
+            Argon2MemoryKiB = sourceOptions.Argon2MemoryKiB,
+            Argon2Iterations = sourceOptions.Argon2Iterations,
+            Argon2Parallelism = sourceOptions.Argon2Parallelism,
+            Progress = new CliProgressReporter(
+                console.Error,
+                encrypt ? "Encrypting" : "Decrypting",
+                inputLength,
+                sourceOptions.Progress),
+        };
+    }
+
     private int WriteError(string message)
     {
         console.Error.WriteLine(message);
+        return 1;
+    }
+
+    private int WriteFormatError(FileCrypterFormatException exception)
+    {
+        console.Error.WriteLine($"{exception.Message} ({exception.Code})");
+        string? hint = exception.Code switch
+        {
+            FileCrypterFormatErrorCode.AuthenticationFailed =>
+                "Check the password and key file, then try again.",
+            FileCrypterFormatErrorCode.KeyFileRequired =>
+                "Provide the matching key file with --key-file.",
+            FileCrypterFormatErrorCode.InvalidMagic =>
+                "Choose a FileCrypter .encrypted file produced by this app.",
+            FileCrypterFormatErrorCode.TruncatedHeader or FileCrypterFormatErrorCode.TruncatedChunk =>
+                "The encrypted file appears incomplete or damaged. Try a fresh copy of the file.",
+            FileCrypterFormatErrorCode.UnsupportedVersion or
+            FileCrypterFormatErrorCode.UnsupportedCompressionAlgorithm or
+            FileCrypterFormatErrorCode.UnsupportedPayloadKind or
+            FileCrypterFormatErrorCode.UnsupportedKeyFileRequirement =>
+                "This FileCrypter build cannot open that payload yet.",
+            _ => "The encrypted file metadata or payload is not valid for this FileCrypter version.",
+        };
+
+        console.Error.WriteLine(hint);
+        return 1;
+    }
+
+    private int WritePathError(string message)
+    {
+        console.Error.WriteLine($"Path error: {message}");
+        console.Error.WriteLine("Check that the input and output paths are files you can access, and that the output directory already exists.");
         return 1;
     }
 
@@ -187,11 +270,56 @@ internal sealed class FileCrypterCommand
         console.Out.WriteLine(
             """
             Usage:
-              filecrypter encrypt <input> [output] [--password <password> | --password-stdin] [--overwrite]
-              filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--overwrite]
+              filecrypter encrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+              filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
 
             If no password option is supplied, FileCrypter prompts without echoing the password when run interactively.
             If output is omitted, encryption appends .encrypted and decryption removes .encrypted when present.
+            Use --key-file with an existing key file for password plus key-file protection.
             """);
+    }
+
+    private sealed class CliProgressReporter : IProgress<FileCrypterProgress>
+    {
+        private readonly TextWriter writer;
+        private readonly string label;
+        private readonly long totalInputBytes;
+        private readonly IProgress<FileCrypterProgress>? innerProgress;
+        private int lastPercent = -1;
+
+        public CliProgressReporter(
+            TextWriter writer,
+            string label,
+            long totalInputBytes,
+            IProgress<FileCrypterProgress>? innerProgress)
+        {
+            this.writer = writer;
+            this.label = label;
+            this.totalInputBytes = totalInputBytes;
+            this.innerProgress = innerProgress;
+        }
+
+        public void Report(FileCrypterProgress value)
+        {
+            innerProgress?.Report(value);
+
+            long processedInputBytes = totalInputBytes <= 0
+                ? 0
+                : Math.Min(value.InputBytes, totalInputBytes);
+            int percent = totalInputBytes <= 0
+                ? 100
+                : (int)Math.Min(100, processedInputBytes * 100 / totalInputBytes);
+
+            if (percent == lastPercent)
+            {
+                return;
+            }
+
+            lastPercent = percent;
+            writer.WriteLine(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{label}: {percent}% ({processedInputBytes}/{totalInputBytes} bytes)"));
+        }
     }
 }

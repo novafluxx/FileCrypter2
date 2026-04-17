@@ -56,13 +56,15 @@ Argon2id is the v1 password-based key derivation function. The derived key lengt
 
 Key files are optional. When the key-file-required flag is set, the key-file hash algorithm must be SHA-256. When the flag is not set, the key-file hash algorithm must be none.
 
-Existing key files are capped at 16 MiB to avoid accidental large-file selection and memory pressure. Generated key files are future Phase 4 work.
+Existing key-file encryption/decryption is implemented. Existing key files are capped at 16 MiB to avoid accidental large-file selection and memory pressure. Generated key files are future Phase 4 work.
 
-The future key derivation input is:
+The key derivation input is:
 
 1. Encode the password as UTF-8 without normalization inside the core.
-2. If a key file is supplied, hash the raw key-file bytes with SHA-256.
+2. When the header requires a key file, hash the raw key-file bytes with SHA-256.
 3. Feed Argon2id a length-prefixed credential preimage containing a domain label, password bytes, and the optional key-file digest.
+
+Supplying a key file while decrypting a password-only payload does not change the derived key, because password-only payloads do not include a key-file digest in the credential preimage.
 
 ## Chunk Layout
 
@@ -116,7 +118,35 @@ Version `1` readers must reject unsupported versions safely. Future versions may
 
 ## Test Vectors
 
-Future encryption phases should add deterministic test vectors using injected randomness for salt and nonce-prefix generation. Vectors should include the header bytes, plaintext, password, optional key-file bytes, ciphertext chunks, tags, and expected failure cases for tampering and truncation.
+The core test suite includes deterministic password-only vectors using injected randomness for salt and nonce-prefix generation. These vectors use:
+
+- password: `correct horse battery staple`
+- chunk size: `65536`
+- Argon2 memory: `1024` KiB
+- Argon2 iterations: `1`
+- Argon2 parallelism: `1`
+- key file: none
+- compression: none
+
+The `RandomStart` value means the injected random stream is sequential bytes beginning at that decimal value. For example, `RandomStart = 0` supplies salt bytes `00..0F` and nonce-prefix bytes `10..17`.
+
+| Name | Plaintext | RandomStart | Encrypted length | Encrypted SHA-256 |
+| --- | --- | ---: | ---: | --- |
+| `empty` | empty byte string | 0 | 88 | `EBFBAC483FFB75A805D456718D1C680119CA127ED289153FF1E5004935795084` |
+| `small-text` | UTF-8 `deterministic` | 0 | 101 | `236C3BCFE0BC19917619E64396C64310D4E381233FC4DC890A072A7A4B42B9AA` |
+| `chunk-boundary` | byte sequence `00..FF` repeated to 65536 bytes | 24 | 65648 | `126F2EB854EEDA5BC3F599FC1F4A504E6B0F05B584C5155C51334875970A9DA9` |
+| `multi-chunk` | byte sequence `FF..00` repeated to 65553 bytes | 48 | 65665 | `E3E3FAC63488BF0585F427875DAA0D8A02582A1F56C0B501C2CFD3B9FFDE4B5B` |
+
+Expected frame prefixes and tags:
+
+| Name | Chunk | Prefix | Tag |
+| --- | ---: | --- | --- |
+| `empty` | 0 | `0000000001000000` | `5005EAF8395E79184BB3EFC2482D76F3` |
+| `small-text` | 0 | `0D00000001000000` | `62A01FB62BE218125E3A13BC157843C6` |
+| `chunk-boundary` | 0 | `0000010000000000` | `CB60E5DC2A51F5762477B7373CE669A9` |
+| `chunk-boundary` | 1 | `0000000001000000` | `E935FB59E33E5AB1157DA6A004BF03F1` |
+| `multi-chunk` | 0 | `0000010000000000` | `1006D8D39F494D822E815878CC82E855` |
+| `multi-chunk` | 1 | `1100000001000000` | `DFC4382DC1018277617AB5B18C99D67F` |
 
 ## References
 
