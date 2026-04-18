@@ -66,6 +66,7 @@ codex/phase-1-file-format
 - Archive progress reporting now covers tar creation, archive encryption, archive decryption, and extraction phases through core progress callbacks and CLI stderr output.
 - CLI archive troubleshooting now points users to `archive-decrypt` when they try to use single-file `decrypt` on an archive payload, and points users back to `decrypt` when they try `archive-decrypt` on a single-file payload.
 - CLI batch item troubleshooting now includes format hints, including a specific `archive-decrypt` hint when `batch-decrypt` receives an archive payload.
+- `README.md` now reflects the current CLI surface, including single-file, compression, key-file generation, batch, archive, settings, smoke-test commands, and safety notes.
 
 ## Current Format Decisions
 
@@ -85,13 +86,19 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest batch-troubleshooting pass:
+These commands passed after the latest README-refresh pass:
+
+```bash
+dotnet test --no-build
+```
+
+Latest test count at handoff: 126 passed, 0 failed.
+
+A full build-and-test pass also passed after the latest CLI troubleshooting changes:
 
 ```bash
 dotnet test
 ```
-
-Latest test count at handoff: 126 passed, 0 failed.
 
 Focused CLI coverage also passed:
 
@@ -153,5 +160,4 @@ Broaden settings/help UX and CLI polish now that the archive foundation is in pl
 
 Recommended next slices:
 
-- Refresh `README.md` so first-run instructions match the current CLI, including batch, archive, key-file generation, settings, and the latest smoke-test commands.
-- Continue toward graphical UI once the remaining CLI contract is stable.
+- Continue toward graphical UI planning/prototyping now that the CLI contract is documented.
