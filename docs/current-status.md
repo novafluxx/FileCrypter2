@@ -9,7 +9,7 @@ Last updated: 2026-04-18.
 Current working branch:
 
 ```text
-codex/phase-1-file-format
+codex/avalonia-gui-shell
 ```
 
 ## Completed
@@ -69,6 +69,8 @@ codex/phase-1-file-format
 - `README.md` now reflects the current CLI surface, including single-file, compression, key-file generation, batch, archive, settings, smoke-test commands, and safety notes.
 - Avalonia 12.0.1 GUI work is started in `src/FileCrypter.App` with a desktop MVVM app shell, persistent sidebar navigation, placeholder Decrypt/Batch/Help/Settings pages, and an implemented single-file Encrypt view model wired to `FileCrypter.Core`.
 - GUI view model coverage lives in `tests/FileCrypter.App.Tests` and covers sidebar navigation, encrypt command validation, compression propagation, running-state behavior, success, and failure messaging.
+- The Encrypt page now keeps existing key-file selection and generated key-file output mutually exclusive, adds clearer user-facing guidance plus explicit clear actions, and labels generated key-file results in the success state.
+- App test coverage now includes the Encrypt page key-file choice behavior plus picker-service option forwarding for open/save dialogs; full native file-picker interaction remains a manual smoke-test concern.
 
 ## Current Format Decisions
 
@@ -88,15 +90,23 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest Avalonia GUI shell pass:
+These commands passed after the latest Encrypt-page UX pass:
 
 ```bash
-dotnet restore
 dotnet build
 dotnet test
+dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj --no-build
 ```
 
-Latest test count at handoff: 133 passed, 0 failed.
+Latest test count at handoff: 139 passed, 0 failed.
+
+GUI launch smoke coverage at handoff:
+
+```bash
+dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
+```
+
+The desktop app launch command stayed running until manually interrupted, which is a basic launch smoke signal. Native file-picker dialogs were not visually exercised end-to-end in automation and should still get a quick manual click-through on the target desktop.
 
 Focused CLI coverage also passed:
 
@@ -158,5 +168,4 @@ Continue the Avalonia GUI now that the shell and first encrypt workflow are scaf
 
 Recommended next slices:
 
-- Add real file-picker integration tests/manual coverage and tighten the Encrypt page UX around mutually exclusive key-file choices.
 - Add the single-file Decrypt page using the same app-service pattern.

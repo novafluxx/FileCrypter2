@@ -89,23 +89,46 @@
                              PlaceholderText="Password"
                              FontSize="20" />
 
-                    <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
+                    <TextBlock Text="Choose one optional key-file mode: reuse an existing key file or generate a new one for this file."
+                               Foreground="#b8b9b5"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding KeyFileChoiceStatusText}"
+                               Foreground="#9cc4ff"
+                               TextWrapping="Wrap" />
+
+                    <Grid ColumnDefinitions="*,140,96" ColumnSpacing="16">
                         <TextBox Text="{Binding KeyFilePath}"
+                                 IsEnabled="{Binding CanEditExistingKeyFileChoice}"
                                  PlaceholderText="Optional existing key file..."
                                  FontSize="18" />
                         <Button Grid.Column="1"
                                 Content="Browse"
                                 Command="{Binding BrowseKeyFileCommand}" />
+                        <Button Grid.Column="2"
+                                Content="Clear"
+                                Command="{Binding ClearKeyFileCommand}" />
                     </Grid>
+                    <TextBlock Text="Use a key file you already have. The same unchanged file is required to decrypt later."
+                               Foreground="#aaa"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
 
-                    <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
+                    <Grid ColumnDefinitions="*,140,96" ColumnSpacing="16">
                         <TextBox Text="{Binding GenerateKeyFilePath}"
+                                 IsEnabled="{Binding CanEditGeneratedKeyFileChoice}"
                                  PlaceholderText="Optional new key file path..."
                                  FontSize="18" />
                         <Button Grid.Column="1"
                                 Content="Browse"
                                 Command="{Binding BrowseGeneratedKeyFileCommand}" />
+                        <Button Grid.Column="2"
+                                Content="Clear"
+                                Command="{Binding ClearGeneratedKeyFileCommand}" />
                     </Grid>
+                    <TextBlock Text="Generate a fresh key file for this run. Keep that new file safe and unchanged."
+                               Foreground="#aaa"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
 
                     <TextBlock Text="If a key file is used, keep it unchanged. Losing it makes the encrypted file unrecoverable."
                                Foreground="#aaa"
@@ -146,6 +169,10 @@
                     <TextBlock Text="{Binding ResultPath}"
                                Foreground="#d8f1de"
                                TextWrapping="Wrap" />
+                    <TextBlock IsVisible="{Binding HasGeneratedKeyFileResult}"
+                               Text="Generated key file:"
+                               FontWeight="SemiBold"
+                               Foreground="#b8e6c2" />
                     <TextBlock IsVisible="{Binding HasGeneratedKeyFileResult}"
                                Text="{Binding GeneratedKeyFileResultPath}"
                                Foreground="#d8f1de"

@@ -37,9 +37,15 @@ public sealed partial class EncryptViewModel : ViewModelBase
     private bool neverOverwriteExistingFiles = true;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BrowseGeneratedKeyFileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearKeyFileCommand))]
     private string keyFilePath = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(BrowseGeneratedKeyFileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearGeneratedKeyFileCommand))]
     private string generateKeyFilePath = string.Empty;
 
     [ObservableProperty]
@@ -78,6 +84,22 @@ public sealed partial class EncryptViewModel : ViewModelBase
 
     public bool HasSelectedFile => !string.IsNullOrWhiteSpace(SourcePath);
 
+    public bool HasExistingKeyFileChoice => !string.IsNullOrWhiteSpace(KeyFilePath);
+
+    public bool HasGeneratedKeyFileChoice => !string.IsNullOrWhiteSpace(GenerateKeyFilePath);
+
+    public bool HasAnyKeyFileChoice => HasExistingKeyFileChoice || HasGeneratedKeyFileChoice;
+
+    public bool CanEditExistingKeyFileChoice => !IsRunning && !HasGeneratedKeyFileChoice;
+
+    public bool CanEditGeneratedKeyFileChoice => !IsRunning && !HasExistingKeyFileChoice;
+
+    public string KeyFileChoiceStatusText => HasExistingKeyFileChoice
+        ? "Using an existing key file as the optional second factor."
+        : HasGeneratedKeyFileChoice
+            ? "A new key file will be generated for this encryption run."
+            : "No key file selected. Encryption will use only the password.";
+
     public string OutputDisplayText => string.IsNullOrWhiteSpace(OutputPath)
         ? "Auto-generated from input filename..."
         : OutputPath;
@@ -94,6 +116,32 @@ public sealed partial class EncryptViewModel : ViewModelBase
     partial void OnOutputPathChanged(string value)
     {
         OnPropertyChanged(nameof(OutputDisplayText));
+    }
+
+    partial void OnIsRunningChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanEditExistingKeyFileChoice));
+        OnPropertyChanged(nameof(CanEditGeneratedKeyFileChoice));
+    }
+
+    partial void OnKeyFilePathChanged(string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(GenerateKeyFilePath))
+        {
+            GenerateKeyFilePath = string.Empty;
+        }
+
+        OnKeyFileChoiceStateChanged();
+    }
+
+    partial void OnGenerateKeyFilePathChanged(string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(KeyFilePath))
+        {
+            KeyFilePath = string.Empty;
+        }
+
+        OnKeyFileChoiceStateChanged();
     }
 
     partial void OnErrorMessageChanged(string value)
@@ -146,7 +194,7 @@ public sealed partial class EncryptViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanBrowse))]
+    [RelayCommand(CanExecute = nameof(CanBrowseExistingKeyFile))]
     private async Task BrowseKeyFileAsync()
     {
         if (filePickerService is null)
@@ -163,7 +211,7 @@ public sealed partial class EncryptViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanBrowse))]
+    [RelayCommand(CanExecute = nameof(CanBrowseGeneratedKeyFile))]
     private async Task BrowseGeneratedKeyFileAsync()
     {
         if (filePickerService is null)
@@ -179,6 +227,18 @@ public sealed partial class EncryptViewModel : ViewModelBase
         {
             GenerateKeyFilePath = selectedPath;
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearExistingKeyFile))]
+    private void ClearKeyFile()
+    {
+        KeyFilePath = string.Empty;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearGeneratedKeyFile))]
+    private void ClearGeneratedKeyFile()
+    {
+        GenerateKeyFilePath = string.Empty;
     }
 
     [RelayCommand(CanExecute = nameof(CanStartEncrypt))]
@@ -232,6 +292,26 @@ public sealed partial class EncryptViewModel : ViewModelBase
         return !IsRunning;
     }
 
+    private bool CanBrowseExistingKeyFile()
+    {
+        return !IsRunning && !HasGeneratedKeyFileChoice;
+    }
+
+    private bool CanBrowseGeneratedKeyFile()
+    {
+        return !IsRunning && !HasExistingKeyFileChoice;
+    }
+
+    private bool CanClearExistingKeyFile()
+    {
+        return !IsRunning && HasExistingKeyFileChoice;
+    }
+
+    private bool CanClearGeneratedKeyFile()
+    {
+        return !IsRunning && HasGeneratedKeyFileChoice;
+    }
+
     private bool CanStartEncrypt()
     {
         return !IsRunning &&
@@ -260,6 +340,16 @@ public sealed partial class EncryptViewModel : ViewModelBase
         {
             ProgressText = $"{progress.InputBytes} bytes processed";
         }
+    }
+
+    private void OnKeyFileChoiceStateChanged()
+    {
+        OnPropertyChanged(nameof(HasExistingKeyFileChoice));
+        OnPropertyChanged(nameof(HasGeneratedKeyFileChoice));
+        OnPropertyChanged(nameof(HasAnyKeyFileChoice));
+        OnPropertyChanged(nameof(CanEditExistingKeyFileChoice));
+        OnPropertyChanged(nameof(CanEditGeneratedKeyFileChoice));
+        OnPropertyChanged(nameof(KeyFileChoiceStatusText));
     }
 
     private static string GetTroubleshootingMessage(Exception exception)

@@ -88,6 +88,67 @@ public sealed class EncryptViewModelTests
         Assert.Equal("Ready", viewModel.StatusText);
     }
 
+    [Fact]
+    public void SettingExistingKeyFile_ClearsGeneratedKeyFileChoiceAndUpdatesStatus()
+    {
+        var viewModel = CreateReadyViewModel(new RecordingWorkflowService());
+        viewModel.GenerateKeyFilePath = "/tmp/generated.key";
+
+        viewModel.KeyFilePath = "/tmp/existing.key";
+
+        Assert.Equal("/tmp/existing.key", viewModel.KeyFilePath);
+        Assert.Empty(viewModel.GenerateKeyFilePath);
+        Assert.True(viewModel.HasExistingKeyFileChoice);
+        Assert.False(viewModel.HasGeneratedKeyFileChoice);
+        Assert.False(viewModel.CanEditGeneratedKeyFileChoice);
+        Assert.Contains("existing key file", viewModel.KeyFileChoiceStatusText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BrowseGeneratedKeyFileCommand_ClearsExistingKeyFileChoice()
+    {
+        var picker = new RecordingFilePickerService
+        {
+            SaveResult = "/tmp/generated.key",
+        };
+        var viewModel = new EncryptViewModel(new RecordingWorkflowService(), picker)
+        {
+            SourcePath = "/tmp/plain.txt",
+            Password = "secret",
+            KeyFilePath = "/tmp/existing.key",
+        };
+
+        viewModel.ClearKeyFileCommand.Execute(null);
+        await viewModel.BrowseGeneratedKeyFileCommand.ExecuteAsync(null);
+
+        Assert.Equal("/tmp/generated.key", viewModel.GenerateKeyFilePath);
+        Assert.Empty(viewModel.KeyFilePath);
+        Assert.Equal("Choose where to save a new key file", picker.LastSaveTitle);
+        Assert.Equal("filecrypter.key", picker.LastSuggestedFileName);
+    }
+
+    [Fact]
+    public async Task BrowseKeyFileCommand_ClearsGeneratedKeyFileChoice()
+    {
+        var picker = new RecordingFilePickerService
+        {
+            OpenResult = "/tmp/existing.key",
+        };
+        var viewModel = new EncryptViewModel(new RecordingWorkflowService(), picker)
+        {
+            SourcePath = "/tmp/plain.txt",
+            Password = "secret",
+            GenerateKeyFilePath = "/tmp/generated.key",
+        };
+
+        viewModel.ClearGeneratedKeyFileCommand.Execute(null);
+        await viewModel.BrowseKeyFileCommand.ExecuteAsync(null);
+
+        Assert.Equal("/tmp/existing.key", viewModel.KeyFilePath);
+        Assert.Empty(viewModel.GenerateKeyFilePath);
+        Assert.Equal("Choose an existing key file", picker.LastOpenTitle);
+    }
+
     private static EncryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)
     {
         return new EncryptViewModel(workflow)
@@ -138,6 +199,32 @@ public sealed class EncryptViewModelTests
         public void Finish(EncryptFileResult result)
         {
             completion.SetResult(result);
+        }
+    }
+
+    private sealed class RecordingFilePickerService : IFilePickerService
+    {
+        public string? OpenResult { get; init; }
+
+        public string? SaveResult { get; init; }
+
+        public string? LastOpenTitle { get; private set; }
+
+        public string? LastSaveTitle { get; private set; }
+
+        public string? LastSuggestedFileName { get; private set; }
+
+        public Task<string?> PickOpenFileAsync(string title, CancellationToken cancellationToken)
+        {
+            LastOpenTitle = title;
+            return Task.FromResult(OpenResult);
+        }
+
+        public Task<string?> PickSaveFileAsync(string title, string? suggestedFileName, CancellationToken cancellationToken)
+        {
+            LastSaveTitle = title;
+            LastSuggestedFileName = suggestedFileName;
+            return Task.FromResult(SaveResult);
         }
     }
 }
