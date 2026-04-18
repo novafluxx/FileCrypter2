@@ -8,11 +8,16 @@ internal sealed class FileCrypterCommand
 
     private readonly IFileCrypterConsole console;
     private readonly FileCrypterOptions? options;
+    private readonly FileCrypterSettingsStore settingsStore;
 
-    public FileCrypterCommand(IFileCrypterConsole console, FileCrypterOptions? options = null)
+    public FileCrypterCommand(
+        IFileCrypterConsole console,
+        FileCrypterOptions? options = null,
+        FileCrypterSettingsStore? settingsStore = null)
     {
         this.console = console;
         this.options = options;
+        this.settingsStore = settingsStore ?? new FileCrypterSettingsStore();
     }
 
     public async Task<int> RunAsync(string[] args)
@@ -31,12 +36,17 @@ internal sealed class FileCrypterCommand
                 "decrypt" => await RunTransformAsync(args, encrypt: false).ConfigureAwait(false),
                 "batch-encrypt" => await RunBatchAsync(args, encrypt: true).ConfigureAwait(false),
                 "batch-decrypt" => await RunBatchAsync(args, encrypt: false).ConfigureAwait(false),
-                _ => WriteError("Unknown command. Use 'encrypt', 'decrypt', 'batch-encrypt', or 'batch-decrypt'."),
+                "settings" => await RunSettingsAsync(args).ConfigureAwait(false),
+                _ => WriteError("Unknown command. Use 'encrypt', 'decrypt', 'batch-encrypt', 'batch-decrypt', or 'settings'."),
             };
         }
         catch (FileCrypterFormatException exception)
         {
             return WriteFormatError(exception);
+        }
+        catch (InvalidDataException exception)
+        {
+            return WriteSettingsError(exception.Message);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -168,8 +178,11 @@ internal sealed class FileCrypterCommand
         }
 
         long inputLength = new FileInfo(inputPath).Length;
+        FileCrypterSettings settings = encrypt
+            ? await settingsStore.LoadAsync().ConfigureAwait(false)
+            : new FileCrypterSettings();
         (FileCrypterOptions transformOptions, CliProgressReporter progressReporter) =
-            CreateTransformOptionsWithProgress(inputLength, encrypt, compress);
+            CreateTransformOptionsWithProgress(inputLength, encrypt, compress, settings);
         string finalOutputPath;
         string? transformKeyFilePath = keyFilePath;
 
@@ -349,6 +362,45 @@ internal sealed class FileCrypterCommand
         return result.Succeeded ? 0 : 1;
     }
 
+    private async Task<int> RunSettingsAsync(string[] args)
+    {
+        if (args.Length == 1 || args[1] == "show")
+        {
+            if (args.Length > 2)
+            {
+                return WriteError("settings show does not accept extra arguments.");
+            }
+
+            FileCrypterSettings settings = await settingsStore.LoadAsync().ConfigureAwait(false);
+            console.Out.WriteLine($"Compression default: {FormatOnOff(settings.EnableCompressionByDefault)}");
+            console.Out.WriteLine($"Settings file: {settingsStore.SettingsPath}");
+            return 0;
+        }
+
+        if (args[1] == "set")
+        {
+            if (args.Length != 4 || args[2] != "compression-default")
+            {
+                return WriteError("Usage: filecrypter settings set compression-default <on|off>");
+            }
+
+            if (!TryParseOnOff(args[3], out bool enableCompressionByDefault))
+            {
+                return WriteError("Compression default must be 'on' or 'off'.");
+            }
+
+            var settings = new FileCrypterSettings
+            {
+                EnableCompressionByDefault = enableCompressionByDefault,
+            };
+            await settingsStore.SaveAsync(settings).ConfigureAwait(false);
+            console.Out.WriteLine($"Compression default: {FormatOnOff(settings.EnableCompressionByDefault)}");
+            return 0;
+        }
+
+        return WriteError("Unknown settings command. Use 'settings show' or 'settings set compression-default <on|off>'.");
+    }
+
     private string? ReadPasswordFromInteractiveConsole()
     {
         if (console.IsInputRedirected)
@@ -405,7 +457,8 @@ internal sealed class FileCrypterCommand
     private (FileCrypterOptions Options, CliProgressReporter Reporter) CreateTransformOptionsWithProgress(
         long inputLength,
         bool encrypt,
-        bool compress)
+        bool compress,
+        FileCrypterSettings settings)
     {
         FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
         var progressReporter = new CliProgressReporter(
@@ -420,11 +473,38 @@ internal sealed class FileCrypterCommand
             Argon2MemoryKiB = sourceOptions.Argon2MemoryKiB,
             Argon2Iterations = sourceOptions.Argon2Iterations,
             Argon2Parallelism = sourceOptions.Argon2Parallelism,
-            EnableCompression = sourceOptions.EnableCompression || compress,
+            EnableCompression = sourceOptions.EnableCompression ||
+                compress ||
+                (encrypt && settings.EnableCompressionByDefault),
             Progress = progressReporter,
         };
 
         return (transformOptions, progressReporter);
+    }
+
+    private static bool TryParseOnOff(string value, out bool parsed)
+    {
+        if (value.Equals("on", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("true", StringComparison.OrdinalIgnoreCase))
+        {
+            parsed = true;
+            return true;
+        }
+
+        if (value.Equals("off", StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("false", StringComparison.OrdinalIgnoreCase))
+        {
+            parsed = false;
+            return true;
+        }
+
+        parsed = false;
+        return false;
+    }
+
+    private static string FormatOnOff(bool value)
+    {
+        return value ? "on" : "off";
     }
 
     private int WriteError(string message)
@@ -467,6 +547,13 @@ internal sealed class FileCrypterCommand
         return 1;
     }
 
+    private int WriteSettingsError(string message)
+    {
+        console.Error.WriteLine($"Settings error: {message}");
+        console.Error.WriteLine("Run 'filecrypter settings set compression-default on' or 'off' to recreate the settings file.");
+        return 1;
+    }
+
     private void WriteBatchItemError(FileCrypterBatchItemResult item)
     {
         Exception exception = item.Error ?? new InvalidOperationException("The batch item failed without an error.");
@@ -486,10 +573,13 @@ internal sealed class FileCrypterCommand
               filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
               filecrypter batch-encrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
               filecrypter batch-decrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+              filecrypter settings show
+              filecrypter settings set compression-default <on|off>
 
             If no password option is supplied, FileCrypter prompts without echoing the password when run interactively.
             If output is omitted, encryption appends .encrypted and decryption removes .encrypted when present.
             Use --compress during encryption to reduce compatible payloads before encryption. Decryption detects compressed files automatically.
+            Set compression-default on to compress single-file encryption by default.
             Batch encryption compresses each file automatically and writes one output path per successful file to stdout.
             Use --key-file with an existing key file for password plus key-file protection. The same key file is required
             for decryption; lost or changed key files cannot be recovered. Existing key files may be up to 16 MiB.

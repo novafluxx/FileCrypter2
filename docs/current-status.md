@@ -56,6 +56,9 @@ codex/phase-1-file-format
 - Core batch individual-file orchestration is implemented with per-file results, a 1000-file limit, safe output naming through the existing staged path APIs, and automatic compression for batch encryption.
 - CLI batch commands are wired as `batch-encrypt <output-directory> <input>...` and `batch-decrypt <output-directory> <input>...`, with successful output paths on stdout and per-file failures plus summary output on stderr.
 - Batch coverage includes round trips, automatic compression, key-file use, duplicate output auto-renaming, mixed success/failure continuation, and batch help text.
+- CLI-host settings persistence is implemented with a local JSON settings file and a `settings show` / `settings set compression-default <on|off>` command.
+- Single-file encryption applies the persisted compression default when `--compress` is omitted, while explicit `--compress` still enables compression for that run.
+- Settings coverage includes missing settings defaults, save/load behavior, compression-default application, corrupt settings troubleshooting, and decrypt ignoring corrupt settings.
 
 ## Current Format Decisions
 
@@ -75,13 +78,13 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest batch individual-file pass:
+These commands passed after the latest persisted compression-default pass:
 
 ```bash
 dotnet test
 ```
 
-Latest test count at handoff: 107 passed, 0 failed.
+Latest test count at handoff: 113 passed, 0 failed.
 
 Focused CLI coverage also passed:
 
@@ -108,7 +111,7 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 ## Not Started
 
 - Archive mode.
-- Settings, help, update flow, and graphical UI.
+- Broader settings, help, update flow, and graphical UI.
 - Broader CLI command polish.
 
 ## Product Alignment
@@ -121,6 +124,7 @@ The current implementation is aligned with the product outline for the foundatio
 - password plus existing-key-file single-file encrypt/decrypt path
 - generated key-file single-file encrypt path
 - batch individual-file encrypt/decrypt path
+- persisted compression default for single-file encryption
 - versioned documented encrypted file format
 - AES-256-GCM, Argon2id, unique per-file salt, unique per-file nonce prefix, and chunk-level authentication
 - bounded-memory streaming for large-file readiness
@@ -133,20 +137,21 @@ Remaining product-level gaps are expected for later phases:
 - broader key-file UX/help
 - broader batch UX and aggregate progress
 - archive creation/extraction
+- broader settings and help UX
 - broader CLI command polish
-- settings persistence, help/troubleshooting content, update flow, and UI
+- update flow and graphical UI
 
 ## Recommended Next Step
 
-Start persisted compression default settings.
+Start archive mode.
 
 Immediate next slice:
 
-- Add a small local settings model with a compression-default preference.
-- Pick the first persistence location and file format for CLI-host settings.
-- Apply the compression default to single-file encryption while preserving explicit `--compress` behavior.
-- Cover settings load/save, default compression application, and corrupt/missing settings behavior.
+- Add a core archive encryption path that bundles multiple input files into one compressed archive payload before encryption.
+- Pick the first archive container implementation and output naming convention.
+- Add CLI shape for archive encryption with an output archive path or generated archive name.
+- Cover archive creation, decryption/extraction, overwrite protection, and malformed archive handling.
 
 Recommended follow-up work:
 
-- Start archive mode after compression defaults are persisted.
+- Broaden settings/help UX after the archive foundation is in place.

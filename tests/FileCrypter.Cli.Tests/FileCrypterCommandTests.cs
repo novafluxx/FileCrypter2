@@ -322,7 +322,138 @@ public sealed class FileCrypterCommandTests
         Assert.Contains("create a new 32-byte key file", console.Output, StringComparison.Ordinal);
         Assert.Contains("batch-encrypt", console.Output, StringComparison.Ordinal);
         Assert.Contains("Batch encryption compresses each file automatically", console.Output, StringComparison.Ordinal);
+        Assert.Contains("settings set compression-default", console.Output, StringComparison.Ordinal);
         Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task SettingsShow_WhenSettingsFileIsMissing_ReportsCompressionDefaultOff()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: CreateSettingsStore(settingsPath))
+            .RunAsync(["settings", "show"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Compression default: off", console.Output, StringComparison.Ordinal);
+        Assert.Contains($"Settings file: {settingsPath}", console.Output, StringComparison.Ordinal);
+        Assert.False(File.Exists(settingsPath));
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task SettingsSetCompressionDefault_WritesSettingsFile()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        FileCrypterSettingsStore settingsStore = CreateSettingsStore(settingsPath);
+        var setConsole = TestConsole.CreateRedirected();
+        var showConsole = TestConsole.CreateRedirected();
+
+        int setExitCode = await CreateCommand(setConsole, settingsStore: settingsStore)
+            .RunAsync(["settings", "set", "compression-default", "on"]);
+        int showExitCode = await CreateCommand(showConsole, settingsStore: settingsStore)
+            .RunAsync(["settings", "show"]);
+
+        Assert.Equal(0, setExitCode);
+        Assert.Equal(0, showExitCode);
+        Assert.True(File.Exists(settingsPath));
+        Assert.Contains("Compression default: on", setConsole.Output, StringComparison.Ordinal);
+        Assert.Contains("Compression default: on", showConsole.Output, StringComparison.Ordinal);
+        Assert.Empty(setConsole.ErrorOutput);
+        Assert.Empty(showConsole.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenCompressionDefaultIsOn_CompressesWithoutCompressOption()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("default compression\n", 512)));
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        FileCrypterSettingsStore settingsStore = CreateSettingsStore(settingsPath);
+        await settingsStore.SaveAsync(new FileCrypterSettings { EnableCompressionByDefault = true });
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: settingsStore)
+            .RunAsync(["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+
+        byte[] encryptedBytes = await File.ReadAllBytesAsync(encryptedPath);
+        Assert.Equal(0, exitCode);
+        Assert.Equal(CompressionZstd, encryptedBytes[CompressionAlgorithmOffset]);
+        Assert.Equal(Path.GetFullPath(encryptedPath) + Environment.NewLine, console.Output);
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenCompressionDefaultIsOffAndCompressIsOmitted_DoesNotCompress()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "no default compression");
+        FileCrypterSettingsStore settingsStore = CreateSettingsStore(settingsPath);
+        await settingsStore.SaveAsync(new FileCrypterSettings { EnableCompressionByDefault = false });
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: settingsStore)
+            .RunAsync(["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+
+        byte[] encryptedBytes = await File.ReadAllBytesAsync(encryptedPath);
+        Assert.Equal(0, exitCode);
+        Assert.Equal(0, encryptedBytes[CompressionAlgorithmOffset]);
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenSettingsFileIsInvalid_FailsWithSettingsTroubleshooting()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        await File.WriteAllTextAsync(settingsPath, "{ invalid json");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: CreateSettingsStore(settingsPath))
+            .RunAsync(["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Settings error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("settings set compression-default", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(encryptedPath));
+    }
+
+    [Fact]
+    public async Task Decrypt_WhenSettingsFileIsInvalid_DoesNotReadSettings()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("decrypt ignores settings");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await FileCrypter.Core.FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            CreateFastOptions());
+        await File.WriteAllTextAsync(settingsPath, "{ invalid json");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: CreateSettingsStore(settingsPath))
+            .RunAsync(["decrypt", encryptedPath, decryptedPath, "--password", Password]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+        Assert.Equal(Path.GetFullPath(decryptedPath) + Environment.NewLine, console.Output);
+        Assert.DoesNotContain("Settings error:", console.ErrorOutput, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -730,9 +861,17 @@ public sealed class FileCrypterCommandTests
         Assert.DoesNotContain(Password, console.ErrorOutput, StringComparison.Ordinal);
     }
 
-    private static FileCrypterCommand CreateCommand(TestConsole console, FileCrypterOptions? options = null)
+    private static FileCrypterCommand CreateCommand(
+        TestConsole console,
+        FileCrypterOptions? options = null,
+        FileCrypterSettingsStore? settingsStore = null)
     {
-        return new FileCrypterCommand(console, options ?? CreateFastOptions());
+        return new FileCrypterCommand(console, options ?? CreateFastOptions(), settingsStore);
+    }
+
+    private static FileCrypterSettingsStore CreateSettingsStore(string settingsPath)
+    {
+        return new FileCrypterSettingsStore(settingsPath);
     }
 
     private static FileCrypterOptions CreateFastOptions(IProgress<FileCrypterProgress>? progress = null)
