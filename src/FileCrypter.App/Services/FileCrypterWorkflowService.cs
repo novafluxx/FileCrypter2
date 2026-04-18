@@ -1,12 +1,17 @@
 using FileCrypter.Core;
 using CoreFileCrypter = FileCrypter.Core.FileCrypter;
+using System.Globalization;
 
 namespace FileCrypter.App.Services;
 
 public sealed class FileCrypterWorkflowService : IFileCrypterWorkflowService
 {
     private const string DefaultEncryptedSuffix = ".encrypted";
+    private const string DefaultArchiveEncryptedSuffix = ".tar.zst.encrypted";
     private const string DefaultDecryptedSuffix = ".decrypted";
+    private const string GeneratedArchiveNamePrefix = "filecrypter-archive-";
+    private const string ArchiveTimestampFormat = "yyyyMMdd-HHmmss";
+    private const string CrossPlatformInvalidArchiveNameCharacters = "<>:\"/\\|?*";
 
     public async Task<EncryptFileResult> EncryptFileAsync(
         EncryptFileRequest request,
@@ -98,6 +103,106 @@ public sealed class FileCrypterWorkflowService : IFileCrypterWorkflowService
         return new DecryptFileResult(finalOutputPath);
     }
 
+    public Task<BatchTransformResult> EncryptFilesAsync(
+        BatchTransformRequest request,
+        IProgress<BatchOperationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        return TransformFilesAsync(request, progress, encrypt: true, cancellationToken);
+    }
+
+    public async Task<ArchiveEncryptResult> EncryptArchiveAsync(
+        ArchiveEncryptRequest request,
+        IProgress<FileCrypterProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.SourcePaths);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.OutputDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.Password);
+        if (request.SourcePaths.Count == 0)
+        {
+            throw new ArgumentException("Choose at least one input file.", nameof(request));
+        }
+
+        if (!TryCreateArchiveFileName(request.ArchiveName, out string archiveFileName, out string? archiveNameError))
+        {
+            throw new ArgumentException(archiveNameError ?? "Archive name is invalid.", nameof(request));
+        }
+
+        string outputPath = Path.Combine(request.OutputDirectory, archiveFileName);
+        bool overwrite = !request.NeverOverwriteExistingFiles;
+        string? keyFilePath = string.IsNullOrWhiteSpace(request.KeyFilePath) ? null : request.KeyFilePath;
+        FileCrypterOptions options = new()
+        {
+            Progress = progress,
+        };
+
+        string finalOutputPath = keyFilePath is null
+            ? await CoreFileCrypter.EncryptArchiveAsync(
+                request.SourcePaths,
+                outputPath,
+                request.Password,
+                options,
+                overwrite,
+                cancellationToken).ConfigureAwait(false)
+            : await CoreFileCrypter.EncryptArchiveAsync(
+                request.SourcePaths,
+                outputPath,
+                request.Password,
+                keyFilePath,
+                options,
+                overwrite,
+                cancellationToken).ConfigureAwait(false);
+
+        return new ArchiveEncryptResult(finalOutputPath);
+    }
+
+    public async Task<ArchiveDecryptResult> DecryptArchiveAsync(
+        ArchiveDecryptRequest request,
+        IProgress<FileCrypterProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.SourcePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.OutputDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.Password);
+
+        bool overwrite = !request.NeverOverwriteExistingFiles;
+        string? keyFilePath = string.IsNullOrWhiteSpace(request.KeyFilePath) ? null : request.KeyFilePath;
+        FileCrypterOptions options = new()
+        {
+            Progress = progress,
+        };
+
+        IReadOnlyList<string> outputPaths = keyFilePath is null
+            ? await CoreFileCrypter.DecryptArchiveAsync(
+                request.SourcePath,
+                request.OutputDirectory,
+                request.Password,
+                options,
+                overwrite,
+                cancellationToken).ConfigureAwait(false)
+            : await CoreFileCrypter.DecryptArchiveAsync(
+                request.SourcePath,
+                request.OutputDirectory,
+                request.Password,
+                keyFilePath,
+                options,
+                overwrite,
+                cancellationToken).ConfigureAwait(false);
+
+        return new ArchiveDecryptResult(outputPaths);
+    }
+
+    public Task<BatchTransformResult> DecryptFilesAsync(
+        BatchTransformRequest request,
+        IProgress<BatchOperationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        return TransformFilesAsync(request, progress, encrypt: false, cancellationToken);
+    }
+
     private static string GetDefaultDecryptedOutputPath(string sourcePath)
     {
         string fileName = Path.GetFileName(sourcePath);
@@ -114,5 +219,229 @@ public sealed class FileCrypterWorkflowService : IFileCrypterWorkflowService
         return string.IsNullOrWhiteSpace(directoryPath)
             ? outputFileName
             : Path.Combine(directoryPath, outputFileName);
+    }
+
+    private static bool TryCreateArchiveFileName(
+        string? archiveName,
+        out string archiveFileName,
+        out string? error)
+    {
+        if (string.IsNullOrWhiteSpace(archiveName))
+        {
+            archiveFileName = GeneratedArchiveNamePrefix +
+                DateTimeOffset.Now.ToString(ArchiveTimestampFormat, CultureInfo.InvariantCulture) +
+                DefaultArchiveEncryptedSuffix;
+            error = null;
+            return true;
+        }
+
+        string trimmedArchiveName = archiveName.Trim();
+        string archiveBaseName = trimmedArchiveName.EndsWith(DefaultArchiveEncryptedSuffix, StringComparison.OrdinalIgnoreCase)
+            ? trimmedArchiveName[..^DefaultArchiveEncryptedSuffix.Length]
+            : trimmedArchiveName;
+        if (string.IsNullOrWhiteSpace(archiveBaseName))
+        {
+            archiveFileName = string.Empty;
+            error = "Archive name must include a file name before .tar.zst.encrypted.";
+            return false;
+        }
+
+        if (!IsSafeArchiveFileName(trimmedArchiveName))
+        {
+            archiveFileName = string.Empty;
+            error = "Archive name contains characters or reserved words that are unsafe in file names.";
+            return false;
+        }
+
+        archiveFileName = archiveBaseName + DefaultArchiveEncryptedSuffix;
+        error = null;
+        return true;
+    }
+
+    private static bool IsSafeArchiveFileName(string fileName)
+    {
+        if (fileName is "." or ".." ||
+            fileName.EndsWith(' ') ||
+            fileName.EndsWith('.'))
+        {
+            return false;
+        }
+
+        if (fileName.Any(character =>
+            char.IsControl(character) ||
+            CrossPlatformInvalidArchiveNameCharacters.Contains(character)))
+        {
+            return false;
+        }
+
+        string firstNamePart = fileName.Split('.')[0].TrimEnd(' ');
+        return !IsReservedWindowsFileName(firstNamePart);
+    }
+
+    private static bool IsReservedWindowsFileName(string fileName)
+    {
+        return fileName.Equals("CON", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("PRN", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("AUX", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("NUL", StringComparison.OrdinalIgnoreCase) ||
+            IsReservedWindowsPortName(fileName, "COM") ||
+            IsReservedWindowsPortName(fileName, "LPT");
+    }
+
+    private static bool IsReservedWindowsPortName(string fileName, string prefix)
+    {
+        return fileName.Length == prefix.Length + 1 &&
+            fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+            fileName[^1] is >= '1' and <= '9';
+    }
+
+    private static async Task<BatchTransformResult> TransformFilesAsync(
+        BatchTransformRequest request,
+        IProgress<BatchOperationProgress>? progress,
+        bool encrypt,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.SourcePaths);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.OutputDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.Password);
+        if (request.SourcePaths.Count == 0)
+        {
+            throw new ArgumentException("Choose at least one input file.", nameof(request));
+        }
+
+        string? keyFilePath = string.IsNullOrWhiteSpace(request.KeyFilePath) ? null : request.KeyFilePath;
+        bool overwrite = !request.NeverOverwriteExistingFiles;
+        var progressAggregator = new BatchProgressAggregator(request.SourcePaths, progress);
+        progressAggregator.ReportStarted();
+
+        FileCrypterOptions options = new()
+        {
+            Progress = progressAggregator,
+        };
+
+        FileCrypterBatchResult result = encrypt
+            ? keyFilePath is null
+                ? await CoreFileCrypter.EncryptFilesAsync(
+                    request.SourcePaths,
+                    request.OutputDirectory,
+                    request.Password,
+                    options,
+                    overwrite,
+                    cancellationToken).ConfigureAwait(false)
+                : await CoreFileCrypter.EncryptFilesAsync(
+                    request.SourcePaths,
+                    request.OutputDirectory,
+                    request.Password,
+                    keyFilePath,
+                    options,
+                    overwrite,
+                    cancellationToken).ConfigureAwait(false)
+            : keyFilePath is null
+                ? await CoreFileCrypter.DecryptFilesAsync(
+                    request.SourcePaths,
+                    request.OutputDirectory,
+                    request.Password,
+                    options,
+                    overwrite,
+                    cancellationToken).ConfigureAwait(false)
+                : await CoreFileCrypter.DecryptFilesAsync(
+                    request.SourcePaths,
+                    request.OutputDirectory,
+                    request.Password,
+                    keyFilePath,
+                    options,
+                    overwrite,
+                    cancellationToken).ConfigureAwait(false);
+
+        progressAggregator.ReportCompleted();
+        return new BatchTransformResult(
+            result.Items
+                .Select(item => new BatchTransformItemResult(
+                    item.InputPath,
+                    item.RequestedOutputPath,
+                    item.OutputPath,
+                    item.Error))
+                .ToArray());
+    }
+
+    private sealed class BatchProgressAggregator : IProgress<FileCrypterProgress>
+    {
+        private readonly IReadOnlyList<string> sourcePaths;
+        private readonly IProgress<BatchOperationProgress>? progress;
+        private int completedFilesBeforeCurrent;
+        private long lastInputBytes;
+
+        public BatchProgressAggregator(
+            IReadOnlyList<string> sourcePaths,
+            IProgress<BatchOperationProgress>? progress)
+        {
+            this.sourcePaths = sourcePaths;
+            this.progress = progress;
+        }
+
+        public void ReportStarted()
+        {
+            if (progress is null || sourcePaths.Count == 0)
+            {
+                return;
+            }
+
+            progress.Report(new BatchOperationProgress(
+                0,
+                sourcePaths.Count,
+                CurrentInputPath: null,
+                CurrentInputBytes: 0,
+                CurrentTotalInputBytes: null,
+                Percent: 0));
+        }
+
+        public void Report(FileCrypterProgress value)
+        {
+            if (progress is null || sourcePaths.Count == 0)
+            {
+                return;
+            }
+
+            if (value.InputBytes < lastInputBytes && completedFilesBeforeCurrent < sourcePaths.Count - 1)
+            {
+                completedFilesBeforeCurrent++;
+            }
+
+            lastInputBytes = value.InputBytes;
+
+            double fileFraction = value.TotalInputBytes is > 0
+                ? Math.Clamp(value.InputBytes / (double)value.TotalInputBytes.Value, 0, 1)
+                : 0;
+            double percent = Math.Clamp(
+                ((completedFilesBeforeCurrent + fileFraction) / sourcePaths.Count) * 100d,
+                0,
+                100);
+            string currentInputPath = sourcePaths[Math.Min(completedFilesBeforeCurrent, sourcePaths.Count - 1)];
+
+            progress.Report(new BatchOperationProgress(
+                completedFilesBeforeCurrent,
+                sourcePaths.Count,
+                currentInputPath,
+                value.InputBytes,
+                value.TotalInputBytes,
+                percent));
+        }
+
+        public void ReportCompleted()
+        {
+            if (progress is null || sourcePaths.Count == 0)
+            {
+                return;
+            }
+
+            progress.Report(new BatchOperationProgress(
+                sourcePaths.Count,
+                sourcePaths.Count,
+                CurrentInputPath: null,
+                CurrentInputBytes: 0,
+                CurrentTotalInputBytes: null,
+                Percent: 100));
+        }
     }
 }

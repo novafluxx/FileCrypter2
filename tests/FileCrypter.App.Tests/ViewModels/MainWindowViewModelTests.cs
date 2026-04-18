@@ -61,6 +61,20 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void SelectNavigationItem_BatchPageUsesBatchViewModelAndFooter()
+    {
+        var viewModel = new MainWindowViewModel(new StubWorkflowService(), new StubSettingsService());
+        NavigationItemViewModel batchItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "batch");
+
+        viewModel.SelectNavigationItemCommand.Execute(batchItem);
+
+        Assert.IsType<BatchViewModel>(viewModel.CurrentPage);
+        Assert.Equal("Batch workflows", viewModel.CurrentPageTitle);
+        Assert.Equal("Ready", viewModel.StatusText);
+        Assert.Equal("No batch files selected", viewModel.FooterDetail);
+    }
+
+    [Fact]
     public async Task SettingsSave_UpdatesEncryptCompressionDefault()
     {
         var settingsService = new StubSettingsService();
@@ -96,6 +110,38 @@ public sealed class MainWindowViewModelTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult(new DecryptFileResult("unused"));
+        }
+
+        public Task<ArchiveEncryptResult> EncryptArchiveAsync(
+            ArchiveEncryptRequest request,
+            IProgress<FileCrypter.Core.FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new ArchiveEncryptResult("unused"));
+        }
+
+        public Task<ArchiveDecryptResult> DecryptArchiveAsync(
+            ArchiveDecryptRequest request,
+            IProgress<FileCrypter.Core.FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new ArchiveDecryptResult([]));
+        }
+
+        public Task<BatchTransformResult> EncryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new BatchTransformResult([]));
+        }
+
+        public Task<BatchTransformResult> DecryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new BatchTransformResult([]));
         }
     }
 

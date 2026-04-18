@@ -19,7 +19,7 @@ internal static class WorkflowErrorMessageFormatter
                 FileCrypterFormatErrorCode.TruncatedHeader or FileCrypterFormatErrorCode.TruncatedChunk =>
                     "The encrypted file appears incomplete or damaged. Try a fresh copy of the file.",
                 FileCrypterFormatErrorCode.UnsupportedPayloadKind =>
-                    "This file needs an archive workflow that is not available on this page yet.",
+                    "This file belongs to a different FileCrypter workflow. Use archive extraction for encrypted archives and standard decrypt for single-file outputs.",
                 _ => "The encrypted file metadata or payload is not valid for this FileCrypter version.",
             };
         }

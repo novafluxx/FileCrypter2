@@ -79,6 +79,10 @@ codex/avalonia-gui-shell
 - The Encrypt page now starts from the persisted compression default and updates immediately after Settings saves or reloads, keeping GUI single-file encryption aligned with the CLI host behavior.
 - App test coverage now includes Settings page save/reload/error handling plus MainWindow integration that propagates saved compression defaults back into Encrypt.
 - The Settings page save/reload workflow now stays on the captured UI synchronization context after async settings I/O, preventing Avalonia cross-thread crashes when command state changes after a save.
+- Avalonia GUI Batch is now a real page in `src/FileCrypter.App` with batch-encrypt and batch-decrypt mode switching, multi-file selection, output-directory selection, shared password and optional key-file input, progress feedback, and per-file success/failure results backed by the existing core batch APIs.
+- The Batch page now also exposes archive-encrypt and archive-decrypt workflows in `src/FileCrypter.App`, including archive-vs-individual mode switching, single-archive extraction, optional archive naming, archive-phase progress feedback, and archive result summaries through the same app-service/MVVM pattern as the other pages.
+- The app picker abstraction now supports multi-file and folder selection so batch workflows can use native Avalonia pickers without breaking the existing single-file pages.
+- App test coverage now includes Batch page command validation, picker flows, deduplicated file selection, archive-mode behavior, running-state behavior, mixed batch results, and shell navigation wiring.
 
 ## Current Format Decisions
 
@@ -98,14 +102,14 @@ codex/avalonia-gui-shell
 
 ## Verified
 
-These commands passed after the latest Settings-page pass:
+These commands passed after the latest Batch-page archive pass:
 
 ```bash
 dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj
 dotnet test
 ```
 
-Latest test count at handoff: 152 passed, 0 failed.
+Latest test count at handoff: 166 passed, 0 failed.
 
 GUI launch smoke coverage at handoff:
 
@@ -113,7 +117,7 @@ GUI launch smoke coverage at handoff:
 dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
 ```
 
-The desktop app launch command stayed running until manually interrupted during the previous GUI pass, which is a basic launch smoke signal. Native file-picker dialogs and the new Settings page were not visually exercised end-to-end in automation and should still get a quick manual click-through on the target desktop.
+The desktop app launch command stayed running until manually interrupted during the previous GUI pass, which is a basic launch smoke signal. Native file-picker dialogs plus the Batch archive/individual modes and Settings page were not visually exercised end-to-end in automation and should still get a quick manual click-through on the target desktop.
 
 Focused CLI coverage also passed:
 
@@ -139,7 +143,7 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 
 ## Not Started
 
-- Broader batch, help, update flow, and graphical UI.
+- Help, update flow, and broader graphical UI polish.
 - Broader CLI command polish.
 
 ## Product Alignment
@@ -164,15 +168,16 @@ The current implementation is aligned with the product outline for the foundatio
 Remaining product-level gaps are expected for later phases:
 
 - broader key-file UX/help
-- broader batch UX and aggregate progress
+- broader aggregate-progress polish and manual archive-picker smoke coverage
 - broader help UX
 - broader CLI command polish
 - update flow and broader graphical UI
 
 ## Recommended Next Step
 
-Continue the Avalonia GUI now that single-file encrypt, decrypt, and settings workflows are implemented.
+Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and both batch individual-file plus archive workflows are implemented.
 
 Recommended next slices:
 
-- Replace the Batch placeholder with a first real batch page, reusing the current app-service/MVVM pattern to expose existing core/CLI-backed batch-encrypt and batch-decrypt capabilities.
+- Add a quick manual smoke pass for native file/folder pickers across Batch individual-file and archive modes, then tighten any UX issues that show up there.
+- Extend Help and update-flow work while preserving the current shell and MVVM/service pattern.

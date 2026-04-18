@@ -1,0 +1,287 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileCrypter.App.ViewModels"
+             x:Class="FileCrypter.App.Views.BatchView"
+             x:DataType="vm:BatchViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="24" MaxWidth="1000">
+            <Border IsVisible="{Binding HasError}"
+                    Background="#552222"
+                    BorderBrush="#d35d64"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="24,18">
+                <TextBlock Text="{Binding ErrorMessage}"
+                           Foreground="#f0a0a4"
+                           FontSize="18"
+                           TextWrapping="Wrap" />
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="18">
+                    <TextBlock Text="WORKFLOW"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBlock Text="{Binding ModeTitle}"
+                               FontSize="24"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ModeDescription}"
+                               Foreground="#b8b9b5"
+                               TextWrapping="Wrap" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                        <Border Background="#1e2626"
+                                BorderBrush="#3e4240"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="WORKFLOW TYPE"
+                                           Foreground="#aaa"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           LetterSpacing="1.5" />
+                                <RadioButton Content="Individual files"
+                                             GroupName="BatchWorkflowType"
+                                             IsChecked="{Binding IndividualFilesMode}" />
+                                <RadioButton Content="Encrypted archive"
+                                             GroupName="BatchWorkflowType"
+                                             IsChecked="{Binding ArchiveMode}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1"
+                                Background="#1e2626"
+                                BorderBrush="#3e4240"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="18">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="ACTION"
+                                           Foreground="#aaa"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           LetterSpacing="1.5" />
+                                <RadioButton Content="Encrypt"
+                                             GroupName="BatchWorkflowDirection"
+                                             IsChecked="{Binding EncryptMode}" />
+                                <RadioButton Content="Decrypt"
+                                             GroupName="BatchWorkflowDirection"
+                                             IsChecked="{Binding IsDecryptMode}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <TextBlock Text="{Binding WorkflowKindDescription}"
+                               Foreground="#9cc4ff"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="{Binding SourceHeading}"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBlock Text="{Binding FilesSummaryText}"
+                               Foreground="#b8b9b5"
+                               TextWrapping="Wrap" />
+
+                    <Grid ColumnDefinitions="*,180" ColumnSpacing="16">
+                        <ListBox ItemsSource="{Binding SourcePaths}"
+                                 SelectedItem="{Binding SelectedSourcePath}"
+                                 MinHeight="220">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding .}"
+                                               TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <StackPanel Grid.Column="1" Spacing="12">
+                            <Button Content="{Binding BrowseFilesButtonText}"
+                                    Command="{Binding BrowseFilesCommand}" />
+                            <Button Content="Remove selected"
+                                    Command="{Binding RemoveSelectedFileCommand}" />
+                            <Button Content="Clear list"
+                                    Command="{Binding ClearFilesCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="{Binding OutputHeading}"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
+                        <TextBox Text="{Binding OutputDirectory}"
+                                 PlaceholderText="Choose an existing output folder..."
+                                 FontSize="20" />
+                        <Button Grid.Column="1"
+                                Content="Browse"
+                                Command="{Binding BrowseOutputDirectoryCommand}" />
+                    </Grid>
+
+                    <TextBlock Text="{Binding OutputDescription}"
+                               Foreground="#b8b9b5"
+                               TextWrapping="Wrap" />
+
+                    <StackPanel IsVisible="{Binding ShowArchiveNameEditor}"
+                                Spacing="10">
+                        <TextBlock Text="ARCHIVE NAME"
+                                   Foreground="#aaa"
+                                   FontSize="15"
+                                   FontWeight="Bold"
+                                   LetterSpacing="2" />
+                        <TextBox Text="{Binding ArchiveName}"
+                                 PlaceholderText="Optional archive name, like project-docs"
+                                 FontSize="18" />
+                        <TextBlock Text="{Binding ArchiveNameStatusText}"
+                                   Foreground="#aaa"
+                                   Margin="32,0,0,0"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
+                              Content="Never overwrite existing files" />
+                    <TextBlock Text="FileCrypter auto-renames each destination when that folder already contains a matching name."
+                               Foreground="#aaa"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="PASSWORD AND OPTIONAL KEY FILE"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBox Text="{Binding Password}"
+                             PasswordChar="*"
+                             PlaceholderText="Password"
+                             FontSize="20" />
+
+                    <TextBlock Text="{Binding KeyFileChoiceStatusText}"
+                               Foreground="#9cc4ff"
+                               TextWrapping="Wrap" />
+
+                    <Grid ColumnDefinitions="*,140,96" ColumnSpacing="16">
+                        <TextBox Text="{Binding KeyFilePath}"
+                                 PlaceholderText="Optional batch key file..."
+                                 FontSize="18" />
+                        <Button Grid.Column="1"
+                                Content="Browse"
+                                Command="{Binding BrowseKeyFileCommand}" />
+                        <Button Grid.Column="2"
+                                Content="Clear"
+                                Command="{Binding ClearKeyFileCommand}" />
+                    </Grid>
+
+                    <TextBlock Text="If you use a key file here, keep the original file unchanged because FileCrypter will require that same key file later."
+                               Foreground="#aaa"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="16">
+                    <ProgressBar Minimum="0"
+                                 Maximum="100"
+                                 Value="{Binding ProgressPercent}" />
+                    <TextBlock Text="{Binding ProgressText}"
+                               Foreground="#b8b9b5"
+                               TextWrapping="Wrap" />
+                    <Button Content="{Binding ActionButtonText}"
+                            Command="{Binding StartBatchCommand}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            FontSize="18"
+                            FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+
+            <Border IsVisible="{Binding HasResults}"
+                    Background="#1e2626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="24,18">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="{Binding ResultSummary}"
+                               FontWeight="SemiBold"
+                               Foreground="#d7e7e3"
+                               TextWrapping="Wrap" />
+
+                    <ItemsControl ItemsSource="{Binding Results}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:BatchResultItemViewModel">
+                                <Border Background="#242626"
+                                        BorderBrush="#3e4240"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18"
+                                        Margin="0,0,0,12">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="{Binding StatusLabel}"
+                                                   Foreground="{Binding StatusBrush}"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding TitleText}"
+                                                   FontSize="17"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding PrimaryText}"
+                                                   Foreground="#b8b9b5"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding DetailLabel}"
+                                                   Foreground="#aaa"
+                                                   FontSize="13"
+                                                   FontWeight="Bold"
+                                                   LetterSpacing="1.5" />
+                                        <TextBlock Text="{Binding DetailText}"
+                                                   Foreground="{Binding DetailBrush}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock IsVisible="{Binding HasSecondaryText}"
+                                                   Text="{Binding SecondaryText}"
+                                                   Foreground="#aaa"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

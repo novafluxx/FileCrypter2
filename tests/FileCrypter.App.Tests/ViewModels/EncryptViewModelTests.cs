@@ -187,6 +187,38 @@ public sealed class EncryptViewModelTests
         {
             throw new NotSupportedException();
         }
+
+        public Task<ArchiveEncryptResult> EncryptArchiveAsync(
+            ArchiveEncryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ArchiveDecryptResult> DecryptArchiveAsync(
+            ArchiveDecryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<BatchTransformResult> EncryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<BatchTransformResult> DecryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class WaitingWorkflowService : IFileCrypterWorkflowService
@@ -212,6 +244,38 @@ public sealed class EncryptViewModelTests
             throw new NotSupportedException();
         }
 
+        public Task<ArchiveEncryptResult> EncryptArchiveAsync(
+            ArchiveEncryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ArchiveDecryptResult> DecryptArchiveAsync(
+            ArchiveDecryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<BatchTransformResult> EncryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<BatchTransformResult> DecryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
         public void Finish(EncryptFileResult result)
         {
             completion.SetResult(result);
@@ -231,6 +295,18 @@ public sealed class EncryptViewModelTests
         public string? LastSuggestedFileName { get; private set; }
 
         public Task<string?> PickOpenFileAsync(string title, CancellationToken cancellationToken)
+        {
+            LastOpenTitle = title;
+            return Task.FromResult(OpenResult);
+        }
+
+        public Task<IReadOnlyList<string>> PickOpenFilesAsync(string title, CancellationToken cancellationToken)
+        {
+            LastOpenTitle = title;
+            return Task.FromResult<IReadOnlyList<string>>(OpenResult is null ? [] : [OpenResult]);
+        }
+
+        public Task<string?> PickOpenFolderAsync(string title, CancellationToken cancellationToken)
         {
             LastOpenTitle = title;
             return Task.FromResult(OpenResult);

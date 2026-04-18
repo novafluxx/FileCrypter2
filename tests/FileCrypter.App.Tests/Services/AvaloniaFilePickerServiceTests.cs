@@ -26,6 +26,54 @@ public sealed class AvaloniaFilePickerServiceTests
     }
 
     [Fact]
+    public async Task PickOpenFilesAsync_ForwardsMultiSelectAndReturnsSelectedPaths()
+    {
+        FilePickerOpenOptions? capturedOptions = null;
+        var service = new AvaloniaFilePickerService(
+            options =>
+            {
+                capturedOptions = options;
+                return Task.FromResult<IReadOnlyList<string>>(
+                [
+                    "/tmp/first.txt",
+                    "/tmp/second.txt",
+                ]);
+            },
+            _ => Task.FromResult<string?>(null),
+            _ => Task.FromResult<string?>(null));
+
+        IReadOnlyList<string> result = await service.PickOpenFilesAsync("Choose files to encrypt", CancellationToken.None);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("/tmp/first.txt", result[0]);
+        Assert.Equal("/tmp/second.txt", result[1]);
+        Assert.NotNull(capturedOptions);
+        Assert.Equal("Choose files to encrypt", capturedOptions!.Title);
+        Assert.True(capturedOptions.AllowMultiple);
+    }
+
+    [Fact]
+    public async Task PickOpenFolderAsync_ForwardsTitleAndReturnsSelectedPath()
+    {
+        FolderPickerOpenOptions? capturedOptions = null;
+        var service = new AvaloniaFilePickerService(
+            _ => Task.FromResult<IReadOnlyList<string>>([]),
+            _ => Task.FromResult<string?>(null),
+            options =>
+            {
+                capturedOptions = options;
+                return Task.FromResult<string?>("/tmp/output");
+            });
+
+        string? result = await service.PickOpenFolderAsync("Choose output directory", CancellationToken.None);
+
+        Assert.Equal("/tmp/output", result);
+        Assert.NotNull(capturedOptions);
+        Assert.Equal("Choose output directory", capturedOptions!.Title);
+        Assert.False(capturedOptions.AllowMultiple);
+    }
+
+    [Fact]
     public async Task PickSaveFileAsync_ForwardsSuggestedFileNameAndReturnsSelectedPath()
     {
         FilePickerSaveOptions? capturedOptions = null;

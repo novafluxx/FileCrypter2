@@ -11,10 +11,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly EncryptViewModel encryptViewModel;
     private readonly DecryptViewModel decryptViewModel;
+    private readonly BatchViewModel batchViewModel;
     private readonly SettingsViewModel settingsViewModel;
-    private readonly PlaceholderPageViewModel batchViewModel = new(
-        "Batch",
-        "Batch encryption, batch decryption, and archive workflows will live here.");
     private readonly PlaceholderPageViewModel helpViewModel = new(
         "Help",
         "Keep passwords and key files. FileCrypter cannot recover forgotten passwords or lost or changed key files.");
@@ -43,6 +41,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             initialSettings.EnableCompressionByDefault,
             filePickerService);
         decryptViewModel = new DecryptViewModel(workflowService, filePickerService);
+        batchViewModel = new BatchViewModel(workflowService, filePickerService);
         settingsViewModel = new SettingsViewModel(settingsService, initialSettings, settingsErrorMessage);
         settingsViewModel.SettingsSaved += ApplySettings;
         currentPage = encryptViewModel;
@@ -62,6 +61,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         SubscribeToWorkflowStatus(encryptViewModel);
         SubscribeToWorkflowStatus(decryptViewModel);
+        SubscribeToWorkflowStatus(batchViewModel);
         SubscribeToWorkflowStatus(settingsViewModel);
     }
 
@@ -106,6 +106,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             ? encryptViewModel.Title
             : item.Key == "decrypt"
                 ? decryptViewModel.Title
+            : item.Key == "batch"
+                ? batchViewModel.Title
             : item.Title;
     }
 
