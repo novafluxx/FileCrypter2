@@ -1,0 +1,107 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileCrypter.App.ViewModels"
+             x:Class="FileCrypter.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="24" MaxWidth="1000">
+            <Border IsVisible="{Binding HasError}"
+                    Background="#552222"
+                    BorderBrush="#d35d64"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="24,18">
+                <TextBlock Text="{Binding ErrorMessage}"
+                           Foreground="#f0a0a4"
+                           FontSize="18"
+                           TextWrapping="Wrap" />
+            </Border>
+
+            <Border IsVisible="{Binding HasSuccess}"
+                    Background="#1f3927"
+                    BorderBrush="#5fa272"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="24,18">
+                <TextBlock Text="{Binding SuccessMessage}"
+                           Foreground="#d8f1de"
+                           FontSize="18"
+                           TextWrapping="Wrap" />
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="ENCRYPTION DEFAULTS"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBlock Text="Choose how the Encrypt page behaves before you touch anything. These settings are stored locally and shared with the CLI host."
+                               Foreground="#b8b9b5"
+                               TextWrapping="Wrap" />
+
+                    <CheckBox IsChecked="{Binding EnableCompressionByDefault}"
+                              Content="Enable compression by default for single-file encryption" />
+                    <TextBlock Text="{Binding CompressionDefaultDescription}"
+                               Foreground="#9cc4ff"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="Compression helps most with text and documents. Photos, videos, ZIP files, and other already-compressed files usually see little benefit."
+                               Foreground="#aaa"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="LOCAL SETTINGS FILE"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBlock Text="{Binding SettingsPath}"
+                               Foreground="#d8d9d5"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="FileCrypter keeps this file on your device only. The app does not store passwords or key files in settings."
+                               Foreground="#aaa"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="{Binding ProgressText}"
+                               Foreground="#b8b9b5"
+                               TextWrapping="Wrap" />
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
+                        <Button Content="Save settings"
+                                Command="{Binding SaveSettingsCommand}"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                FontSize="18"
+                                FontWeight="SemiBold" />
+                        <Button Grid.Column="1"
+                                Content="Reload"
+                                Command="{Binding ReloadSettingsCommand}" />
+                        <Button Grid.Column="2"
+                                Content="Restore default"
+                                Command="{Binding RestoreDefaultCommand}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

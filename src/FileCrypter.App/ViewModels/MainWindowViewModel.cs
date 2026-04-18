@@ -3,6 +3,7 @@ using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
+using FileCrypter.Core.Settings;
 
 namespace FileCrypter.App.ViewModels;
 
@@ -10,15 +11,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly EncryptViewModel encryptViewModel;
     private readonly DecryptViewModel decryptViewModel;
+    private readonly SettingsViewModel settingsViewModel;
     private readonly PlaceholderPageViewModel batchViewModel = new(
         "Batch",
         "Batch encryption, batch decryption, and archive workflows will live here.");
     private readonly PlaceholderPageViewModel helpViewModel = new(
         "Help",
         "Keep passwords and key files. FileCrypter cannot recover forgotten passwords or lost or changed key files.");
-    private readonly PlaceholderPageViewModel settingsViewModel = new(
-        "Settings",
-        "Compression defaults and appearance settings will live here.");
 
     [ObservableProperty]
     private ViewModelBase currentPage;
@@ -27,16 +26,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private string currentPageTitle;
 
     public MainWindowViewModel()
-        : this(new FileCrypterWorkflowService())
+        : this(new FileCrypterWorkflowService(), new FileCrypterSettingsService())
     {
     }
 
     public MainWindowViewModel(
         IFileCrypterWorkflowService workflowService,
+        IFileCrypterSettingsService? settingsService = null,
         IFilePickerService? filePickerService = null)
     {
-        encryptViewModel = new EncryptViewModel(workflowService, filePickerService);
+        settingsService ??= new FileCrypterSettingsService();
+        FileCrypterSettings initialSettings = LoadInitialSettings(settingsService, out string settingsErrorMessage);
+
+        encryptViewModel = new EncryptViewModel(
+            workflowService,
+            initialSettings.EnableCompressionByDefault,
+            filePickerService);
         decryptViewModel = new DecryptViewModel(workflowService, filePickerService);
+        settingsViewModel = new SettingsViewModel(settingsService, initialSettings, settingsErrorMessage);
+        settingsViewModel.SettingsSaved += ApplySettings;
         currentPage = encryptViewModel;
         currentPageTitle = encryptViewModel.Title;
 
@@ -54,6 +62,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         SubscribeToWorkflowStatus(encryptViewModel);
         SubscribeToWorkflowStatus(decryptViewModel);
+        SubscribeToWorkflowStatus(settingsViewModel);
     }
 
     public ObservableCollection<NavigationItemViewModel> PrimaryNavigationItems { get; }
@@ -112,14 +121,35 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        if (args.PropertyName is nameof(EncryptViewModel.StatusText) or nameof(DecryptViewModel.StatusText))
+        if (args.PropertyName == nameof(IWorkflowStatusViewModel.StatusText))
         {
             OnPropertyChanged(nameof(StatusText));
         }
 
-        if (args.PropertyName is nameof(EncryptViewModel.ProgressText) or nameof(DecryptViewModel.ProgressText))
+        if (args.PropertyName == nameof(IWorkflowStatusViewModel.ProgressText))
         {
             OnPropertyChanged(nameof(FooterDetail));
         }
+    }
+
+    private static FileCrypterSettings LoadInitialSettings(
+        IFileCrypterSettingsService settingsService,
+        out string settingsErrorMessage)
+    {
+        try
+        {
+            settingsErrorMessage = string.Empty;
+            return settingsService.LoadAsync(CancellationToken.None).GetAwaiter().GetResult();
+        }
+        catch (Exception exception)
+        {
+            settingsErrorMessage = $"Settings error: {exception.Message}";
+            return new FileCrypterSettings();
+        }
+    }
+
+    private void ApplySettings(FileCrypterSettings settings)
+    {
+        encryptViewModel.ApplySettings(settings);
     }
 }

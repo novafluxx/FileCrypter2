@@ -1,5 +1,6 @@
 using FileCrypter.App.Services;
 using FileCrypter.App.ViewModels;
+using FileCrypter.Core.Settings;
 
 namespace FileCrypter.App.Tests.ViewModels;
 
@@ -8,7 +9,7 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void Constructor_DefaultsToEncryptPage()
     {
-        var viewModel = new MainWindowViewModel(new StubWorkflowService());
+        var viewModel = new MainWindowViewModel(new StubWorkflowService(), new StubSettingsService());
 
         Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
         Assert.Equal("Encrypt a file", viewModel.CurrentPageTitle);
@@ -16,9 +17,23 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void Constructor_AppliesPersistedCompressionDefaultToEncryptPage()
+    {
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService
+            {
+                LoadedSettings = new FileCrypterSettings { EnableCompressionByDefault = true },
+            });
+
+        EncryptViewModel encryptPage = Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
+        Assert.True(encryptPage.EnableCompression);
+    }
+
+    [Fact]
     public void SelectNavigationItem_SwapsCurrentPage()
     {
-        var viewModel = new MainWindowViewModel(new StubWorkflowService());
+        var viewModel = new MainWindowViewModel(new StubWorkflowService(), new StubSettingsService());
         NavigationItemViewModel helpItem = viewModel.SecondaryNavigationItems.Single(item => item.Key == "help");
 
         viewModel.SelectNavigationItemCommand.Execute(helpItem);
@@ -34,7 +49,7 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void SelectNavigationItem_DecryptPageUsesDecryptViewModelAndFooter()
     {
-        var viewModel = new MainWindowViewModel(new StubWorkflowService());
+        var viewModel = new MainWindowViewModel(new StubWorkflowService(), new StubSettingsService());
         NavigationItemViewModel decryptItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "decrypt");
 
         viewModel.SelectNavigationItemCommand.Execute(decryptItem);
@@ -43,6 +58,26 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Decrypt a file", viewModel.CurrentPageTitle);
         Assert.Equal("Ready", viewModel.StatusText);
         Assert.Equal("No encrypted file selected", viewModel.FooterDetail);
+    }
+
+    [Fact]
+    public async Task SettingsSave_UpdatesEncryptCompressionDefault()
+    {
+        var settingsService = new StubSettingsService();
+        var viewModel = new MainWindowViewModel(new StubWorkflowService(), settingsService);
+        NavigationItemViewModel settingsItem = viewModel.SecondaryNavigationItems.Single(item => item.Key == "settings");
+        NavigationItemViewModel encryptItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "encrypt");
+
+        viewModel.SelectNavigationItemCommand.Execute(settingsItem);
+        SettingsViewModel settingsPage = Assert.IsType<SettingsViewModel>(viewModel.CurrentPage);
+        settingsPage.EnableCompressionByDefault = true;
+
+        await settingsPage.SaveSettingsCommand.ExecuteAsync(null);
+        viewModel.SelectNavigationItemCommand.Execute(encryptItem);
+
+        Assert.NotNull(settingsService.SavedSettings);
+        Assert.True(settingsService.SavedSettings.EnableCompressionByDefault);
+        Assert.True(Assert.IsType<EncryptViewModel>(viewModel.CurrentPage).EnableCompression);
     }
 
     private sealed class StubWorkflowService : IFileCrypterWorkflowService
@@ -61,6 +96,38 @@ public sealed class MainWindowViewModelTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult(new DecryptFileResult("unused"));
+        }
+    }
+
+    private sealed class StubSettingsService : IFileCrypterSettingsService
+    {
+        public string SettingsPath => "/tmp/settings.json";
+
+        public FileCrypterSettings LoadedSettings { get; set; } = new();
+
+        public FileCrypterSettings? SavedSettings { get; private set; }
+
+        public Exception? LoadException { get; init; }
+
+        public Exception? SaveException { get; init; }
+
+        public Task<FileCrypterSettings> LoadAsync(CancellationToken cancellationToken)
+        {
+            return LoadException is null
+                ? Task.FromResult(LoadedSettings)
+                : Task.FromException<FileCrypterSettings>(LoadException);
+        }
+
+        public Task SaveAsync(FileCrypterSettings settings, CancellationToken cancellationToken)
+        {
+            if (SaveException is not null)
+            {
+                return Task.FromException(SaveException);
+            }
+
+            SavedSettings = settings;
+            LoadedSettings = settings;
+            return Task.CompletedTask;
         }
     }
 }

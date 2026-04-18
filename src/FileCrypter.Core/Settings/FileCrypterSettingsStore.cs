@@ -1,6 +1,8 @@
 using System.Text.Json;
 
-internal sealed class FileCrypterSettingsStore
+namespace FileCrypter.Core.Settings;
+
+public sealed class FileCrypterSettingsStore
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {

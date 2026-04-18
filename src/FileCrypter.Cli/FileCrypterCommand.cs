@@ -1,6 +1,7 @@
 using System.Globalization;
 using FileCrypter.Core;
 using FileCrypter.Core.Format;
+using FileCrypter.Core.Settings;
 
 internal sealed class FileCrypterCommand
 {

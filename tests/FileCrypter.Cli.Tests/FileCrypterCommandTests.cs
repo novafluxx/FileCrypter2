@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using FileCrypter.Core;
+using FileCrypter.Core.Settings;
 
 public sealed class FileCrypterCommandTests
 {

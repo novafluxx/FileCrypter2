@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
 using FileCrypter.Core;
+using FileCrypter.Core.Settings;
 
 namespace FileCrypter.App.ViewModels;
 
@@ -68,9 +69,18 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     public EncryptViewModel(
         IFileCrypterWorkflowService workflowService,
         IFilePickerService? filePickerService = null)
+        : this(workflowService, enableCompressionByDefault: false, filePickerService)
+    {
+    }
+
+    public EncryptViewModel(
+        IFileCrypterWorkflowService workflowService,
+        bool enableCompressionByDefault,
+        IFilePickerService? filePickerService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
+        EnableCompression = enableCompressionByDefault;
     }
 
     public string Title => "Encrypt a file";
@@ -102,6 +112,13 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     public string OutputDisplayText => string.IsNullOrWhiteSpace(OutputPath)
         ? "Auto-generated from input filename..."
         : OutputPath;
+
+    public void ApplySettings(FileCrypterSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        EnableCompression = settings.EnableCompressionByDefault;
+    }
 
     partial void OnSourcePathChanged(string value)
     {

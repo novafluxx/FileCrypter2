@@ -74,6 +74,11 @@ codex/avalonia-gui-shell
 - Avalonia GUI single-file decryption is now implemented in `src/FileCrypter.App` with source/output pickers, safe default output naming, optional existing key-file input, progress reporting, and result/error messaging wired through `FileCrypter.Core`.
 - The desktop shell footer/status area now reflects the active workflow page instead of always showing Encrypt-page state.
 - App test coverage now includes the Decrypt page command validation, running-state behavior, success, authentication failure guidance, key-file picker flow, output-name suggestions, and decrypt navigation shell wiring.
+- Shared local settings persistence now lives in `src/FileCrypter.Core/Settings`, so the CLI host and Avalonia app use the same `settings.json` path, JSON shape, and staged-write save behavior.
+- Avalonia GUI Settings is now a real page in `src/FileCrypter.App` with local load/save/reload actions for the persisted compression default plus settings-file visibility and success/error feedback.
+- The Encrypt page now starts from the persisted compression default and updates immediately after Settings saves or reloads, keeping GUI single-file encryption aligned with the CLI host behavior.
+- App test coverage now includes Settings page save/reload/error handling plus MainWindow integration that propagates saved compression defaults back into Encrypt.
+- The Settings page save/reload workflow now stays on the captured UI synchronization context after async settings I/O, preventing Avalonia cross-thread crashes when command state changes after a save.
 
 ## Current Format Decisions
 
@@ -93,16 +98,14 @@ codex/avalonia-gui-shell
 
 ## Verified
 
-These commands passed after the latest Decrypt-page pass:
+These commands passed after the latest Settings-page pass:
 
 ```bash
-dotnet build src/FileCrypter.App/FileCrypter.App.csproj
-dotnet build
+dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj
 dotnet test
-dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj --no-build
 ```
 
-Latest test count at handoff: 146 passed, 0 failed.
+Latest test count at handoff: 152 passed, 0 failed.
 
 GUI launch smoke coverage at handoff:
 
@@ -110,7 +113,7 @@ GUI launch smoke coverage at handoff:
 dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
 ```
 
-The desktop app launch command stayed running until manually interrupted, which is a basic launch smoke signal. Native file-picker dialogs were not visually exercised end-to-end in automation and should still get a quick manual click-through on the target desktop.
+The desktop app launch command stayed running until manually interrupted during the previous GUI pass, which is a basic launch smoke signal. Native file-picker dialogs and the new Settings page were not visually exercised end-to-end in automation and should still get a quick manual click-through on the target desktop.
 
 Focused CLI coverage also passed:
 
@@ -136,7 +139,7 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 
 ## Not Started
 
-- Broader settings, help, update flow, and graphical UI.
+- Broader batch, help, update flow, and graphical UI.
 - Broader CLI command polish.
 
 ## Product Alignment
@@ -162,14 +165,14 @@ Remaining product-level gaps are expected for later phases:
 
 - broader key-file UX/help
 - broader batch UX and aggregate progress
-- broader settings and help UX
+- broader help UX
 - broader CLI command polish
 - update flow and broader graphical UI
 
 ## Recommended Next Step
 
-Continue the Avalonia GUI now that single-file encrypt and decrypt workflows are scaffolded.
+Continue the Avalonia GUI now that single-file encrypt, decrypt, and settings workflows are implemented.
 
 Recommended next slices:
 
-- Add a real Settings page that loads and saves the existing compression-default setting so GUI encryption matches the persisted CLI-host behavior.
+- Replace the Batch placeholder with a first real batch page, reusing the current app-service/MVVM pattern to expose existing core/CLI-backed batch-encrypt and batch-decrypt capabilities.
