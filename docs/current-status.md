@@ -64,6 +64,7 @@ codex/phase-1-file-format
 - Archive coverage includes password-only and key-file round trips, archive header markers, duplicate entry renaming, extraction overwrite protection, malformed archive handling, CLI archive round trips, and archive help text.
 - CLI archive encryption can now accept an output directory, generate a timestamped `.tar.zst.encrypted` archive name, and accept a validated `--archive-name` basename for directory outputs.
 - Archive progress reporting now covers tar creation, archive encryption, archive decryption, and extraction phases through core progress callbacks and CLI stderr output.
+- CLI archive troubleshooting now points users to `archive-decrypt` when they try to use single-file `decrypt` on an archive payload, and points users back to `decrypt` when they try `archive-decrypt` on a single-file payload.
 
 ## Current Format Decisions
 
@@ -83,13 +84,13 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest archive-progress pass:
+These commands passed after the latest archive-troubleshooting pass:
 
 ```bash
 dotnet test
 ```
 
-Latest test count at handoff: 123 passed, 0 failed.
+Latest test count at handoff: 125 passed, 0 failed.
 
 Focused CLI coverage also passed:
 
@@ -151,5 +152,5 @@ Broaden settings/help UX and CLI polish now that the archive foundation is in pl
 
 Recommended next slices:
 
-- Broaden CLI help/troubleshooting for archive-specific user mistakes.
+- Continue broader CLI command polish around archive and batch troubleshooting, especially mixed-command mistakes that surface inside batch item failures.
 - Continue toward graphical UI once the remaining CLI contract is stable.

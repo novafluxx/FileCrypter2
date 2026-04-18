@@ -399,6 +399,57 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task Decrypt_WithArchivePayload_FailsWithArchiveDecryptHint()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "out.txt");
+        await File.WriteAllTextAsync(plaintextPath, "archive needs archive-decrypt");
+        await FileCrypter.Core.FileCrypter.EncryptArchiveAsync(
+            [plaintextPath],
+            encryptedArchivePath,
+            Password,
+            CreateFastOptions());
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["decrypt", encryptedArchivePath, decryptedPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("UnsupportedPayloadKind", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Use 'filecrypter archive-decrypt <input-archive> <output-directory>'", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(decryptedPath));
+    }
+
+    [Fact]
+    public async Task ArchiveDecrypt_WithSingleFilePayload_FailsWithDecryptHint()
+    {
+        using var directory = new TemporaryDirectory();
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(outputDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "single file needs decrypt");
+        await FileCrypter.Core.FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            CreateFastOptions());
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["archive-decrypt", encryptedPath, outputDirectory, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("UnsupportedPayloadKind", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Use 'filecrypter decrypt <input> [output]'", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.Empty(Directory.GetFiles(outputDirectory));
+    }
+
+    [Fact]
     public async Task BatchEncrypt_WithMixedSuccess_ContinuesAndReturnsFailure()
     {
         using var directory = new TemporaryDirectory();
@@ -479,6 +530,7 @@ public sealed class FileCrypterCommandTests
         Assert.Contains("Archive encryption writes one compressed tar archive payload", console.Output, StringComparison.Ordinal);
         Assert.Contains("--archive-name", console.Output, StringComparison.Ordinal);
         Assert.Contains("creates a timestamped .tar.zst.encrypted archive", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Use archive-decrypt for .tar.zst.encrypted archives", console.Output, StringComparison.Ordinal);
         Assert.Contains("settings set compression-default", console.Output, StringComparison.Ordinal);
         Assert.Empty(console.ErrorOutput);
     }

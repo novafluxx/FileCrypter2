@@ -48,7 +48,7 @@ internal sealed class FileCrypterCommand
         }
         catch (FileCrypterFormatException exception)
         {
-            return WriteFormatError(exception);
+            return WriteFormatError(args[0], exception);
         }
         catch (InvalidDataException exception)
         {
@@ -831,10 +831,17 @@ internal sealed class FileCrypterCommand
         return 1;
     }
 
-    private int WriteFormatError(FileCrypterFormatException exception)
+    private int WriteFormatError(string command, FileCrypterFormatException exception)
     {
         console.Error.WriteLine($"{exception.Message} ({exception.Code})");
-        string? hint = exception.Code switch
+        string? hint = GetFormatTroubleshootingHint(command, exception.Code);
+        console.Error.WriteLine(hint);
+        return 1;
+    }
+
+    private static string GetFormatTroubleshootingHint(string command, FileCrypterFormatErrorCode errorCode)
+    {
+        return errorCode switch
         {
             FileCrypterFormatErrorCode.AuthenticationFailed =>
                 "Check the password and key file, then try again.",
@@ -848,16 +855,21 @@ internal sealed class FileCrypterCommand
                 "The compressed payload appears damaged. Try a fresh copy of the encrypted file.",
             FileCrypterFormatErrorCode.InvalidArchivePayload =>
                 "The archive payload appears damaged or unsafe. Try a fresh copy of the encrypted archive.",
+            FileCrypterFormatErrorCode.UnsupportedPayloadKind =>
+                command switch
+                {
+                    "decrypt" =>
+                        "This encrypted file contains an archive. Use 'filecrypter archive-decrypt <input-archive> <output-directory>' to extract it.",
+                    "archive-decrypt" =>
+                        "This encrypted file contains a single file. Use 'filecrypter decrypt <input> [output]' to decrypt it.",
+                    _ => "This FileCrypter build cannot open that payload yet.",
+                },
             FileCrypterFormatErrorCode.UnsupportedVersion or
             FileCrypterFormatErrorCode.UnsupportedCompressionAlgorithm or
-            FileCrypterFormatErrorCode.UnsupportedPayloadKind or
             FileCrypterFormatErrorCode.UnsupportedKeyFileRequirement =>
                 "This FileCrypter build cannot open that payload yet.",
             _ => "The encrypted file metadata or payload is not valid for this FileCrypter version.",
         };
-
-        console.Error.WriteLine(hint);
-        return 1;
     }
 
     private int WritePathError(string message)
@@ -906,6 +918,7 @@ internal sealed class FileCrypterCommand
             Archive encryption writes one compressed tar archive payload and archive decryption writes each extracted path to stdout.
             If archive-encrypt receives an output directory, it creates a timestamped .tar.zst.encrypted archive there.
             Use --archive-name with an output directory to choose a safe custom archive basename.
+            Use archive-decrypt for .tar.zst.encrypted archives; use decrypt for single-file .encrypted files.
             Use --key-file with an existing key file for password plus key-file protection. The same key file is required
             for decryption; lost or changed key files cannot be recovered. Existing key files may be up to 16 MiB.
             Use --generate-key-file during encryption to create a new 32-byte key file before encrypting. Keep the generated
