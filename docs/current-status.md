@@ -53,6 +53,9 @@ codex/phase-1-file-format
 - CLI encryption now accepts `--generate-key-file <path>` to create a new key file before encryption, then uses it for password plus key-file protection while keeping stdout reserved for the encrypted output path.
 - Generated key-file CLI behavior preserves existing key files by auto-renaming, rejects generated key-file paths that match the input or encrypted output, and keeps recovery warnings visible.
 - Tests cover generated key-file bytes, generated-key-file round trips, overwrite protection, path validation, CLI mutual-exclusion behavior, and generated-key-file help/recovery messaging.
+- Core batch individual-file orchestration is implemented with per-file results, a 1000-file limit, safe output naming through the existing staged path APIs, and automatic compression for batch encryption.
+- CLI batch commands are wired as `batch-encrypt <output-directory> <input>...` and `batch-decrypt <output-directory> <input>...`, with successful output paths on stdout and per-file failures plus summary output on stderr.
+- Batch coverage includes round trips, automatic compression, key-file use, duplicate output auto-renaming, mixed success/failure continuation, and batch help text.
 
 ## Current Format Decisions
 
@@ -72,13 +75,13 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest key-file generation pass:
+These commands passed after the latest batch individual-file pass:
 
 ```bash
 dotnet test
 ```
 
-Latest test count at handoff: 99 passed, 0 failed.
+Latest test count at handoff: 107 passed, 0 failed.
 
 Focused CLI coverage also passed:
 
@@ -105,7 +108,6 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 ## Not Started
 
 - Archive mode.
-- Batch workflows.
 - Settings, help, update flow, and graphical UI.
 - Broader CLI command polish.
 
@@ -118,6 +120,7 @@ The current implementation is aligned with the product outline for the foundatio
 - password-only single-file encrypt/decrypt path
 - password plus existing-key-file single-file encrypt/decrypt path
 - generated key-file single-file encrypt path
+- batch individual-file encrypt/decrypt path
 - versioned documented encrypted file format
 - AES-256-GCM, Argon2id, unique per-file salt, unique per-file nonce prefix, and chunk-level authentication
 - bounded-memory streaming for large-file readiness
@@ -128,22 +131,22 @@ The current implementation is aligned with the product outline for the foundatio
 Remaining product-level gaps are expected for later phases:
 
 - broader key-file UX/help
-- batch individual-file workflows
+- broader batch UX and aggregate progress
 - archive creation/extraction
 - broader CLI command polish
 - settings persistence, help/troubleshooting content, update flow, and UI
 
 ## Recommended Next Step
 
-Start batch individual-file workflows or compression default settings.
+Start persisted compression default settings.
 
 Immediate next slice:
 
-- Add core batch orchestration for multiple independent files using the existing staged path APIs.
-- Pick a first CLI shape for batch encrypt/decrypt inputs and output directory handling.
-- Preserve per-file overwrite protection and continue on per-file failures where safe.
-- Cover aggregate success, mixed success/failure, default output naming, and key-file/compression interactions.
+- Add a small local settings model with a compression-default preference.
+- Pick the first persistence location and file format for CLI-host settings.
+- Apply the compression default to single-file encryption while preserving explicit `--compress` behavior.
+- Cover settings load/save, default compression application, and corrupt/missing settings behavior.
 
 Recommended follow-up work:
 
-- Add persisted compression defaults after the first batch workflow is in place.
+- Start archive mode after compression defaults are persisted.

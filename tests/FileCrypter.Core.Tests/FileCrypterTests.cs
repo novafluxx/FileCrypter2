@@ -195,6 +195,157 @@ public sealed class FileCrypterTests
     }
 
     [Fact]
+    public async Task EncryptFilesAsyncDecryptFilesAsync_RoundTripsAndCompressesEachFile()
+    {
+        using var directory = new TemporaryDirectory();
+        string inputDirectory = Path.Combine(directory.Path, "input");
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        string decryptedDirectory = Path.Combine(directory.Path, "decrypted");
+        Directory.CreateDirectory(inputDirectory);
+        Directory.CreateDirectory(encryptedDirectory);
+        Directory.CreateDirectory(decryptedDirectory);
+        string firstPlaintextPath = Path.Combine(inputDirectory, "first.txt");
+        string secondPlaintextPath = Path.Combine(inputDirectory, "second.txt");
+        byte[] firstPlaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("first\n", 512)));
+        byte[] secondPlaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("second\n", 512)));
+        await File.WriteAllBytesAsync(firstPlaintextPath, firstPlaintextBytes);
+        await File.WriteAllBytesAsync(secondPlaintextPath, secondPlaintextBytes);
+
+        FileCrypterBatchResult encryptResult = await FileCrypter.EncryptFilesAsync(
+            [firstPlaintextPath, secondPlaintextPath],
+            encryptedDirectory,
+            Password,
+            CreateFastOptions());
+        FileCrypterBatchResult decryptResult = await FileCrypter.DecryptFilesAsync(
+            encryptResult.Items.Select(item => item.OutputPath!),
+            decryptedDirectory,
+            Password,
+            CreateFastOptions());
+
+        string firstEncryptedPath = Path.Combine(encryptedDirectory, "first.txt.encrypted");
+        string secondEncryptedPath = Path.Combine(encryptedDirectory, "second.txt.encrypted");
+        string firstDecryptedPath = Path.Combine(decryptedDirectory, "first.txt");
+        string secondDecryptedPath = Path.Combine(decryptedDirectory, "second.txt");
+        byte[] firstEncryptedBytes = await File.ReadAllBytesAsync(firstEncryptedPath);
+        FileCrypterHeader firstHeader = FileCrypterHeaderParser.Parse(
+            firstEncryptedBytes.AsSpan(0, FileCrypterFormatConstants.HeaderLength));
+        Assert.True(encryptResult.Succeeded);
+        Assert.Equal(2, encryptResult.SucceededCount);
+        Assert.Equal(0, encryptResult.FailedCount);
+        Assert.Equal(FileCrypterFormatConstants.CompressionZstd, firstHeader.CompressionAlgorithmId);
+        Assert.True(File.Exists(secondEncryptedPath));
+        Assert.True(decryptResult.Succeeded);
+        Assert.Equal(firstPlaintextBytes, await File.ReadAllBytesAsync(firstDecryptedPath));
+        Assert.Equal(secondPlaintextBytes, await File.ReadAllBytesAsync(secondDecryptedPath));
+    }
+
+    [Fact]
+    public async Task EncryptFilesAsync_WithDuplicateOutputNames_AutoRenamesPerFile()
+    {
+        using var directory = new TemporaryDirectory();
+        string firstDirectory = Path.Combine(directory.Path, "first");
+        string secondDirectory = Path.Combine(directory.Path, "second");
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        Directory.CreateDirectory(firstDirectory);
+        Directory.CreateDirectory(secondDirectory);
+        Directory.CreateDirectory(encryptedDirectory);
+        string firstPlaintextPath = Path.Combine(firstDirectory, "same.txt");
+        string secondPlaintextPath = Path.Combine(secondDirectory, "same.txt");
+        await File.WriteAllTextAsync(firstPlaintextPath, "first");
+        await File.WriteAllTextAsync(secondPlaintextPath, "second");
+
+        FileCrypterBatchResult result = await FileCrypter.EncryptFilesAsync(
+            [firstPlaintextPath, secondPlaintextPath],
+            encryptedDirectory,
+            Password,
+            CreateFastOptions());
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(Path.Combine(encryptedDirectory, "same.txt.encrypted"), result.Items[0].OutputPath);
+        Assert.Equal(Path.Combine(encryptedDirectory, "same.txt (1).encrypted"), result.Items[1].OutputPath);
+        Assert.True(File.Exists(result.Items[0].OutputPath));
+        Assert.True(File.Exists(result.Items[1].OutputPath));
+    }
+
+    [Fact]
+    public async Task EncryptFilesAsync_WithMixedSuccess_ReturnsPerFileFailureAndContinues()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        Directory.CreateDirectory(encryptedDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string missingPath = Path.Combine(directory.Path, "missing.txt");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+
+        FileCrypterBatchResult result = await FileCrypter.EncryptFilesAsync(
+            [plaintextPath, missingPath],
+            encryptedDirectory,
+            Password,
+            CreateFastOptions());
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(1, result.SucceededCount);
+        Assert.Equal(1, result.FailedCount);
+        Assert.True(result.Items[0].Succeeded);
+        Assert.False(result.Items[1].Succeeded);
+        Assert.IsAssignableFrom<IOException>(result.Items[1].Error);
+        Assert.True(File.Exists(Path.Combine(encryptedDirectory, "plain.txt.encrypted")));
+    }
+
+    [Fact]
+    public async Task EncryptFilesAsync_WithKeyFile_RoundTrips()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        string decryptedDirectory = Path.Combine(directory.Path, "decrypted");
+        Directory.CreateDirectory(encryptedDirectory);
+        Directory.CreateDirectory(decryptedDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("batch key file");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+
+        FileCrypterBatchResult encryptResult = await FileCrypter.EncryptFilesAsync(
+            [plaintextPath],
+            encryptedDirectory,
+            Password,
+            keyFilePath,
+            CreateFastOptions());
+        FileCrypterBatchResult decryptResult = await FileCrypter.DecryptFilesAsync(
+            encryptResult.Items.Select(item => item.OutputPath!),
+            decryptedDirectory,
+            Password,
+            keyFilePath,
+            CreateFastOptions());
+
+        Assert.True(encryptResult.Succeeded);
+        Assert.True(decryptResult.Succeeded);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(Path.Combine(decryptedDirectory, "plain.txt")));
+    }
+
+    [Fact]
+    public async Task EncryptFilesAsync_WhenFileCountExceedsLimit_Throws()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        Directory.CreateDirectory(encryptedDirectory);
+        string[] inputPaths = Enumerable
+            .Range(0, FileCrypter.MaximumBatchFileCount + 1)
+            .Select(index => Path.Combine(directory.Path, $"{index}.txt"))
+            .ToArray();
+
+        ArgumentException exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => FileCrypter.EncryptFilesAsync(
+                inputPaths,
+                encryptedDirectory,
+                Password,
+                CreateFastOptions()));
+
+        Assert.Contains("supports up to", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task EncryptFileAsync_WithOversizedKeyFile_ThrowsAndDoesNotCreateOutput()
     {
         using var directory = new TemporaryDirectory();

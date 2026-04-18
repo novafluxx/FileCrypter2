@@ -29,7 +29,9 @@ internal sealed class FileCrypterCommand
             {
                 "encrypt" => await RunTransformAsync(args, encrypt: true).ConfigureAwait(false),
                 "decrypt" => await RunTransformAsync(args, encrypt: false).ConfigureAwait(false),
-                _ => WriteError("Unknown command. Use 'encrypt' or 'decrypt'."),
+                "batch-encrypt" => await RunBatchAsync(args, encrypt: true).ConfigureAwait(false),
+                "batch-decrypt" => await RunBatchAsync(args, encrypt: false).ConfigureAwait(false),
+                _ => WriteError("Unknown command. Use 'encrypt', 'decrypt', 'batch-encrypt', or 'batch-decrypt'."),
             };
         }
         catch (FileCrypterFormatException exception)
@@ -220,6 +222,133 @@ internal sealed class FileCrypterCommand
         return 0;
     }
 
+    private async Task<int> RunBatchAsync(string[] args, bool encrypt)
+    {
+        if (args.Length < 2)
+        {
+            return WriteError("Missing output directory.");
+        }
+
+        string outputDirectory = args[1];
+        string? password = null;
+        string? keyFilePath = null;
+        bool overwrite = false;
+        var inputPaths = new List<string>();
+
+        for (int index = 2; index < args.Length; index++)
+        {
+            string arg = args[index];
+            switch (arg)
+            {
+                case "--password":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --password.");
+                    }
+
+                    password = args[index];
+                    break;
+
+                case "--password-stdin":
+                    password = await console.In.ReadLineAsync().ConfigureAwait(false);
+                    break;
+
+                case "--key-file":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --key-file.");
+                    }
+
+                    keyFilePath = args[index];
+                    break;
+
+                case "--overwrite":
+                    overwrite = true;
+                    break;
+
+                case "--compress":
+                    if (!encrypt)
+                    {
+                        return WriteError("--compress is only supported with batch-encrypt.");
+                    }
+
+                    break;
+
+                default:
+                    if (arg.StartsWith("-", StringComparison.Ordinal))
+                    {
+                        return WriteError($"Unknown option '{arg}'.");
+                    }
+
+                    inputPaths.Add(arg);
+                    break;
+            }
+        }
+
+        if (inputPaths.Count == 0)
+        {
+            return WriteError("At least one input path is required.");
+        }
+
+        if (password is null)
+        {
+            password = ReadPasswordFromInteractiveConsole();
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
+        }
+
+        FileCrypterBatchResult result = encrypt
+            ? keyFilePath is null
+                ? await FileCrypter.Core.FileCrypter.EncryptFilesAsync(
+                    inputPaths,
+                    outputDirectory,
+                    password,
+                    options,
+                    overwrite).ConfigureAwait(false)
+                : await FileCrypter.Core.FileCrypter.EncryptFilesAsync(
+                    inputPaths,
+                    outputDirectory,
+                    password,
+                    keyFilePath,
+                    options,
+                    overwrite).ConfigureAwait(false)
+            : keyFilePath is null
+                ? await FileCrypter.Core.FileCrypter.DecryptFilesAsync(
+                    inputPaths,
+                    outputDirectory,
+                    password,
+                    options,
+                    overwrite).ConfigureAwait(false)
+                : await FileCrypter.Core.FileCrypter.DecryptFilesAsync(
+                    inputPaths,
+                    outputDirectory,
+                    password,
+                    keyFilePath,
+                    options,
+                    overwrite).ConfigureAwait(false);
+
+        foreach (FileCrypterBatchItemResult item in result.Items)
+        {
+            if (item.Succeeded)
+            {
+                console.Out.WriteLine(item.OutputPath);
+            }
+            else
+            {
+                WriteBatchItemError(item);
+            }
+        }
+
+        console.Error.WriteLine(
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"Batch complete: {result.SucceededCount}/{result.Items.Count} succeeded."));
+        return result.Succeeded ? 0 : 1;
+    }
+
     private string? ReadPasswordFromInteractiveConsole()
     {
         if (console.IsInputRedirected)
@@ -338,6 +467,16 @@ internal sealed class FileCrypterCommand
         return 1;
     }
 
+    private void WriteBatchItemError(FileCrypterBatchItemResult item)
+    {
+        Exception exception = item.Error ?? new InvalidOperationException("The batch item failed without an error.");
+        string message = exception is FileCrypterFormatException formatException
+            ? $"{formatException.Message} ({formatException.Code})"
+            : exception.Message;
+        console.Error.WriteLine($"Failed: {item.InputPath}");
+        console.Error.WriteLine(message);
+    }
+
     private void WriteUsage()
     {
         console.Out.WriteLine(
@@ -345,10 +484,13 @@ internal sealed class FileCrypterCommand
             Usage:
               filecrypter encrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path> | --generate-key-file <path>] [--compress] [--overwrite]
               filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+              filecrypter batch-encrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+              filecrypter batch-decrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
 
             If no password option is supplied, FileCrypter prompts without echoing the password when run interactively.
             If output is omitted, encryption appends .encrypted and decryption removes .encrypted when present.
             Use --compress during encryption to reduce compatible payloads before encryption. Decryption detects compressed files automatically.
+            Batch encryption compresses each file automatically and writes one output path per successful file to stdout.
             Use --key-file with an existing key file for password plus key-file protection. The same key file is required
             for decryption; lost or changed key files cannot be recovered. Existing key files may be up to 16 MiB.
             Use --generate-key-file during encryption to create a new 32-byte key file before encrypting. Keep the generated

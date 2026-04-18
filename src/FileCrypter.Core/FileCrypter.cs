@@ -9,9 +9,11 @@ namespace FileCrypter.Core;
 public static class FileCrypter
 {
     public const int DefaultGeneratedKeyFileSizeBytes = 32;
+    public const int MaximumBatchFileCount = 1000;
 
     private const UnixFileMode PrivateFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     private const int ZstdCompressionLevel = 3;
+    private const string DefaultEncryptedSuffix = ".encrypted";
 
     public static byte[] GenerateKeyFileBytes(FileCrypterOptions? options = null)
     {
@@ -156,6 +158,84 @@ public static class FileCrypter
         return TransformFileAsync(
             encryptedPath,
             plaintextPath,
+            password,
+            keyFilePath,
+            options,
+            overwrite,
+            encrypt: false,
+            cancellationToken);
+    }
+
+    public static Task<FileCrypterBatchResult> EncryptFilesAsync(
+        IEnumerable<string> plaintextPaths,
+        string outputDirectory,
+        string password,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return TransformFilesAsync(
+            plaintextPaths,
+            outputDirectory,
+            password,
+            keyFilePath: null,
+            options,
+            overwrite,
+            encrypt: true,
+            cancellationToken);
+    }
+
+    public static Task<FileCrypterBatchResult> EncryptFilesAsync(
+        IEnumerable<string> plaintextPaths,
+        string outputDirectory,
+        string password,
+        string keyFilePath,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return TransformFilesAsync(
+            plaintextPaths,
+            outputDirectory,
+            password,
+            keyFilePath,
+            options,
+            overwrite,
+            encrypt: true,
+            cancellationToken);
+    }
+
+    public static Task<FileCrypterBatchResult> DecryptFilesAsync(
+        IEnumerable<string> encryptedPaths,
+        string outputDirectory,
+        string password,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return TransformFilesAsync(
+            encryptedPaths,
+            outputDirectory,
+            password,
+            keyFilePath: null,
+            options,
+            overwrite,
+            encrypt: false,
+            cancellationToken);
+    }
+
+    public static Task<FileCrypterBatchResult> DecryptFilesAsync(
+        IEnumerable<string> encryptedPaths,
+        string outputDirectory,
+        string password,
+        string keyFilePath,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return TransformFilesAsync(
+            encryptedPaths,
+            outputDirectory,
             password,
             keyFilePath,
             options,
@@ -461,6 +541,100 @@ public static class FileCrypter
         }
     }
 
+    private static async Task<FileCrypterBatchResult> TransformFilesAsync(
+        IEnumerable<string> inputPaths,
+        string outputDirectory,
+        string password,
+        string? keyFilePath,
+        FileCrypterOptions? options,
+        bool overwrite,
+        bool encrypt,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(inputPaths);
+        ArgumentException.ThrowIfNullOrEmpty(outputDirectory);
+        ArgumentNullException.ThrowIfNull(password);
+
+        string fullOutputDirectory = Path.GetFullPath(outputDirectory);
+        ValidateBatchOutputDirectory(fullOutputDirectory);
+
+        string[] inputPathArray = inputPaths as string[] ?? inputPaths.ToArray();
+        ValidateBatchFileCount(inputPathArray.Length);
+
+        FileCrypterOptions? transformOptions = encrypt
+            ? CreateBatchEncryptionOptions(options)
+            : options;
+        var results = new List<FileCrypterBatchItemResult>(inputPathArray.Length);
+
+        foreach (string inputPath in inputPathArray)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            string requestedOutputPath;
+            try
+            {
+                ArgumentException.ThrowIfNullOrEmpty(inputPath);
+                requestedOutputPath = CreateBatchOutputPath(inputPath, fullOutputDirectory, encrypt);
+                string finalOutputPath;
+                if (encrypt)
+                {
+                    finalOutputPath = keyFilePath is null
+                        ? await EncryptFileAsync(
+                            inputPath,
+                            requestedOutputPath,
+                            password,
+                            transformOptions,
+                            overwrite,
+                            cancellationToken).ConfigureAwait(false)
+                        : await EncryptFileAsync(
+                            inputPath,
+                            requestedOutputPath,
+                            password,
+                            keyFilePath,
+                            transformOptions,
+                            overwrite,
+                            cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    finalOutputPath = keyFilePath is null
+                        ? await DecryptFileAsync(
+                            inputPath,
+                            requestedOutputPath,
+                            password,
+                            transformOptions,
+                            overwrite,
+                            cancellationToken).ConfigureAwait(false)
+                        : await DecryptFileAsync(
+                            inputPath,
+                            requestedOutputPath,
+                            password,
+                            keyFilePath,
+                            transformOptions,
+                            overwrite,
+                            cancellationToken).ConfigureAwait(false);
+                }
+
+                results.Add(new FileCrypterBatchItemResult(
+                    Path.GetFullPath(inputPath),
+                    requestedOutputPath,
+                    finalOutputPath,
+                    Error: null));
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                requestedOutputPath = CreateFallbackBatchOutputPath(inputPath, fullOutputDirectory, encrypt);
+                results.Add(new FileCrypterBatchItemResult(
+                    inputPath,
+                    requestedOutputPath,
+                    OutputPath: null,
+                    exception));
+            }
+        }
+
+        return new FileCrypterBatchResult(results);
+    }
+
     private static void ValidateInputPath(string fullInputPath)
     {
         if (Directory.Exists(fullInputPath))
@@ -472,6 +646,86 @@ public static class FileCrypter
         {
             throw new IOException("The input path must not be a symbolic link.");
         }
+    }
+
+    private static void ValidateBatchOutputDirectory(string fullOutputDirectory)
+    {
+        if (File.Exists(fullOutputDirectory))
+        {
+            throw new IOException("The batch output directory path points to a file.");
+        }
+
+        if (!Directory.Exists(fullOutputDirectory))
+        {
+            throw new DirectoryNotFoundException($"The batch output directory does not exist: {fullOutputDirectory}");
+        }
+    }
+
+    private static void ValidateBatchFileCount(int fileCount)
+    {
+        if (fileCount > MaximumBatchFileCount)
+        {
+            throw new ArgumentException(
+                $"A single batch run supports up to {MaximumBatchFileCount} files.",
+                nameof(fileCount));
+        }
+    }
+
+    private static FileCrypterOptions CreateBatchEncryptionOptions(FileCrypterOptions? options)
+    {
+        FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
+        return new FileCrypterOptions
+        {
+            ChunkSize = sourceOptions.ChunkSize,
+            Argon2MemoryKiB = sourceOptions.Argon2MemoryKiB,
+            Argon2Iterations = sourceOptions.Argon2Iterations,
+            Argon2Parallelism = sourceOptions.Argon2Parallelism,
+            EnableCompression = true,
+            Progress = sourceOptions.Progress,
+            RandomSource = sourceOptions.RandomSource,
+        };
+    }
+
+    private static string CreateBatchOutputPath(string inputPath, string fullOutputDirectory, bool encrypt)
+    {
+        string inputFileName = Path.GetFileName(inputPath);
+        if (string.IsNullOrEmpty(inputFileName))
+        {
+            throw new ArgumentException("The input path must include a file name.", nameof(inputPath));
+        }
+
+        string outputFileName = encrypt
+            ? inputFileName + DefaultEncryptedSuffix
+            : GetDefaultBatchDecryptedFileName(inputFileName);
+        return Path.Combine(fullOutputDirectory, outputFileName);
+    }
+
+    private static string CreateFallbackBatchOutputPath(string inputPath, string fullOutputDirectory, bool encrypt)
+    {
+        if (string.IsNullOrEmpty(inputPath))
+        {
+            return Path.Combine(
+                fullOutputDirectory,
+                encrypt ? "invalid-input.encrypted" : "invalid-input.decrypted");
+        }
+
+        try
+        {
+            return CreateBatchOutputPath(inputPath, fullOutputDirectory, encrypt);
+        }
+        catch (ArgumentException)
+        {
+            return Path.Combine(
+                fullOutputDirectory,
+                encrypt ? "invalid-input.encrypted" : "invalid-input.decrypted");
+        }
+    }
+
+    private static string GetDefaultBatchDecryptedFileName(string inputFileName)
+    {
+        return inputFileName.EndsWith(DefaultEncryptedSuffix, StringComparison.OrdinalIgnoreCase)
+            ? inputFileName[..^DefaultEncryptedSuffix.Length]
+            : inputFileName + ".decrypted";
     }
 
     private static void ValidateKeyFilePath(string fullKeyFilePath)

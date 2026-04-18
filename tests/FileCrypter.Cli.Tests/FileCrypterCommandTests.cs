@@ -174,6 +174,100 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task BatchEncryptAndBatchDecrypt_SucceedsAndCompresses()
+    {
+        using var directory = new TemporaryDirectory();
+        string inputDirectory = Path.Combine(directory.Path, "input");
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        string decryptedDirectory = Path.Combine(directory.Path, "decrypted");
+        Directory.CreateDirectory(inputDirectory);
+        Directory.CreateDirectory(encryptedDirectory);
+        Directory.CreateDirectory(decryptedDirectory);
+        string firstPlaintextPath = Path.Combine(inputDirectory, "first.txt");
+        string secondPlaintextPath = Path.Combine(inputDirectory, "second.txt");
+        byte[] firstPlaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("first\n", 512)));
+        byte[] secondPlaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("second\n", 512)));
+        await File.WriteAllBytesAsync(firstPlaintextPath, firstPlaintextBytes);
+        await File.WriteAllBytesAsync(secondPlaintextPath, secondPlaintextBytes);
+        string firstEncryptedPath = Path.Combine(encryptedDirectory, "first.txt.encrypted");
+        string secondEncryptedPath = Path.Combine(encryptedDirectory, "second.txt.encrypted");
+        string firstDecryptedPath = Path.Combine(decryptedDirectory, "first.txt");
+        string secondDecryptedPath = Path.Combine(decryptedDirectory, "second.txt");
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["batch-encrypt", encryptedDirectory, firstPlaintextPath, secondPlaintextPath, "--password", Password]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["batch-decrypt", decryptedDirectory, firstEncryptedPath, secondEncryptedPath, "--password", Password]);
+
+        byte[] firstEncryptedBytes = await File.ReadAllBytesAsync(firstEncryptedPath);
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(
+            Path.GetFullPath(firstEncryptedPath) + Environment.NewLine +
+            Path.GetFullPath(secondEncryptedPath) + Environment.NewLine,
+            encryptConsole.Output);
+        Assert.Equal(CompressionZstd, firstEncryptedBytes[CompressionAlgorithmOffset]);
+        Assert.Contains("Batch complete: 2/2 succeeded.", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Batch complete: 2/2 succeeded.", decryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Equal(firstPlaintextBytes, await File.ReadAllBytesAsync(firstDecryptedPath));
+        Assert.Equal(secondPlaintextBytes, await File.ReadAllBytesAsync(secondDecryptedPath));
+    }
+
+    [Fact]
+    public async Task BatchEncryptAndBatchDecrypt_WithKeyFile_Succeeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        string decryptedDirectory = Path.Combine(directory.Path, "decrypted");
+        Directory.CreateDirectory(encryptedDirectory);
+        Directory.CreateDirectory(decryptedDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(encryptedDirectory, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(decryptedDirectory, "plain.txt");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("batch key file");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["batch-encrypt", encryptedDirectory, plaintextPath, "--password", Password, "--key-file", keyFilePath]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["batch-decrypt", decryptedDirectory, encryptedPath, "--password", Password, "--key-file", keyFilePath]);
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(Path.GetFullPath(encryptedPath) + Environment.NewLine, encryptConsole.Output);
+        Assert.Equal(Path.GetFullPath(decryptedPath) + Environment.NewLine, decryptConsole.Output);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
+    public async Task BatchEncrypt_WithMixedSuccess_ContinuesAndReturnsFailure()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        Directory.CreateDirectory(encryptedDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string missingPath = Path.Combine(directory.Path, "missing.txt");
+        string encryptedPath = Path.Combine(encryptedDirectory, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["batch-encrypt", encryptedDirectory, plaintextPath, missingPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(Path.GetFullPath(encryptedPath) + Environment.NewLine, console.Output);
+        Assert.Contains($"Failed: {missingPath}", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Batch complete: 1/2 succeeded.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.True(File.Exists(encryptedPath));
+    }
+
+    [Fact]
     public async Task Decrypt_WithCompressedPayloadAndWrongPassword_FailsSafely()
     {
         using var directory = new TemporaryDirectory();
@@ -226,6 +320,8 @@ public sealed class FileCrypterCommandTests
         Assert.Contains("Existing key files may be up to 16 MiB", console.Output, StringComparison.Ordinal);
         Assert.Contains("--generate-key-file", console.Output, StringComparison.Ordinal);
         Assert.Contains("create a new 32-byte key file", console.Output, StringComparison.Ordinal);
+        Assert.Contains("batch-encrypt", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Batch encryption compresses each file automatically", console.Output, StringComparison.Ordinal);
         Assert.Empty(console.ErrorOutput);
     }
 
