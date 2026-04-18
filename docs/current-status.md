@@ -60,8 +60,9 @@ codex/phase-1-file-format
 - Single-file encryption applies the persisted compression default when `--compress` is omitted, while explicit `--compress` still enables compression for that run.
 - Settings coverage includes missing settings defaults, save/load behavior, compression-default application, corrupt settings troubleshooting, and decrypt ignoring corrupt settings.
 - Core archive encryption/extraction is implemented for file-list archives using tar payloads, Zstandard compression, the v1 archive payload-kind marker, staged temporary files, key-file support, duplicate input-name auto-renaming, and safe extraction path validation.
-- CLI archive commands are wired as `archive-encrypt <output-archive> <input>...` and `archive-decrypt <input-archive> <output-directory>`, with encrypted or extracted output paths written to stdout.
+- CLI archive commands are wired as `archive-encrypt <output-archive-or-directory> <input>...` and `archive-decrypt <input-archive> <output-directory>`, with encrypted or extracted output paths written to stdout.
 - Archive coverage includes password-only and key-file round trips, archive header markers, duplicate entry renaming, extraction overwrite protection, malformed archive handling, CLI archive round trips, and archive help text.
+- CLI archive encryption can now accept an output directory, generate a timestamped `.tar.zst.encrypted` archive name, and accept a validated `--archive-name` basename for directory outputs.
 
 ## Current Format Decisions
 
@@ -81,13 +82,13 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest archive-mode pass:
+These commands passed after the latest archive-name pass:
 
 ```bash
 dotnet test
 ```
 
-Latest test count at handoff: 120 passed, 0 failed.
+Latest test count at handoff: 123 passed, 0 failed.
 
 Focused CLI coverage also passed:
 
@@ -149,7 +150,6 @@ Broaden settings/help UX and CLI polish now that the archive foundation is in pl
 
 Recommended next slices:
 
-- Add generated archive-name handling for archive encryption.
 - Add archive progress reporting across tar creation, encryption, decryption, and extraction phases.
 - Broaden CLI help/troubleshooting for archive-specific user mistakes.
 - Continue toward graphical UI once the remaining CLI contract is stable.

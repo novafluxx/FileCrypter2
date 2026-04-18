@@ -5,6 +5,10 @@ using FileCrypter.Core.Format;
 internal sealed class FileCrypterCommand
 {
     private const string DefaultEncryptedSuffix = ".encrypted";
+    private const string DefaultArchiveEncryptedSuffix = ".tar.zst.encrypted";
+    private const string GeneratedArchiveNamePrefix = "filecrypter-archive-";
+    private const string ArchiveTimestampFormat = "yyyyMMdd-HHmmss";
+    private const string CrossPlatformInvalidArchiveNameCharacters = "<>:\"/\\|?*";
 
     private readonly IFileCrypterConsole console;
     private readonly FileCrypterOptions? options;
@@ -372,6 +376,7 @@ internal sealed class FileCrypterCommand
         }
 
         string outputArchivePath = args[1];
+        string? archiveName = null;
         string? password = null;
         string? keyFilePath = null;
         bool overwrite = false;
@@ -402,6 +407,15 @@ internal sealed class FileCrypterCommand
                     }
 
                     keyFilePath = args[index];
+                    break;
+
+                case "--archive-name":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --archive-name.");
+                    }
+
+                    archiveName = args[index];
                     break;
 
                 case "--overwrite":
@@ -435,6 +449,20 @@ internal sealed class FileCrypterCommand
         if (string.IsNullOrEmpty(password))
         {
             return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
+        }
+
+        if (Directory.Exists(outputArchivePath))
+        {
+            if (!TryCreateArchiveFileName(archiveName, out string archiveFileName, out string? archiveNameError))
+            {
+                return WriteError(archiveNameError ?? "Archive name is invalid.");
+            }
+
+            outputArchivePath = Path.Combine(outputArchivePath, archiveFileName);
+        }
+        else if (archiveName is not null)
+        {
+            return WriteError("--archive-name can only be used when the output archive path is an existing directory.");
         }
 
         string finalOutputPath = keyFilePath is null
@@ -690,6 +718,87 @@ internal sealed class FileCrypterCommand
         return value ? "on" : "off";
     }
 
+    private static bool TryCreateArchiveFileName(
+        string? archiveName,
+        out string archiveFileName,
+        out string? error)
+    {
+        if (archiveName is null)
+        {
+            archiveFileName = GeneratedArchiveNamePrefix +
+                DateTimeOffset.Now.ToString(ArchiveTimestampFormat, CultureInfo.InvariantCulture) +
+                DefaultArchiveEncryptedSuffix;
+            error = null;
+            return true;
+        }
+
+        string trimmedArchiveName = archiveName.Trim();
+        if (string.IsNullOrEmpty(trimmedArchiveName))
+        {
+            archiveFileName = string.Empty;
+            error = "Archive name cannot be blank.";
+            return false;
+        }
+
+        string archiveBaseName = trimmedArchiveName.EndsWith(DefaultArchiveEncryptedSuffix, StringComparison.OrdinalIgnoreCase)
+            ? trimmedArchiveName[..^DefaultArchiveEncryptedSuffix.Length]
+            : trimmedArchiveName;
+        if (string.IsNullOrWhiteSpace(archiveBaseName))
+        {
+            archiveFileName = string.Empty;
+            error = "Archive name must include a file name before .tar.zst.encrypted.";
+            return false;
+        }
+
+        if (!IsSafeArchiveFileName(trimmedArchiveName))
+        {
+            archiveFileName = string.Empty;
+            error = "Archive name contains characters or reserved words that are unsafe in file names.";
+            return false;
+        }
+
+        archiveFileName = archiveBaseName + DefaultArchiveEncryptedSuffix;
+        error = null;
+        return true;
+    }
+
+    private static bool IsSafeArchiveFileName(string fileName)
+    {
+        if (fileName is "." or ".." ||
+            fileName.EndsWith(' ') ||
+            fileName.EndsWith('.'))
+        {
+            return false;
+        }
+
+        if (fileName.Any(character =>
+            char.IsControl(character) ||
+            CrossPlatformInvalidArchiveNameCharacters.Contains(character)))
+        {
+            return false;
+        }
+
+        string firstNamePart = fileName.Split('.')[0].TrimEnd(' ');
+        return !IsReservedWindowsFileName(firstNamePart);
+    }
+
+    private static bool IsReservedWindowsFileName(string fileName)
+    {
+        return fileName.Equals("CON", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("PRN", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("AUX", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("NUL", StringComparison.OrdinalIgnoreCase) ||
+            IsReservedWindowsPortName(fileName, "COM") ||
+            IsReservedWindowsPortName(fileName, "LPT");
+    }
+
+    private static bool IsReservedWindowsPortName(string fileName, string prefix)
+    {
+        return fileName.Length == 4 &&
+            fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+            fileName[3] is >= '1' and <= '9';
+    }
+
     private int WriteError(string message)
     {
         console.Error.WriteLine(message);
@@ -758,7 +867,7 @@ internal sealed class FileCrypterCommand
               filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
               filecrypter batch-encrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
               filecrypter batch-decrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
-              filecrypter archive-encrypt <output-archive> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+              filecrypter archive-encrypt <output-archive-or-directory> <input>... [--archive-name <name>] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
               filecrypter archive-decrypt <input-archive> <output-directory> [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
               filecrypter settings show
               filecrypter settings set compression-default <on|off>
@@ -769,6 +878,8 @@ internal sealed class FileCrypterCommand
             Set compression-default on to compress single-file encryption by default.
             Batch encryption compresses each file automatically and writes one output path per successful file to stdout.
             Archive encryption writes one compressed tar archive payload and archive decryption writes each extracted path to stdout.
+            If archive-encrypt receives an output directory, it creates a timestamped .tar.zst.encrypted archive there.
+            Use --archive-name with an output directory to choose a safe custom archive basename.
             Use --key-file with an existing key file for password plus key-file protection. The same key file is required
             for decryption; lost or changed key files cannot be recovered. Existing key files may be up to 16 MiB.
             Use --generate-key-file during encryption to create a new 32-byte key file before encrypting. Keep the generated

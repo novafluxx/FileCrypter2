@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using FileCrypter.Core;
 
@@ -315,6 +316,85 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task ArchiveEncrypt_WithOutputDirectory_GeneratesTimestampedArchiveName()
+    {
+        using var directory = new TemporaryDirectory();
+        string archiveDirectory = Path.Combine(directory.Path, "archives");
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(archiveDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string extractedPath = Path.Combine(outputDirectory, "plain.txt");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("generated archive name");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["archive-encrypt", archiveDirectory, plaintextPath, "--password", Password]);
+
+        string encryptedArchivePath = encryptConsole.Output.TrimEnd();
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["archive-decrypt", encryptedArchivePath, outputDirectory, "--password", Password]);
+
+        string archiveFileName = Path.GetFileName(encryptedArchivePath);
+        string archiveTimestamp = archiveFileName[
+            "filecrypter-archive-".Length..^".tar.zst.encrypted".Length];
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(Path.GetFullPath(archiveDirectory), Path.GetDirectoryName(encryptedArchivePath));
+        Assert.StartsWith("filecrypter-archive-", archiveFileName, StringComparison.Ordinal);
+        Assert.EndsWith(".tar.zst.encrypted", archiveFileName, StringComparison.Ordinal);
+        Assert.True(DateTimeOffset.TryParseExact(
+            archiveTimestamp,
+            "yyyyMMdd-HHmmss",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out _));
+        Assert.True(File.Exists(encryptedArchivePath));
+        Assert.Equal(Path.GetFullPath(extractedPath) + Environment.NewLine, decryptConsole.Output);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(extractedPath));
+    }
+
+    [Fact]
+    public async Task ArchiveEncrypt_WithArchiveNameAndOutputDirectory_UsesCustomArchiveName()
+    {
+        using var directory = new TemporaryDirectory();
+        string archiveDirectory = Path.Combine(directory.Path, "archives");
+        Directory.CreateDirectory(archiveDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedArchivePath = Path.Combine(archiveDirectory, "weekly.tar.zst.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "custom archive name");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["archive-encrypt", archiveDirectory, plaintextPath, "--archive-name", "weekly", "--password", Password]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(Path.GetFullPath(encryptedArchivePath) + Environment.NewLine, console.Output);
+        Assert.True(File.Exists(encryptedArchivePath));
+    }
+
+    [Fact]
+    public async Task ArchiveEncrypt_WithUnsafeArchiveName_Fails()
+    {
+        using var directory = new TemporaryDirectory();
+        string archiveDirectory = Path.Combine(directory.Path, "archives");
+        Directory.CreateDirectory(archiveDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        await File.WriteAllTextAsync(plaintextPath, "unsafe archive name");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["archive-encrypt", archiveDirectory, plaintextPath, "--archive-name", "bad/name", "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Archive name contains", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.Empty(Directory.GetFiles(archiveDirectory));
+    }
+
+    [Fact]
     public async Task BatchEncrypt_WithMixedSuccess_ContinuesAndReturnsFailure()
     {
         using var directory = new TemporaryDirectory();
@@ -393,6 +473,8 @@ public sealed class FileCrypterCommandTests
         Assert.Contains("Batch encryption compresses each file automatically", console.Output, StringComparison.Ordinal);
         Assert.Contains("archive-encrypt", console.Output, StringComparison.Ordinal);
         Assert.Contains("Archive encryption writes one compressed tar archive payload", console.Output, StringComparison.Ordinal);
+        Assert.Contains("--archive-name", console.Output, StringComparison.Ordinal);
+        Assert.Contains("creates a timestamped .tar.zst.encrypted archive", console.Output, StringComparison.Ordinal);
         Assert.Contains("settings set compression-default", console.Output, StringComparison.Ordinal);
         Assert.Empty(console.ErrorOutput);
     }
