@@ -194,6 +194,8 @@ dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
 Current GUI scope:
 
 - windowed Avalonia 12 app with persistent sidebar navigation
-- implemented Encrypt page for single-file encryption
-- placeholder Decrypt, Batch, Help, and Settings pages
-- view model tests for navigation and the first encrypt workflow
+- implemented Encrypt and Decrypt pages for single-file workflows
+- implemented Batch page for individual-file and encrypted-archive workflows
+- implemented Settings page for the shared local compression default
+- implemented Help page with recovery guidance, troubleshooting, and update-status messaging
+- view model tests for navigation, workflow validation, settings propagation, and help/update state

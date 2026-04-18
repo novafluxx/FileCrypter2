@@ -9,13 +9,12 @@ namespace FileCrypter.App.ViewModels;
 
 public sealed partial class MainWindowViewModel : ViewModelBase
 {
+    private readonly IAppMetadataService appMetadataService;
     private readonly EncryptViewModel encryptViewModel;
     private readonly DecryptViewModel decryptViewModel;
     private readonly BatchViewModel batchViewModel;
+    private readonly HelpViewModel helpViewModel;
     private readonly SettingsViewModel settingsViewModel;
-    private readonly PlaceholderPageViewModel helpViewModel = new(
-        "Help",
-        "Keep passwords and key files. FileCrypter cannot recover forgotten passwords or lost or changed key files.");
 
     [ObservableProperty]
     private ViewModelBase currentPage;
@@ -31,8 +30,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(
         IFileCrypterWorkflowService workflowService,
         IFileCrypterSettingsService? settingsService = null,
-        IFilePickerService? filePickerService = null)
+        IFilePickerService? filePickerService = null,
+        IAppMetadataService? appMetadataService = null,
+        IAppUpdateService? appUpdateService = null)
     {
+        this.appMetadataService = appMetadataService ?? new AppMetadataService();
+        appUpdateService ??= new DevelopmentAppUpdateService();
         settingsService ??= new FileCrypterSettingsService();
         FileCrypterSettings initialSettings = LoadInitialSettings(settingsService, out string settingsErrorMessage);
 
@@ -42,6 +45,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             filePickerService);
         decryptViewModel = new DecryptViewModel(workflowService, filePickerService);
         batchViewModel = new BatchViewModel(workflowService, filePickerService);
+        helpViewModel = new HelpViewModel(this.appMetadataService, appUpdateService);
         settingsViewModel = new SettingsViewModel(settingsService, initialSettings, settingsErrorMessage);
         settingsViewModel.SettingsSaved += ApplySettings;
         currentPage = encryptViewModel;
@@ -62,6 +66,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         SubscribeToWorkflowStatus(encryptViewModel);
         SubscribeToWorkflowStatus(decryptViewModel);
         SubscribeToWorkflowStatus(batchViewModel);
+        SubscribeToWorkflowStatus(helpViewModel);
         SubscribeToWorkflowStatus(settingsViewModel);
     }
 
@@ -69,7 +74,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<NavigationItemViewModel> SecondaryNavigationItems { get; }
 
-    public string AppVersion => "v0.1.0";
+    public string AppVersion => appMetadataService.DisplayVersion;
 
     public string StatusText => CurrentPage is IWorkflowStatusViewModel workflowPage
         ? workflowPage.StatusText
@@ -108,6 +113,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 ? decryptViewModel.Title
             : item.Key == "batch"
                 ? batchViewModel.Title
+            : item.Key == "help"
+                ? helpViewModel.Title
             : item.Title;
     }
 

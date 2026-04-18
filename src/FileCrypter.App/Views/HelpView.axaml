@@ -1,0 +1,172 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileCrypter.App.ViewModels"
+             x:Class="FileCrypter.App.Views.HelpView"
+             x:DataType="vm:HelpViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="24" MaxWidth="1000">
+            <Border Background="#3a2915"
+                    BorderBrush="#d2a45c"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="24,18">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="RECOVERY WARNING"
+                               Foreground="#f1d7a8"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBlock Text="Keep the password and any key file together in a way you trust. FileCrypter cannot recover forgotten passwords or lost or changed key files."
+                               Foreground="#fff2dc"
+                               FontSize="18"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="WORKFLOW GUIDES"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <ItemsControl ItemsSource="{Binding WorkflowTopics}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:HelpTopicViewModel">
+                                <Border Background="#1e2626"
+                                        BorderBrush="#3e4240"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18"
+                                        Margin="0,0,0,12">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Description}"
+                                                   Foreground="#b8b9b5"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="TROUBLESHOOTING"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <ItemsControl ItemsSource="{Binding TroubleshootingTopics}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:HelpTopicViewModel">
+                                <Border Background="#1e2626"
+                                        BorderBrush="#3e4240"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18"
+                                        Margin="0,0,0,12">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Description}"
+                                                   Foreground="#b8b9b5"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="UPDATES AND COMPATIBILITY"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBlock Text="{Binding CurrentVersion}"
+                               FontSize="24"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding FormatVersionText}"
+                               Foreground="#9cc4ff"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding UpdateSummaryText}"
+                               Foreground="{Binding UpdateSummaryBrush}"
+                               FontSize="18"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding UpdateDetailText}"
+                               Foreground="#b8b9b5"
+                               TextWrapping="Wrap" />
+                    <TextBlock IsVisible="{Binding HasLastCheckedText}"
+                               Text="{Binding LastCheckedText}"
+                               Foreground="#aaa"
+                               TextWrapping="Wrap" />
+                    <Button Content="Check for updates"
+                            Command="{Binding CheckForUpdatesCommand}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            FontSize="18"
+                            FontWeight="SemiBold" />
+                    <TextBlock Text="Automatic install and relaunch are still pending. This help page keeps the user-facing update state visible while the fuller desktop update flow is still on the roadmap."
+                               Foreground="#aaa"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="SAFETY AND PRIVACY"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <ItemsControl ItemsSource="{Binding SafetyTopics}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:HelpTopicViewModel">
+                                <Border Background="#1e2626"
+                                        BorderBrush="#3e4240"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18"
+                                        Margin="0,0,0,12">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Description}"
+                                                   Foreground="#b8b9b5"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

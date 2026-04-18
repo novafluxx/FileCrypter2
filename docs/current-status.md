@@ -87,6 +87,10 @@ codex/avalonia-gui-shell
 - Batch picker-driven flows now auto-fill the output directory from the first selected source file when the user has not chosen one yet, which reduces friction across both individual-file and archive workflows.
 - Batch results now clear when the selected source-file list changes after a completed run, which avoids stale summaries/results lingering while the user prepares the next batch.
 - App test coverage now also includes Batch preflight validation copy, auto-filled output-directory behavior from picker selections, stale-result clearing after source changes, and invalid archive-name blocking.
+- Avalonia GUI Help is now a real page in `src/FileCrypter.App` with workflow guidance, recovery warnings, troubleshooting copy, local-only safety notes, visible app/format version details, and a practical update-status panel instead of the old placeholder card.
+- The desktop shell version label now comes from an app metadata service rather than a hardcoded string, which keeps the sidebar and Help page aligned on the same displayed version.
+- The first Help/update-flow slice uses the existing app-service and MVVM pattern with a small update-status abstraction that currently reports the local development-build state while leaving fuller automatic install/relaunch work for later.
+- App test coverage now includes Help page metadata/update-state behavior, update-check failure handling, and main-window Help navigation/footer wiring.
 
 ## Current Format Decisions
 
@@ -106,22 +110,22 @@ codex/avalonia-gui-shell
 
 ## Verified
 
-These commands passed after the latest Batch-page validation and picker-polish pass:
+These commands passed after the latest Help-page and update-status pass:
 
 ```bash
 dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj
 dotnet test
 ```
 
-Latest test count at handoff: 168 passed, 0 failed.
+Latest test count at handoff: 172 passed, 0 failed.
 
-GUI launch smoke coverage at handoff:
+Previous GUI launch smoke coverage:
 
 ```bash
 dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
 ```
 
-The desktop app launch command stayed running until manually interrupted during the previous GUI pass, which is a basic launch smoke signal. Native file-picker dialogs plus the Batch archive/individual modes, the new picker-driven Batch validation/polish behavior, and the Settings page were not visually exercised end-to-end in automation and should still get a quick manual click-through on the target desktop.
+The desktop app launch command stayed running until manually interrupted during the previous GUI pass, which is a basic launch smoke signal. A fresh rerun in this session hit `Avalonia.Native` render-timer startup error `-6661` before window creation in the current environment, so native picker dialogs and the new Help page still need a real desktop click-through on the target machine.
 
 Focused CLI coverage also passed:
 
@@ -147,7 +151,7 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 
 ## Not Started
 
-- Help and update flow.
+- Automatic update source detection, install, defer, and relaunch flow.
 - Broader CLI command polish.
 
 ## Product Alignment
@@ -171,11 +175,9 @@ The current implementation is aligned with the product outline for the foundatio
 
 Remaining product-level gaps are expected for later phases:
 
-- broader key-file UX/help
 - manual native-picker smoke coverage for the Batch polish pass
-- broader help UX
+- fuller update source/install flow
 - broader CLI command polish
-- update flow
 
 ## Recommended Next Step
 
@@ -184,4 +186,4 @@ Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and b
 Recommended next slices:
 
 - Do a quick manual smoke pass for native file/folder pickers across Batch individual-file and archive modes to confirm the new output-folder autofill and validation states feel right on the desktop.
-- If that pass looks good, extend Help and update-flow work while preserving the current shell and MVVM/service pattern.
+- After that, keep iterating on the Help/update area with a concrete next slice such as wiring a real release source into the new update-status service and deciding how defer/install actions should surface in the shell.

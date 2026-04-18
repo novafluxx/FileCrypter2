@@ -9,7 +9,11 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void Constructor_DefaultsToEncryptPage()
     {
-        var viewModel = new MainWindowViewModel(new StubWorkflowService(), new StubSettingsService());
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService());
 
         Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
         Assert.Equal("Encrypt a file", viewModel.CurrentPageTitle);
@@ -24,22 +28,31 @@ public sealed class MainWindowViewModelTests
             new StubSettingsService
             {
                 LoadedSettings = new FileCrypterSettings { EnableCompressionByDefault = true },
-            });
+            },
+            null,
+            new StubAppMetadataService());
 
         EncryptViewModel encryptPage = Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
         Assert.True(encryptPage.EnableCompression);
     }
 
     [Fact]
-    public void SelectNavigationItem_SwapsCurrentPage()
+    public void SelectNavigationItem_HelpPageUsesHelpViewModelAndFooter()
     {
-        var viewModel = new MainWindowViewModel(new StubWorkflowService(), new StubSettingsService());
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService(),
+            new StubAppUpdateService());
         NavigationItemViewModel helpItem = viewModel.SecondaryNavigationItems.Single(item => item.Key == "help");
 
         viewModel.SelectNavigationItemCommand.Execute(helpItem);
 
-        Assert.IsType<PlaceholderPageViewModel>(viewModel.CurrentPage);
-        Assert.Equal("Help", viewModel.CurrentPageTitle);
+        Assert.IsType<HelpViewModel>(viewModel.CurrentPage);
+        Assert.Equal("Help and recovery", viewModel.CurrentPageTitle);
+        Assert.Equal("Help and recovery", viewModel.StatusText);
+        Assert.Equal("Update checks are not configured for this development build yet.", viewModel.FooterDetail);
         Assert.True(helpItem.IsSelected);
         Assert.All(
             viewModel.PrimaryNavigationItems.Concat(viewModel.SecondaryNavigationItems).Where(item => item != helpItem),
@@ -49,7 +62,11 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void SelectNavigationItem_DecryptPageUsesDecryptViewModelAndFooter()
     {
-        var viewModel = new MainWindowViewModel(new StubWorkflowService(), new StubSettingsService());
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService());
         NavigationItemViewModel decryptItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "decrypt");
 
         viewModel.SelectNavigationItemCommand.Execute(decryptItem);
@@ -63,7 +80,11 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void SelectNavigationItem_BatchPageUsesBatchViewModelAndFooter()
     {
-        var viewModel = new MainWindowViewModel(new StubWorkflowService(), new StubSettingsService());
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService());
         NavigationItemViewModel batchItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "batch");
 
         viewModel.SelectNavigationItemCommand.Execute(batchItem);
@@ -78,7 +99,11 @@ public sealed class MainWindowViewModelTests
     public async Task SettingsSave_UpdatesEncryptCompressionDefault()
     {
         var settingsService = new StubSettingsService();
-        var viewModel = new MainWindowViewModel(new StubWorkflowService(), settingsService);
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            settingsService,
+            null,
+            new StubAppMetadataService());
         NavigationItemViewModel settingsItem = viewModel.SecondaryNavigationItems.Single(item => item.Key == "settings");
         NavigationItemViewModel encryptItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "encrypt");
 
@@ -92,6 +117,18 @@ public sealed class MainWindowViewModelTests
         Assert.NotNull(settingsService.SavedSettings);
         Assert.True(settingsService.SavedSettings.EnableCompressionByDefault);
         Assert.True(Assert.IsType<EncryptViewModel>(viewModel.CurrentPage).EnableCompression);
+    }
+
+    [Fact]
+    public void Constructor_UsesMetadataServiceForVersion()
+    {
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService("v5.4.3"));
+
+        Assert.Equal("v5.4.3", viewModel.AppVersion);
     }
 
     private sealed class StubWorkflowService : IFileCrypterWorkflowService
@@ -174,6 +211,32 @@ public sealed class MainWindowViewModelTests
             SavedSettings = settings;
             LoadedSettings = settings;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubAppMetadataService(
+        string displayVersion = "v0.1.0",
+        ushort formatVersion = 1) : IAppMetadataService
+    {
+        public string DisplayVersion { get; } = displayVersion;
+
+        public ushort FormatVersion { get; } = formatVersion;
+    }
+
+    private sealed class StubAppUpdateService : IAppUpdateService
+    {
+        public AppUpdateCheckResult GetCurrentStatus()
+        {
+            return new AppUpdateCheckResult(
+                AppUpdateStatus.NotConfigured,
+                "Update checks are not configured for this development build yet.",
+                "This test build does not have a release channel.");
+        }
+
+        public Task<AppUpdateCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(GetCurrentStatus());
         }
     }
 }

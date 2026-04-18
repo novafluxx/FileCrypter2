@@ -25,7 +25,9 @@ public partial class App : Application
             mainWindow.DataContext = new MainWindowViewModel(
                 new FileCrypterWorkflowService(),
                 new FileCrypterSettingsService(),
-                new AvaloniaFilePickerService(mainWindow));
+                new AvaloniaFilePickerService(mainWindow),
+                new AppMetadataService(),
+                new DevelopmentAppUpdateService());
             desktop.MainWindow = mainWindow;
         }
 
