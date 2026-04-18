@@ -465,19 +465,21 @@ internal sealed class FileCrypterCommand
             return WriteError("--archive-name can only be used when the output archive path is an existing directory.");
         }
 
+        FileCrypterOptions archiveOptions = CreateArchiveOptionsWithProgress();
+
         string finalOutputPath = keyFilePath is null
             ? await FileCrypter.Core.FileCrypter.EncryptArchiveAsync(
                 inputPaths,
                 outputArchivePath,
                 password,
-                options,
+                archiveOptions,
                 overwrite).ConfigureAwait(false)
             : await FileCrypter.Core.FileCrypter.EncryptArchiveAsync(
                 inputPaths,
                 outputArchivePath,
                 password,
                 keyFilePath,
-                options,
+                archiveOptions,
                 overwrite).ConfigureAwait(false);
 
         console.Out.WriteLine(finalOutputPath);
@@ -550,19 +552,21 @@ internal sealed class FileCrypterCommand
             return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
         }
 
+        FileCrypterOptions archiveOptions = CreateArchiveOptionsWithProgress();
+
         IReadOnlyList<string> extractedPaths = keyFilePath is null
             ? await FileCrypter.Core.FileCrypter.DecryptArchiveAsync(
                 inputArchivePath,
                 outputDirectory,
                 password,
-                options,
+                archiveOptions,
                 overwrite).ConfigureAwait(false)
             : await FileCrypter.Core.FileCrypter.DecryptArchiveAsync(
                 inputArchivePath,
                 outputDirectory,
                 password,
                 keyFilePath,
-                options,
+                archiveOptions,
                 overwrite).ConfigureAwait(false);
 
         foreach (string extractedPath in extractedPaths)
@@ -691,6 +695,28 @@ internal sealed class FileCrypterCommand
         };
 
         return (transformOptions, progressReporter);
+    }
+
+    private FileCrypterOptions CreateArchiveOptionsWithProgress()
+    {
+        FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
+        var progressReporter = new CliProgressReporter(
+            console.Error,
+            "Archive",
+            totalInputBytes: 0,
+            sourceOptions.Progress);
+
+        var archiveOptions = new FileCrypterOptions
+        {
+            ChunkSize = sourceOptions.ChunkSize,
+            Argon2MemoryKiB = sourceOptions.Argon2MemoryKiB,
+            Argon2Iterations = sourceOptions.Argon2Iterations,
+            Argon2Parallelism = sourceOptions.Argon2Parallelism,
+            EnableCompression = sourceOptions.EnableCompression,
+            Progress = progressReporter,
+        };
+
+        return archiveOptions;
     }
 
     private static bool TryParseOnOff(string value, out bool parsed)
@@ -893,6 +919,7 @@ internal sealed class FileCrypterCommand
         private readonly string label;
         private readonly long totalInputBytes;
         private readonly IProgress<FileCrypterProgress>? innerProgress;
+        private string? lastLabel;
         private int lastPercent = -1;
 
         public CliProgressReporter(
@@ -911,12 +938,20 @@ internal sealed class FileCrypterCommand
         {
             innerProgress?.Report(value);
 
-            long processedInputBytes = totalInputBytes <= 0
+            string progressLabel = GetProgressLabel(value.Phase, label);
+            long currentTotalInputBytes = value.TotalInputBytes ?? totalInputBytes;
+            if (!string.Equals(progressLabel, lastLabel, StringComparison.Ordinal))
+            {
+                lastLabel = progressLabel;
+                lastPercent = -1;
+            }
+
+            long processedInputBytes = currentTotalInputBytes <= 0
                 ? 0
-                : Math.Min(value.InputBytes, totalInputBytes);
-            int percent = totalInputBytes <= 0
+                : Math.Min(value.InputBytes, currentTotalInputBytes);
+            int percent = currentTotalInputBytes <= 0
                 ? 100
-                : (int)Math.Min(100, processedInputBytes * 100 / totalInputBytes);
+                : (int)Math.Min(100, processedInputBytes * 100 / currentTotalInputBytes);
 
             if (percent == lastPercent)
             {
@@ -927,7 +962,7 @@ internal sealed class FileCrypterCommand
             writer.WriteLine(
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"{label}: {percent}% ({processedInputBytes}/{totalInputBytes} bytes)"));
+                    $"{progressLabel}: {percent}% ({processedInputBytes}/{currentTotalInputBytes} bytes)"));
         }
 
         public void ReportComplete()
@@ -938,10 +973,23 @@ internal sealed class FileCrypterCommand
             }
 
             lastPercent = 100;
+            lastLabel = label;
             writer.WriteLine(
                 string.Create(
                     CultureInfo.InvariantCulture,
                     $"{label}: 100% ({totalInputBytes}/{totalInputBytes} bytes)"));
+        }
+
+        private static string GetProgressLabel(string? phase, string fallbackLabel)
+        {
+            return phase switch
+            {
+                FileCrypterProgressPhases.CreatingArchive => "Creating archive",
+                FileCrypterProgressPhases.EncryptingArchive => "Encrypting archive",
+                FileCrypterProgressPhases.DecryptingArchive => "Decrypting archive",
+                FileCrypterProgressPhases.ExtractingArchive => "Extracting archive",
+                _ => fallbackLabel,
+            };
         }
     }
 }

@@ -747,6 +747,9 @@ public static class FileCrypter
             }
         }
 
+        FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
+        long totalInputBytes = GetTotalFileLength(fullInputPaths);
+
         string fullOutputPath = Path.GetFullPath(encryptedArchivePath);
         string? fullKeyFilePath = keyFilePath is null ? null : Path.GetFullPath(keyFilePath);
         ValidateOutputPath(fullOutputPath, overwrite);
@@ -788,7 +791,12 @@ public static class FileCrypter
 
             await using (FileStream tarOutput = new(tarStagingPath, CreateOutputFileStreamOptions()))
             {
-                await WriteTarArchiveAsync(fullInputPaths, tarOutput, cancellationToken).ConfigureAwait(false);
+                await WriteTarArchiveAsync(
+                    fullInputPaths,
+                    tarOutput,
+                    sourceOptions.Progress,
+                    totalInputBytes,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             await using FileStream tarInput = new(
@@ -802,11 +810,22 @@ public static class FileCrypter
                 encryptedStagingPath,
                 CreateOutputFileStreamOptions()))
             {
-                FileCrypterOptions archiveOptions = CreateArchiveEncryptionOptions(options);
+                long tarLength = tarInput.Length;
+                FileCrypterOptions archiveOptions = CreateOptionsWithProgress(
+                    CreateArchiveEncryptionOptions(sourceOptions),
+                    progress: null);
+                using var progressTarInput = new ProgressReportingReadStream(
+                    tarInput,
+                    new ArchiveProgressReporter(
+                        sourceOptions.Progress,
+                        FileCrypterProgressPhases.EncryptingArchive,
+                        tarLength,
+                        inputBytesProvider: null,
+                        outputBytesProvider: () => encryptedOutput.Position));
                 if (keyFileBytes is null)
                 {
                     await EncryptAsyncCore(
-                        tarInput,
+                        progressTarInput,
                         encryptedOutput,
                         password,
                         keyFileBytes: null,
@@ -817,7 +836,7 @@ public static class FileCrypter
                 else
                 {
                     await EncryptAsyncCore(
-                        tarInput,
+                        progressTarInput,
                         encryptedOutput,
                         password,
                         keyFileBytes,
@@ -825,6 +844,8 @@ public static class FileCrypter
                         FileCrypterFormatConstants.PayloadKindTarArchive,
                         cancellationToken).ConfigureAwait(false);
                 }
+
+                progressTarInput.ReportComplete(encryptedOutput.Position);
             }
 
             File.Move(encryptedStagingPath, fullOutputPath, overwrite);
@@ -871,6 +892,7 @@ public static class FileCrypter
 
         string tarStagingPath = CreateStagingPath(Path.Combine(fullOutputDirectory, "archive.tar"));
         byte[]? keyFileBytes = null;
+        FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
 
         try
         {
@@ -888,6 +910,13 @@ public static class FileCrypter
                 FileOptions.SequentialScan);
             await using (FileStream tarOutput = new(tarStagingPath, CreateOutputFileStreamOptions()))
             {
+                long encryptedLength = encryptedInput.Length;
+                FileCrypterOptions decryptOptions = CreateOptionsWithProgress(
+                    sourceOptions,
+                    CreatePhaseProgress(
+                        sourceOptions.Progress,
+                        FileCrypterProgressPhases.DecryptingArchive,
+                        encryptedLength));
                 if (keyFileBytes is null)
                 {
                     await DecryptAsyncCore(
@@ -895,7 +924,7 @@ public static class FileCrypter
                         tarOutput,
                         password,
                         keyFileBytes: null,
-                        options,
+                        decryptOptions,
                         FileCrypterFormatConstants.PayloadKindTarArchive,
                         cancellationToken).ConfigureAwait(false);
                 }
@@ -906,16 +935,24 @@ public static class FileCrypter
                         tarOutput,
                         password,
                         keyFileBytes,
-                        options,
+                        decryptOptions,
                         FileCrypterFormatConstants.PayloadKindTarArchive,
                         cancellationToken).ConfigureAwait(false);
                 }
+
+                ReportArchiveProgress(
+                    sourceOptions.Progress,
+                    FileCrypterProgressPhases.DecryptingArchive,
+                    encryptedLength,
+                    tarOutput.Position,
+                    encryptedLength);
             }
 
             return await ExtractTarArchiveAsync(
                 tarStagingPath,
                 fullOutputDirectory,
                 overwrite,
+                sourceOptions.Progress,
                 cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -988,14 +1025,25 @@ public static class FileCrypter
     private static FileCrypterOptions CreateCompressionEnabledOptions(FileCrypterOptions? options)
     {
         FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
+        return CreateOptionsWithProgress(
+            sourceOptions,
+            sourceOptions.Progress,
+            enableCompression: true);
+    }
+
+    private static FileCrypterOptions CreateOptionsWithProgress(
+        FileCrypterOptions sourceOptions,
+        IProgress<FileCrypterProgress>? progress,
+        bool? enableCompression = null)
+    {
         return new FileCrypterOptions
         {
             ChunkSize = sourceOptions.ChunkSize,
             Argon2MemoryKiB = sourceOptions.Argon2MemoryKiB,
             Argon2Iterations = sourceOptions.Argon2Iterations,
             Argon2Parallelism = sourceOptions.Argon2Parallelism,
-            EnableCompression = true,
-            Progress = sourceOptions.Progress,
+            EnableCompression = enableCompression ?? sourceOptions.EnableCompression,
+            Progress = progress,
             RandomSource = sourceOptions.RandomSource,
         };
     }
@@ -1003,22 +1051,64 @@ public static class FileCrypter
     private static async Task WriteTarArchiveAsync(
         IEnumerable<string> fullInputPaths,
         Stream tarOutput,
+        IProgress<FileCrypterProgress>? progress,
+        long totalInputBytes,
         CancellationToken cancellationToken)
     {
-        using var writer = new TarWriter(tarOutput, TarEntryFormat.Pax, leaveOpen: true);
-        var entryNames = new HashSet<string>(StringComparer.Ordinal);
+        var archiveProgress = new ArchiveProgressReporter(
+            progress,
+            FileCrypterProgressPhases.CreatingArchive,
+            totalInputBytes,
+            inputBytesProvider: null,
+            outputBytesProvider: () => tarOutput.CanSeek ? tarOutput.Position : 0);
 
+        {
+            using var writer = new TarWriter(tarOutput, TarEntryFormat.Pax, leaveOpen: true);
+            var entryNames = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (string fullInputPath in fullInputPaths)
+            {
+                string entryName = GetAvailableArchiveEntryName(Path.GetFileName(fullInputPath), entryNames);
+                await using FileStream entryInput = new(
+                    fullInputPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    bufferSize: 81920,
+                    FileOptions.SequentialScan);
+                using var progressEntryInput = new ProgressReportingReadStream(entryInput, archiveProgress);
+                var entry = new PaxTarEntry(TarEntryType.RegularFile, entryName)
+                {
+                    DataStream = progressEntryInput,
+                    ModificationTime = File.GetLastWriteTimeUtc(fullInputPath),
+                };
+
+                await writer.WriteEntryAsync(entry, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        archiveProgress.ReportComplete(tarOutput.CanSeek ? tarOutput.Position : null);
+    }
+
+    private static long GetTotalFileLength(IEnumerable<string> fullInputPaths)
+    {
+        long totalInputBytes = 0;
         foreach (string fullInputPath in fullInputPaths)
         {
-            string entryName = GetAvailableArchiveEntryName(Path.GetFileName(fullInputPath), entryNames);
-            await writer.WriteEntryAsync(fullInputPath, entryName, cancellationToken).ConfigureAwait(false);
+            checked
+            {
+                totalInputBytes += new FileInfo(fullInputPath).Length;
+            }
         }
+
+        return totalInputBytes;
     }
 
     private static async Task<IReadOnlyList<string>> ExtractTarArchiveAsync(
         string tarPath,
         string fullOutputDirectory,
         bool overwrite,
+        IProgress<FileCrypterProgress>? progress,
         CancellationToken cancellationToken)
     {
         var stagedExtractions = new List<StagedArchiveExtraction>();
@@ -1035,6 +1125,13 @@ public static class FileCrypter
                 bufferSize: 81920,
                 FileOptions.SequentialScan);
             using var reader = new TarReader(tarInput, leaveOpen: false);
+            long totalInputBytes = tarInput.Length;
+            var archiveProgress = new ArchiveProgressReporter(
+                progress,
+                FileCrypterProgressPhases.ExtractingArchive,
+                totalInputBytes,
+                inputBytesProvider: () => tarInput.Position,
+                outputBytesProvider: null);
 
             while (await reader.GetNextEntryAsync(copyData: false, cancellationToken).ConfigureAwait(false) is { } entry)
             {
@@ -1065,9 +1162,10 @@ public static class FileCrypter
                 }
 
                 string stagingPath = CreateStagingPath(finalOutputPath);
+                using var progressEntryData = new ProgressReportingReadStream(entry.DataStream, archiveProgress);
                 await using (FileStream output = new(stagingPath, CreateOutputFileStreamOptions()))
                 {
-                    await entry.DataStream.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+                    await progressEntryData.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
                 }
 
                 stagedExtractions.Add(new StagedArchiveExtraction(stagingPath, finalOutputPath));
@@ -1079,6 +1177,7 @@ public static class FileCrypter
             }
 
             completed = true;
+            archiveProgress.ReportComplete(archiveProgress.OutputBytes);
             return stagedExtractions.Select(extraction => extraction.FinalPath).ToArray();
         }
         catch (Exception exception) when (exception is InvalidDataException or EndOfStreamException)
@@ -1545,6 +1644,188 @@ public static class FileCrypter
     }
 
     private sealed record StagedArchiveExtraction(string StagingPath, string FinalPath);
+
+    private static IProgress<FileCrypterProgress>? CreatePhaseProgress(
+        IProgress<FileCrypterProgress>? progress,
+        string phase,
+        long totalInputBytes)
+    {
+        return progress is null
+            ? null
+            : new PhaseProgress(progress, phase, totalInputBytes);
+    }
+
+    private static void ReportArchiveProgress(
+        IProgress<FileCrypterProgress>? progress,
+        string phase,
+        long inputBytes,
+        long outputBytes,
+        long totalInputBytes)
+    {
+        progress?.Report(new FileCrypterProgress(inputBytes, outputBytes)
+        {
+            Phase = phase,
+            TotalInputBytes = totalInputBytes,
+        });
+    }
+
+    private sealed class PhaseProgress : IProgress<FileCrypterProgress>
+    {
+        private readonly IProgress<FileCrypterProgress> progress;
+        private readonly string phase;
+        private readonly long totalInputBytes;
+
+        public PhaseProgress(
+            IProgress<FileCrypterProgress> progress,
+            string phase,
+            long totalInputBytes)
+        {
+            this.progress = progress;
+            this.phase = phase;
+            this.totalInputBytes = totalInputBytes;
+        }
+
+        public void Report(FileCrypterProgress value)
+        {
+            progress.Report(value with
+            {
+                Phase = phase,
+                TotalInputBytes = totalInputBytes,
+            });
+        }
+    }
+
+    private sealed class ArchiveProgressReporter
+    {
+        private readonly IProgress<FileCrypterProgress>? progress;
+        private readonly string phase;
+        private readonly long totalInputBytes;
+        private readonly Func<long>? inputBytesProvider;
+        private readonly Func<long>? outputBytesProvider;
+        private long inputBytes;
+        private long outputBytes;
+
+        public ArchiveProgressReporter(
+            IProgress<FileCrypterProgress>? progress,
+            string phase,
+            long totalInputBytes,
+            Func<long>? inputBytesProvider,
+            Func<long>? outputBytesProvider)
+        {
+            this.progress = progress;
+            this.phase = phase;
+            this.totalInputBytes = totalInputBytes;
+            this.inputBytesProvider = inputBytesProvider;
+            this.outputBytesProvider = outputBytesProvider;
+        }
+
+        public long OutputBytes => outputBytesProvider?.Invoke() ?? outputBytes;
+
+        public void ReportBytesRead(int bytesRead)
+        {
+            if (bytesRead <= 0)
+            {
+                return;
+            }
+
+            inputBytes += bytesRead;
+            outputBytes += bytesRead;
+            Report(inputBytesProvider?.Invoke() ?? inputBytes, OutputBytes);
+        }
+
+        public void ReportComplete(long? finalOutputBytes)
+        {
+            Report(totalInputBytes, finalOutputBytes ?? OutputBytes);
+        }
+
+        private void Report(long currentInputBytes, long currentOutputBytes)
+        {
+            progress?.Report(new FileCrypterProgress(currentInputBytes, currentOutputBytes)
+            {
+                Phase = phase,
+                TotalInputBytes = totalInputBytes,
+            });
+        }
+    }
+
+    private sealed class ProgressReportingReadStream : Stream
+    {
+        private readonly Stream inner;
+        private readonly ArchiveProgressReporter progress;
+
+        public ProgressReportingReadStream(Stream inner, ArchiveProgressReporter progress)
+        {
+            this.inner = inner;
+            this.progress = progress;
+        }
+
+        public override bool CanRead => inner.CanRead;
+
+        public override bool CanSeek => inner.CanSeek;
+
+        public override bool CanWrite => false;
+
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        public void ReportComplete(long? finalOutputBytes)
+        {
+            progress.ReportComplete(finalOutputBytes);
+        }
+
+        public override void Flush()
+        {
+            inner.Flush();
+        }
+
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            return inner.FlushAsync(cancellationToken);
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            int bytesRead = inner.Read(buffer, offset, count);
+            progress.ReportBytesRead(bytesRead);
+            return bytesRead;
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            int bytesRead = inner.Read(buffer);
+            progress.ReportBytesRead(bytesRead);
+            return bytesRead;
+        }
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            int bytesRead = await inner.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            progress.ReportBytesRead(bytesRead);
+            return bytesRead;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            return inner.Seek(offset, origin);
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
+    }
 
     private static async ValueTask<int> ReadChunkAsync(
         Stream source,

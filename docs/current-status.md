@@ -63,6 +63,7 @@ codex/phase-1-file-format
 - CLI archive commands are wired as `archive-encrypt <output-archive-or-directory> <input>...` and `archive-decrypt <input-archive> <output-directory>`, with encrypted or extracted output paths written to stdout.
 - Archive coverage includes password-only and key-file round trips, archive header markers, duplicate entry renaming, extraction overwrite protection, malformed archive handling, CLI archive round trips, and archive help text.
 - CLI archive encryption can now accept an output directory, generate a timestamped `.tar.zst.encrypted` archive name, and accept a validated `--archive-name` basename for directory outputs.
+- Archive progress reporting now covers tar creation, archive encryption, archive decryption, and extraction phases through core progress callbacks and CLI stderr output.
 
 ## Current Format Decisions
 
@@ -82,7 +83,7 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest archive-name pass:
+These commands passed after the latest archive-progress pass:
 
 ```bash
 dotnet test
@@ -150,6 +151,5 @@ Broaden settings/help UX and CLI polish now that the archive foundation is in pl
 
 Recommended next slices:
 
-- Add archive progress reporting across tar creation, encryption, decryption, and extraction phases.
 - Broaden CLI help/troubleshooting for archive-specific user mistakes.
 - Continue toward graphical UI once the remaining CLI contract is stable.

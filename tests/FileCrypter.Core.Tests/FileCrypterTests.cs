@@ -339,17 +339,20 @@ public sealed class FileCrypterTests
         byte[] secondPlaintextBytes = Encoding.UTF8.GetBytes("second archive file");
         await File.WriteAllBytesAsync(firstPlaintextPath, firstPlaintextBytes);
         await File.WriteAllBytesAsync(secondPlaintextPath, secondPlaintextBytes);
+        var encryptProgressReports = new List<FileCrypterProgress>();
+        var decryptProgressReports = new List<FileCrypterProgress>();
+        long totalInputBytes = firstPlaintextBytes.Length + secondPlaintextBytes.Length;
 
         string finalArchivePath = await FileCrypter.EncryptArchiveAsync(
             [firstPlaintextPath, secondPlaintextPath],
             encryptedArchivePath,
             Password,
-            CreateFastOptions());
+            CreateFastOptions(progress: new CallbackProgress(encryptProgressReports.Add)));
         IReadOnlyList<string> extractedPaths = await FileCrypter.DecryptArchiveAsync(
             finalArchivePath,
             outputDirectory,
             Password,
-            CreateFastOptions());
+            CreateFastOptions(progress: new CallbackProgress(decryptProgressReports.Add)));
 
         byte[] encryptedBytes = await File.ReadAllBytesAsync(finalArchivePath);
         FileCrypterHeader header = FileCrypterHeaderParser.Parse(
@@ -364,6 +367,15 @@ public sealed class FileCrypterTests
         Assert.Equal(secondPlaintextBytes, await File.ReadAllBytesAsync(Path.Combine(outputDirectory, "second.txt")));
         Assert.Empty(Directory.GetFiles(directory.Path, "*.tmp"));
         Assert.Empty(Directory.GetFiles(outputDirectory, "*.tmp"));
+        Assert.Contains(
+            encryptProgressReports,
+            report =>
+                report.Phase == FileCrypterProgressPhases.CreatingArchive &&
+                report.InputBytes == totalInputBytes &&
+                report.TotalInputBytes == totalInputBytes);
+        Assert.Contains(encryptProgressReports, report => report.Phase == FileCrypterProgressPhases.EncryptingArchive);
+        Assert.Contains(decryptProgressReports, report => report.Phase == FileCrypterProgressPhases.DecryptingArchive);
+        Assert.Contains(decryptProgressReports, report => report.Phase == FileCrypterProgressPhases.ExtractingArchive);
     }
 
     [Fact]

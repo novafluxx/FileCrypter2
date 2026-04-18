@@ -283,6 +283,10 @@ public sealed class FileCrypterCommandTests
             Path.GetFullPath(firstOutputPath) + Environment.NewLine +
             Path.GetFullPath(secondOutputPath) + Environment.NewLine,
             decryptConsole.Output);
+        Assert.Contains("Creating archive: 100%", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Encrypting archive: 100%", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Decrypting archive: 100%", decryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Extracting archive: 100%", decryptConsole.ErrorOutput, StringComparison.Ordinal);
         Assert.Equal(firstPlaintextBytes, await File.ReadAllBytesAsync(firstOutputPath));
         Assert.Equal(secondPlaintextBytes, await File.ReadAllBytesAsync(secondOutputPath));
     }
