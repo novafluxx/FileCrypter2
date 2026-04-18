@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
@@ -8,9 +9,7 @@ namespace FileCrypter.App.ViewModels;
 public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly EncryptViewModel encryptViewModel;
-    private readonly PlaceholderPageViewModel decryptViewModel = new(
-        "Decrypt a file",
-        "Single-file decryption will use the same safe local workflow as the CLI.");
+    private readonly DecryptViewModel decryptViewModel;
     private readonly PlaceholderPageViewModel batchViewModel = new(
         "Batch",
         "Batch encryption, batch decryption, and archive workflows will live here.");
@@ -37,6 +36,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IFilePickerService? filePickerService = null)
     {
         encryptViewModel = new EncryptViewModel(workflowService, filePickerService);
+        decryptViewModel = new DecryptViewModel(workflowService, filePickerService);
         currentPage = encryptViewModel;
         currentPageTitle = encryptViewModel.Title;
 
@@ -51,18 +51,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             new NavigationItemViewModel("help", "Help", SelectNavigationItem),
             new NavigationItemViewModel("settings", "Settings", SelectNavigationItem),
         ];
-        encryptViewModel.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName is nameof(EncryptViewModel.StatusText))
-            {
-                OnPropertyChanged(nameof(StatusText));
-            }
 
-            if (args.PropertyName is nameof(EncryptViewModel.ProgressText))
-            {
-                OnPropertyChanged(nameof(FooterDetail));
-            }
-        };
+        SubscribeToWorkflowStatus(encryptViewModel);
+        SubscribeToWorkflowStatus(decryptViewModel);
     }
 
     public ObservableCollection<NavigationItemViewModel> PrimaryNavigationItems { get; }
@@ -71,9 +62,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public string AppVersion => "v0.1.0";
 
-    public string StatusText => encryptViewModel.StatusText;
+    public string StatusText => CurrentPage is IWorkflowStatusViewModel workflowPage
+        ? workflowPage.StatusText
+        : "Ready";
 
-    public string FooterDetail => encryptViewModel.ProgressText;
+    public string FooterDetail => CurrentPage is IWorkflowStatusViewModel workflowPage
+        ? workflowPage.ProgressText
+        : string.Empty;
+
+    partial void OnCurrentPageChanged(ViewModelBase value)
+    {
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(FooterDetail));
+    }
 
     [RelayCommand]
     private void SelectNavigationItem(NavigationItemViewModel item)
@@ -94,6 +95,31 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         };
         CurrentPageTitle = item.Key == "encrypt"
             ? encryptViewModel.Title
+            : item.Key == "decrypt"
+                ? decryptViewModel.Title
             : item.Title;
+    }
+
+    private void SubscribeToWorkflowStatus(ViewModelBase workflowPage)
+    {
+        workflowPage.PropertyChanged += OnWorkflowPagePropertyChanged;
+    }
+
+    private void OnWorkflowPagePropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (!ReferenceEquals(sender, CurrentPage))
+        {
+            return;
+        }
+
+        if (args.PropertyName is nameof(EncryptViewModel.StatusText) or nameof(DecryptViewModel.StatusText))
+        {
+            OnPropertyChanged(nameof(StatusText));
+        }
+
+        if (args.PropertyName is nameof(EncryptViewModel.ProgressText) or nameof(DecryptViewModel.ProgressText))
+        {
+            OnPropertyChanged(nameof(FooterDetail));
+        }
     }
 }

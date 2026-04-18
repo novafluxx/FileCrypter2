@@ -31,6 +31,20 @@ public sealed class MainWindowViewModelTests
             item => Assert.False(item.IsSelected));
     }
 
+    [Fact]
+    public void SelectNavigationItem_DecryptPageUsesDecryptViewModelAndFooter()
+    {
+        var viewModel = new MainWindowViewModel(new StubWorkflowService());
+        NavigationItemViewModel decryptItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "decrypt");
+
+        viewModel.SelectNavigationItemCommand.Execute(decryptItem);
+
+        Assert.IsType<DecryptViewModel>(viewModel.CurrentPage);
+        Assert.Equal("Decrypt a file", viewModel.CurrentPageTitle);
+        Assert.Equal("Ready", viewModel.StatusText);
+        Assert.Equal("No encrypted file selected", viewModel.FooterDetail);
+    }
+
     private sealed class StubWorkflowService : IFileCrypterWorkflowService
     {
         public Task<EncryptFileResult> EncryptFileAsync(
@@ -39,6 +53,14 @@ public sealed class MainWindowViewModelTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult(new EncryptFileResult("unused", null));
+        }
+
+        public Task<DecryptFileResult> DecryptFileAsync(
+            DecryptFileRequest request,
+            IProgress<FileCrypter.Core.FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new DecryptFileResult("unused"));
         }
     }
 }

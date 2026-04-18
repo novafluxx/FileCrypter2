@@ -8,4 +8,9 @@ public interface IFileCrypterWorkflowService
         EncryptFileRequest request,
         IProgress<FileCrypterProgress>? progress,
         CancellationToken cancellationToken);
+
+    Task<DecryptFileResult> DecryptFileAsync(
+        DecryptFileRequest request,
+        IProgress<FileCrypterProgress>? progress,
+        CancellationToken cancellationToken);
 }

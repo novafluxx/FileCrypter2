@@ -1,0 +1,149 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FileCrypter.App.ViewModels"
+             x:Class="FileCrypter.App.Views.DecryptView"
+             x:DataType="vm:DecryptViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="24" MaxWidth="1000">
+            <Border IsVisible="{Binding HasError}"
+                    Background="#552222"
+                    BorderBrush="#d35d64"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="24,18">
+                <TextBlock Text="{Binding ErrorMessage}"
+                           Foreground="#f0a0a4"
+                           FontSize="18"
+                           TextWrapping="Wrap" />
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="ENCRYPTED FILE"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
+                        <TextBox Text="{Binding SourcePath}"
+                                 PlaceholderText="Select a .encrypted file..."
+                                 FontSize="20" />
+                        <Button Grid.Column="1"
+                                Content="Browse"
+                                Command="{Binding BrowseSourceCommand}" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="OUTPUT FILE"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
+                        <TextBox Text="{Binding OutputPath}"
+                                 PlaceholderText="Auto-generated from input filename..."
+                                 FontSize="20" />
+                        <Button Grid.Column="1"
+                                Content="Browse"
+                                Command="{Binding BrowseOutputCommand}" />
+                    </Grid>
+
+                    <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
+                              Content="Never overwrite existing files" />
+                    <TextBlock Text="Saves as &quot;name (1)&quot; if the output already exists."
+                               Foreground="#aaa"
+                               Margin="32,0,0,0" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="PASSWORD AND OPTIONAL KEY FILE"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBox Text="{Binding Password}"
+                             PasswordChar="*"
+                             PlaceholderText="Password"
+                             FontSize="20" />
+
+                    <TextBlock Text="{Binding KeyFileChoiceStatusText}"
+                               Foreground="#9cc4ff"
+                               TextWrapping="Wrap" />
+
+                    <Grid ColumnDefinitions="*,140,96" ColumnSpacing="16">
+                        <TextBox Text="{Binding KeyFilePath}"
+                                 PlaceholderText="Optional matching key file..."
+                                 FontSize="18" />
+                        <Button Grid.Column="1"
+                                Content="Browse"
+                                Command="{Binding BrowseKeyFileCommand}" />
+                        <Button Grid.Column="2"
+                                Content="Clear"
+                                Command="{Binding ClearKeyFileCommand}" />
+                    </Grid>
+
+                    <TextBlock Text="Provide the same unchanged key file if the encrypted file was created with one."
+                               Foreground="#aaa"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="Compressed files are decompressed automatically after authenticated decryption."
+                               Foreground="#aaa"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <Border Background="#242626"
+                    BorderBrush="#4a4d4b"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="28">
+                <StackPanel Spacing="16">
+                    <ProgressBar Minimum="0"
+                                 Maximum="100"
+                                 Value="{Binding ProgressPercent}" />
+                    <TextBlock Text="{Binding ProgressText}"
+                               Foreground="#b8b9b5" />
+                    <Button Content="Decrypt file"
+                            Command="{Binding StartDecryptCommand}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            FontSize="18"
+                            FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+
+            <Border IsVisible="{Binding HasResult}"
+                    Background="#1f3927"
+                    BorderBrush="#5fa272"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="24,18">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Decryption complete."
+                               FontWeight="SemiBold"
+                               Foreground="#b8e6c2" />
+                    <TextBlock Text="{Binding ResultPath}"
+                               Foreground="#d8f1de"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

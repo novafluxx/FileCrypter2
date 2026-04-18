@@ -71,6 +71,9 @@ codex/avalonia-gui-shell
 - GUI view model coverage lives in `tests/FileCrypter.App.Tests` and covers sidebar navigation, encrypt command validation, compression propagation, running-state behavior, success, and failure messaging.
 - The Encrypt page now keeps existing key-file selection and generated key-file output mutually exclusive, adds clearer user-facing guidance plus explicit clear actions, and labels generated key-file results in the success state.
 - App test coverage now includes the Encrypt page key-file choice behavior plus picker-service option forwarding for open/save dialogs; full native file-picker interaction remains a manual smoke-test concern.
+- Avalonia GUI single-file decryption is now implemented in `src/FileCrypter.App` with source/output pickers, safe default output naming, optional existing key-file input, progress reporting, and result/error messaging wired through `FileCrypter.Core`.
+- The desktop shell footer/status area now reflects the active workflow page instead of always showing Encrypt-page state.
+- App test coverage now includes the Decrypt page command validation, running-state behavior, success, authentication failure guidance, key-file picker flow, output-name suggestions, and decrypt navigation shell wiring.
 
 ## Current Format Decisions
 
@@ -90,15 +93,16 @@ codex/avalonia-gui-shell
 
 ## Verified
 
-These commands passed after the latest Encrypt-page UX pass:
+These commands passed after the latest Decrypt-page pass:
 
 ```bash
+dotnet build src/FileCrypter.App/FileCrypter.App.csproj
 dotnet build
 dotnet test
 dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj --no-build
 ```
 
-Latest test count at handoff: 139 passed, 0 failed.
+Latest test count at handoff: 146 passed, 0 failed.
 
 GUI launch smoke coverage at handoff:
 
@@ -164,8 +168,8 @@ Remaining product-level gaps are expected for later phases:
 
 ## Recommended Next Step
 
-Continue the Avalonia GUI now that the shell and first encrypt workflow are scaffolded.
+Continue the Avalonia GUI now that single-file encrypt and decrypt workflows are scaffolded.
 
 Recommended next slices:
 
-- Add the single-file Decrypt page using the same app-service pattern.
+- Add a real Settings page that loads and saves the existing compression-default setting so GUI encryption matches the persisted CLI-host behavior.

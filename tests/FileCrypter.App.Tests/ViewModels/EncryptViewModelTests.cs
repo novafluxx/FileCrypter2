@@ -179,6 +179,14 @@ public sealed class EncryptViewModelTests
                 ? Task.FromResult(Result)
                 : Task.FromException<EncryptFileResult>(Error);
         }
+
+        public Task<DecryptFileResult> DecryptFileAsync(
+            DecryptFileRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class WaitingWorkflowService : IFileCrypterWorkflowService
@@ -194,6 +202,14 @@ public sealed class EncryptViewModelTests
         {
             Started.SetResult();
             return completion.Task;
+        }
+
+        public Task<DecryptFileResult> DecryptFileAsync(
+            DecryptFileRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
         }
 
         public void Finish(EncryptFileResult result)
