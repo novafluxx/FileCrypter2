@@ -83,6 +83,10 @@ codex/avalonia-gui-shell
 - The Batch page now also exposes archive-encrypt and archive-decrypt workflows in `src/FileCrypter.App`, including archive-vs-individual mode switching, single-archive extraction, optional archive naming, archive-phase progress feedback, and archive result summaries through the same app-service/MVVM pattern as the other pages.
 - The app picker abstraction now supports multi-file and folder selection so batch workflows can use native Avalonia pickers without breaking the existing single-file pages.
 - App test coverage now includes Batch page command validation, picker flows, deduplicated file selection, archive-mode behavior, running-state behavior, mixed batch results, and shell navigation wiring.
+- Batch workflow polish now pre-validates missing or nonexistent output folders, missing passwords, archive-extract single-selection requirements, individual-batch file-count limits, and unsafe custom archive names before the user starts a run.
+- Batch picker-driven flows now auto-fill the output directory from the first selected source file when the user has not chosen one yet, which reduces friction across both individual-file and archive workflows.
+- Batch results now clear when the selected source-file list changes after a completed run, which avoids stale summaries/results lingering while the user prepares the next batch.
+- App test coverage now also includes Batch preflight validation copy, auto-filled output-directory behavior from picker selections, stale-result clearing after source changes, and invalid archive-name blocking.
 
 ## Current Format Decisions
 
@@ -102,14 +106,14 @@ codex/avalonia-gui-shell
 
 ## Verified
 
-These commands passed after the latest Batch-page archive pass:
+These commands passed after the latest Batch-page validation and picker-polish pass:
 
 ```bash
 dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj
 dotnet test
 ```
 
-Latest test count at handoff: 166 passed, 0 failed.
+Latest test count at handoff: 168 passed, 0 failed.
 
 GUI launch smoke coverage at handoff:
 
@@ -117,7 +121,7 @@ GUI launch smoke coverage at handoff:
 dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
 ```
 
-The desktop app launch command stayed running until manually interrupted during the previous GUI pass, which is a basic launch smoke signal. Native file-picker dialogs plus the Batch archive/individual modes and Settings page were not visually exercised end-to-end in automation and should still get a quick manual click-through on the target desktop.
+The desktop app launch command stayed running until manually interrupted during the previous GUI pass, which is a basic launch smoke signal. Native file-picker dialogs plus the Batch archive/individual modes, the new picker-driven Batch validation/polish behavior, and the Settings page were not visually exercised end-to-end in automation and should still get a quick manual click-through on the target desktop.
 
 Focused CLI coverage also passed:
 
@@ -143,7 +147,7 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 
 ## Not Started
 
-- Help, update flow, and broader graphical UI polish.
+- Help and update flow.
 - Broader CLI command polish.
 
 ## Product Alignment
@@ -168,10 +172,10 @@ The current implementation is aligned with the product outline for the foundatio
 Remaining product-level gaps are expected for later phases:
 
 - broader key-file UX/help
-- broader aggregate-progress polish and manual archive-picker smoke coverage
+- manual native-picker smoke coverage for the Batch polish pass
 - broader help UX
 - broader CLI command polish
-- update flow and broader graphical UI
+- update flow
 
 ## Recommended Next Step
 
@@ -179,5 +183,5 @@ Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and b
 
 Recommended next slices:
 
-- Add a quick manual smoke pass for native file/folder pickers across Batch individual-file and archive modes, then tighten any UX issues that show up there.
-- Extend Help and update-flow work while preserving the current shell and MVVM/service pattern.
+- Do a quick manual smoke pass for native file/folder pickers across Batch individual-file and archive modes to confirm the new output-folder autofill and validation states feel right on the desktop.
+- If that pass looks good, extend Help and update-flow work while preserving the current shell and MVVM/service pattern.

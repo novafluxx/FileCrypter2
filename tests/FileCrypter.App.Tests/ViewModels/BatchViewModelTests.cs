@@ -12,25 +12,31 @@ public sealed class BatchViewModelTests
         var viewModel = new BatchViewModel(new RecordingWorkflowService());
 
         Assert.False(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.Contains("Add files", viewModel.ErrorMessage, StringComparison.OrdinalIgnoreCase);
 
         viewModel.SourcePaths.Add("/tmp/first.txt");
         Assert.False(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.Contains("output folder", viewModel.ErrorMessage, StringComparison.OrdinalIgnoreCase);
 
-        viewModel.OutputDirectory = "/tmp/out";
+        using var outputDirectory = new TemporaryDirectory();
+        viewModel.OutputDirectory = outputDirectory.Path;
         Assert.False(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.Contains("Enter a password", viewModel.ErrorMessage, StringComparison.OrdinalIgnoreCase);
 
         viewModel.Password = "secret";
         Assert.True(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.Equal(string.Empty, viewModel.ErrorMessage);
     }
 
     [Fact]
     public void StartBatchCommand_InArchiveDecryptMode_RequiresExactlyOneArchive()
     {
+        using var outputDirectory = new TemporaryDirectory();
         var viewModel = new BatchViewModel(new RecordingWorkflowService())
         {
             ArchiveMode = true,
             EncryptMode = false,
-            OutputDirectory = "/tmp/out",
+            OutputDirectory = outputDirectory.Path,
             Password = "secret",
         };
 
@@ -61,6 +67,7 @@ public sealed class BatchViewModelTests
         await viewModel.BrowseFilesCommand.ExecuteAsync(null);
 
         Assert.Equal(2, viewModel.SourcePaths.Count);
+        Assert.Equal("/tmp", viewModel.OutputDirectory);
         Assert.Equal("Choose files to encrypt", picker.LastOpenFilesTitle);
     }
 
@@ -83,6 +90,7 @@ public sealed class BatchViewModelTests
 
         Assert.Single(viewModel.SourcePaths);
         Assert.Equal("/tmp/archive.tar.zst.encrypted", viewModel.SourcePaths[0]);
+        Assert.Equal("/tmp", viewModel.OutputDirectory);
         Assert.Equal("Choose an encrypted archive to extract", picker.LastOpenTitle);
     }
 
@@ -104,15 +112,16 @@ public sealed class BatchViewModelTests
     [Fact]
     public async Task StartBatchCommand_WhenSuccessful_ReportsSummaryAndResults()
     {
+        using var outputDirectory = new TemporaryDirectory();
         var workflow = new RecordingWorkflowService
         {
             BatchResult = new BatchTransformResult(
             [
-                new BatchTransformItemResult("/tmp/first.txt", "/tmp/out/first.txt.encrypted", "/tmp/out/first.txt.encrypted", null),
-                new BatchTransformItemResult("/tmp/missing.txt", "/tmp/out/missing.txt.encrypted", null, new IOException("Missing input.")),
+                new BatchTransformItemResult("/tmp/first.txt", Path.Combine(outputDirectory.Path, "first.txt.encrypted"), Path.Combine(outputDirectory.Path, "first.txt.encrypted"), null),
+                new BatchTransformItemResult("/tmp/missing.txt", Path.Combine(outputDirectory.Path, "missing.txt.encrypted"), null, new IOException("Missing input.")),
             ]),
         };
-        var viewModel = CreateReadyViewModel(workflow);
+        var viewModel = CreateReadyViewModel(workflow, outputDirectory.Path);
 
         await viewModel.StartBatchCommand.ExecuteAsync(null);
 
@@ -128,11 +137,13 @@ public sealed class BatchViewModelTests
     [Fact]
     public async Task StartBatchCommand_InArchiveEncryptMode_PassesArchiveRequestAndReportsOutput()
     {
+        using var outputDirectory = new TemporaryDirectory();
         var workflow = new RecordingWorkflowService
         {
-            ArchiveEncryptResult = new ArchiveEncryptResult("/tmp/out/filecrypter-archive-20260418-100000.tar.zst.encrypted"),
+            ArchiveEncryptResult = new ArchiveEncryptResult(
+                Path.Combine(outputDirectory.Path, "filecrypter-archive-20260418-100000.tar.zst.encrypted")),
         };
-        var viewModel = CreateReadyViewModel(workflow);
+        var viewModel = CreateReadyViewModel(workflow, outputDirectory.Path);
         viewModel.ArchiveMode = true;
         viewModel.ArchiveName = "project-docs";
 
@@ -148,19 +159,20 @@ public sealed class BatchViewModelTests
     [Fact]
     public async Task StartBatchCommand_InArchiveDecryptMode_ReportsExtractedResults()
     {
+        using var outputDirectory = new TemporaryDirectory();
         var workflow = new RecordingWorkflowService
         {
             ArchiveDecryptResult = new ArchiveDecryptResult(
             [
-                "/tmp/out/first.txt",
-                "/tmp/out/second.txt",
+                Path.Combine(outputDirectory.Path, "first.txt"),
+                Path.Combine(outputDirectory.Path, "second.txt"),
             ]),
         };
         var viewModel = new BatchViewModel(workflow)
         {
             ArchiveMode = true,
             EncryptMode = false,
-            OutputDirectory = "/tmp/out",
+            OutputDirectory = outputDirectory.Path,
             Password = "secret",
             NeverOverwriteExistingFiles = true,
         };
@@ -178,8 +190,9 @@ public sealed class BatchViewModelTests
     [Fact]
     public async Task StartBatchCommand_WhileRunning_DisablesCommands()
     {
+        using var outputDirectory = new TemporaryDirectory();
         var workflow = new WaitingWorkflowService();
-        var viewModel = CreateReadyViewModel(workflow);
+        var viewModel = CreateReadyViewModel(workflow, outputDirectory.Path);
 
         Task runTask = viewModel.StartBatchCommand.ExecuteAsync(null);
         await workflow.Started.Task;
@@ -190,7 +203,11 @@ public sealed class BatchViewModelTests
 
         workflow.Finish(new BatchTransformResult(
         [
-            new BatchTransformItemResult("/tmp/first.txt", "/tmp/out/first.txt.encrypted", "/tmp/out/first.txt.encrypted", null),
+            new BatchTransformItemResult(
+                "/tmp/first.txt",
+                Path.Combine(outputDirectory.Path, "first.txt.encrypted"),
+                Path.Combine(outputDirectory.Path, "first.txt.encrypted"),
+                null),
         ]));
         await runTask;
 
@@ -223,17 +240,89 @@ public sealed class BatchViewModelTests
         Assert.Contains("timestamped", viewModel.ArchiveNameStatusText, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static BatchViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflowService)
+    [Fact]
+    public void InvalidArchiveName_BlocksStartAndExplainsIssue()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var viewModel = new BatchViewModel(new RecordingWorkflowService())
+        {
+            ArchiveMode = true,
+            OutputDirectory = outputDirectory.Path,
+            Password = "secret",
+            ArchiveName = "bad/name",
+        };
+        viewModel.SourcePaths.Add("/tmp/first.txt");
+
+        Assert.False(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.Contains("unsafe", viewModel.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ChangingSelectedFilesAfterRun_ClearsStaleResults()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var workflow = new RecordingWorkflowService
+        {
+            BatchResult = new BatchTransformResult(
+            [
+                new BatchTransformItemResult(
+                    "/tmp/first.txt",
+                    Path.Combine(outputDirectory.Path, "first.txt.encrypted"),
+                    Path.Combine(outputDirectory.Path, "first.txt.encrypted"),
+                    null),
+            ]),
+        };
+        var viewModel = CreateReadyViewModel(workflow, outputDirectory.Path);
+
+        await viewModel.StartBatchCommand.ExecuteAsync(null);
+        Assert.True(viewModel.HasResults);
+
+        viewModel.SourcePaths.Add("/tmp/third.txt");
+
+        Assert.False(viewModel.HasResults);
+        Assert.False(viewModel.HasResultSummary);
+        Assert.Equal(string.Empty, viewModel.ErrorMessage);
+        Assert.Contains("3 file(s) selected", viewModel.ProgressText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static BatchViewModel CreateReadyViewModel(
+        IFileCrypterWorkflowService workflowService,
+        string outputDirectory)
     {
         var viewModel = new BatchViewModel(workflowService)
         {
-            OutputDirectory = "/tmp/out",
+            OutputDirectory = outputDirectory,
             Password = "secret",
             NeverOverwriteExistingFiles = true,
         };
         viewModel.SourcePaths.Add("/tmp/first.txt");
         viewModel.SourcePaths.Add("/tmp/second.txt");
         return viewModel;
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(Path))
+                {
+                    Directory.Delete(Path, recursive: true);
+                }
+            }
+            catch
+            {
+            }
+        }
     }
 
     private sealed class RecordingWorkflowService : IFileCrypterWorkflowService

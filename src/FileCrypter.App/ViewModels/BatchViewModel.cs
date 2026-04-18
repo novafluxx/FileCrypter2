@@ -255,6 +255,22 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         OnPropertyChanged(nameof(KeyFileChoiceStatusText));
     }
 
+    partial void OnOutputDirectoryChanged(string value)
+    {
+        RefreshIdleValidationState();
+    }
+
+    partial void OnPasswordChanged(string value)
+    {
+        RefreshIdleValidationState();
+    }
+
+    partial void OnArchiveNameChanged(string value)
+    {
+        OnPropertyChanged(nameof(ArchiveNameStatusText));
+        RefreshIdleValidationState();
+    }
+
     partial void OnErrorMessageChanged(string value)
     {
         OnPropertyChanged(nameof(HasError));
@@ -437,12 +453,18 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         return !IsRunning &&
             HasValidSourceSelection() &&
-            !string.IsNullOrWhiteSpace(OutputDirectory) &&
-            !string.IsNullOrWhiteSpace(Password);
+            HasValidOutputDirectory() &&
+            !string.IsNullOrWhiteSpace(Password) &&
+            HasValidArchiveName();
     }
 
     private void OnSourcePathsChanged(object? sender, NotifyCollectionChangedEventArgs args)
     {
+        if (!IsRunning && HasResults)
+        {
+            ClearResults();
+        }
+
         if (!string.IsNullOrWhiteSpace(SelectedSourcePath) &&
             !SourcePaths.Any(path => pathComparer.Equals(path, SelectedSourcePath)))
         {
@@ -455,15 +477,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         RemoveSelectedFileCommand.NotifyCanExecuteChanged();
         ClearFilesCommand.NotifyCanExecuteChanged();
 
-        if (HasSelectedFiles && string.IsNullOrWhiteSpace(ResultSummary))
-        {
-            ErrorMessage = GetSelectionValidationMessage();
-            ProgressText = FilesSummaryText;
-        }
-        else if (!HasSelectedFiles && !HasResults && !IsRunning)
-        {
-            ResetIdleStateForMode();
-        }
+        ResetIdleStateForMode();
     }
 
     private void OnResultsChanged(object? sender, NotifyCollectionChangedEventArgs args)
@@ -604,6 +618,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
                 continue;
             }
 
+            TrySetDefaultOutputDirectory(fullPath);
             SourcePaths.Add(fullPath);
         }
     }
@@ -708,16 +723,30 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             return;
         }
 
-        ErrorMessage = GetSelectionValidationMessage();
+        ErrorMessage = GetBlockingValidationMessage();
         ProgressText = GetIdleProgressText();
     }
 
     private bool HasValidSourceSelection()
     {
-        return HasSelectedFiles && (!ArchiveMode || EncryptMode || SourcePaths.Count == 1);
+        return HasSelectedFiles &&
+            (!ArchiveMode || EncryptMode || SourcePaths.Count == 1) &&
+            (ArchiveMode || SourcePaths.Count <= CoreFileCrypter.MaximumBatchFileCount);
     }
 
-    private string GetSelectionValidationMessage()
+    private bool HasValidOutputDirectory()
+    {
+        return !string.IsNullOrWhiteSpace(OutputDirectory) && Directory.Exists(OutputDirectory);
+    }
+
+    private bool HasValidArchiveName()
+    {
+        return !ArchiveMode ||
+            !EncryptMode ||
+            ArchiveFileNameHelper.TryCreateArchiveFileName(ArchiveName, out _, out _);
+    }
+
+    private string GetBlockingValidationMessage()
     {
         if (!HasSelectedFiles)
         {
@@ -730,9 +759,45 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             };
         }
 
-        return ArchiveMode && !EncryptMode && SourcePaths.Count != 1
-            ? "Choose exactly one encrypted archive file to extract."
-            : string.Empty;
+        if (ArchiveMode && !EncryptMode && SourcePaths.Count != 1)
+        {
+            return "Choose exactly one encrypted archive file to extract.";
+        }
+
+        if (!ArchiveMode && SourcePaths.Count > CoreFileCrypter.MaximumBatchFileCount)
+        {
+            return $"Choose {CoreFileCrypter.MaximumBatchFileCount} files or fewer for one batch run.";
+        }
+
+        List<string> issues = [];
+        if (string.IsNullOrWhiteSpace(OutputDirectory))
+        {
+            issues.Add(ArchiveMode && EncryptMode
+                ? "Choose an archive output folder."
+                : ArchiveMode
+                    ? "Choose an extraction folder."
+                    : "Choose a batch output folder.");
+        }
+        else if (!Directory.Exists(OutputDirectory))
+        {
+            issues.Add("Choose an existing output folder.");
+        }
+
+        if (string.IsNullOrWhiteSpace(Password))
+        {
+            issues.Add(EncryptMode
+                ? "Enter a password."
+                : "Enter the password used during encryption.");
+        }
+
+        if (ArchiveMode &&
+            EncryptMode &&
+            !ArchiveFileNameHelper.TryCreateArchiveFileName(ArchiveName, out _, out string? archiveNameError))
+        {
+            issues.Add(archiveNameError ?? "Archive name is invalid.");
+        }
+
+        return string.Join(" ", issues);
     }
 
     private string GetIdleProgressText()
@@ -778,5 +843,27 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             (true, true) => "Archive encryption failed.",
             _ => "Archive extraction failed.",
         };
+    }
+
+    private void RefreshIdleValidationState()
+    {
+        if (!IsRunning && !HasResults)
+        {
+            ResetIdleStateForMode();
+        }
+    }
+
+    private void TrySetDefaultOutputDirectory(string sourcePath)
+    {
+        if (!string.IsNullOrWhiteSpace(OutputDirectory) || SourcePaths.Count != 0)
+        {
+            return;
+        }
+
+        string? sourceDirectory = Path.GetDirectoryName(sourcePath);
+        if (!string.IsNullOrWhiteSpace(sourceDirectory) && Directory.Exists(sourceDirectory))
+        {
+            OutputDirectory = sourceDirectory;
+        }
     }
 }
