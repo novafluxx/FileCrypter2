@@ -26,4 +26,5 @@ public enum FileCrypterFormatErrorCode
     AuthenticationFailed,
     TrailingData,
     InvalidCompressedPayload,
+    InvalidArchivePayload,
 }

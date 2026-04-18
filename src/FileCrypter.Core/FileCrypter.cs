@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Formats.Tar;
 using System.Security.Cryptography;
 using FileCrypter.Core.Cryptography;
 using FileCrypter.Core.Format;
@@ -10,6 +11,7 @@ public static class FileCrypter
 {
     public const int DefaultGeneratedKeyFileSizeBytes = 32;
     public const int MaximumBatchFileCount = 1000;
+    public const string DefaultArchiveEncryptedSuffix = ".tar.zst.encrypted";
 
     private const UnixFileMode PrivateFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     private const int ZstdCompressionLevel = 3;
@@ -244,6 +246,80 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    public static Task<string> EncryptArchiveAsync(
+        IEnumerable<string> plaintextPaths,
+        string encryptedArchivePath,
+        string password,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return EncryptArchiveCoreAsync(
+            plaintextPaths,
+            encryptedArchivePath,
+            password,
+            keyFilePath: null,
+            options,
+            overwrite,
+            cancellationToken);
+    }
+
+    public static Task<string> EncryptArchiveAsync(
+        IEnumerable<string> plaintextPaths,
+        string encryptedArchivePath,
+        string password,
+        string keyFilePath,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return EncryptArchiveCoreAsync(
+            plaintextPaths,
+            encryptedArchivePath,
+            password,
+            keyFilePath,
+            options,
+            overwrite,
+            cancellationToken);
+    }
+
+    public static Task<IReadOnlyList<string>> DecryptArchiveAsync(
+        string encryptedArchivePath,
+        string outputDirectory,
+        string password,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return DecryptArchiveCoreAsync(
+            encryptedArchivePath,
+            outputDirectory,
+            password,
+            keyFilePath: null,
+            options,
+            overwrite,
+            cancellationToken);
+    }
+
+    public static Task<IReadOnlyList<string>> DecryptArchiveAsync(
+        string encryptedArchivePath,
+        string outputDirectory,
+        string password,
+        string keyFilePath,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return DecryptArchiveCoreAsync(
+            encryptedArchivePath,
+            outputDirectory,
+            password,
+            keyFilePath,
+            options,
+            overwrite,
+            cancellationToken);
+    }
+
     public static async Task EncryptAsync(
         Stream plaintext,
         Stream encrypted,
@@ -257,6 +333,7 @@ public static class FileCrypter
             password,
             keyFileBytes: null,
             options,
+            FileCrypterFormatConstants.PayloadKindSingleFile,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -274,6 +351,7 @@ public static class FileCrypter
             password,
             keyFileBytes,
             options,
+            FileCrypterFormatConstants.PayloadKindSingleFile,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -283,6 +361,7 @@ public static class FileCrypter
         string password,
         ReadOnlyMemory<byte>? keyFileBytes,
         FileCrypterOptions? options,
+        byte payloadKind,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(plaintext);
@@ -299,11 +378,11 @@ public static class FileCrypter
         FillRandom(noncePrefix, options);
         if (keyFileBytes.HasValue)
         {
-            FileCrypterHeaderWriter.WriteKeyFileRequired(headerBytes, options, salt, noncePrefix);
+            FileCrypterHeaderWriter.WriteKeyFileRequired(headerBytes, options, salt, noncePrefix, payloadKind);
         }
         else
         {
-            FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, options, salt, noncePrefix);
+            FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, options, salt, noncePrefix, payloadKind);
         }
 
         FileCrypterHeader header = FileCrypterHeaderParser.Parse(headerBytes);
@@ -354,6 +433,7 @@ public static class FileCrypter
             password,
             keyFileBytes: null,
             options,
+            FileCrypterFormatConstants.PayloadKindSingleFile,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -371,6 +451,7 @@ public static class FileCrypter
             password,
             keyFileBytes,
             options,
+            FileCrypterFormatConstants.PayloadKindSingleFile,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -380,6 +461,7 @@ public static class FileCrypter
         string password,
         ReadOnlyMemory<byte>? keyFileBytes,
         FileCrypterOptions? options,
+        byte expectedPayloadKind,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(encrypted);
@@ -396,7 +478,7 @@ public static class FileCrypter
         }
 
         FileCrypterHeader header = FileCrypterHeaderParser.Parse(headerBytes);
-        ValidateSupportedPayload(header, keyFileBytes.HasValue);
+        ValidateSupportedPayload(header, keyFileBytes.HasValue, expectedPayloadKind);
 
         ReadOnlyMemory<byte> keyFileMaterial = keyFileBytes.GetValueOrDefault();
         byte[] key = FileCrypterKeyDeriver.DeriveKey(
@@ -635,6 +717,218 @@ public static class FileCrypter
         return new FileCrypterBatchResult(results);
     }
 
+    private static async Task<string> EncryptArchiveCoreAsync(
+        IEnumerable<string> plaintextPaths,
+        string encryptedArchivePath,
+        string password,
+        string? keyFilePath,
+        FileCrypterOptions? options,
+        bool overwrite,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(plaintextPaths);
+        ArgumentException.ThrowIfNullOrEmpty(encryptedArchivePath);
+        ArgumentNullException.ThrowIfNull(password);
+
+        string[] fullInputPaths = plaintextPaths
+            .Select(path =>
+            {
+                ArgumentException.ThrowIfNullOrEmpty(path);
+                return Path.GetFullPath(path);
+            })
+            .ToArray();
+        ValidateArchiveInputFileCount(fullInputPaths.Length);
+        foreach (string fullInputPath in fullInputPaths)
+        {
+            ValidateInputPath(fullInputPath);
+            if (!File.Exists(fullInputPath))
+            {
+                throw new FileNotFoundException($"Input file does not exist: {fullInputPath}", fullInputPath);
+            }
+        }
+
+        string fullOutputPath = Path.GetFullPath(encryptedArchivePath);
+        string? fullKeyFilePath = keyFilePath is null ? null : Path.GetFullPath(keyFilePath);
+        ValidateOutputPath(fullOutputPath, overwrite);
+        if (fullKeyFilePath is not null)
+        {
+            ValidateKeyFilePath(fullKeyFilePath);
+        }
+
+        if (!overwrite)
+        {
+            fullOutputPath = GetAvailableOutputPath(fullOutputPath);
+        }
+
+        foreach (string fullInputPath in fullInputPaths)
+        {
+            if (PathsEqual(ResolvePathForCollision(fullInputPath), ResolvePathForCollision(fullOutputPath)))
+            {
+                throw new ArgumentException("The input and output paths must be different.", nameof(encryptedArchivePath));
+            }
+        }
+
+        if (fullKeyFilePath is not null &&
+            PathsEqual(ResolvePathForCollision(fullKeyFilePath), ResolvePathForCollision(fullOutputPath)))
+        {
+            throw new ArgumentException("The key file and output paths must be different.", nameof(encryptedArchivePath));
+        }
+
+        string tarStagingPath = CreateStagingPath(fullOutputPath + ".tar");
+        string encryptedStagingPath = CreateStagingPath(fullOutputPath);
+        byte[]? keyFileBytes = null;
+        bool completed = false;
+
+        try
+        {
+            if (fullKeyFilePath is not null)
+            {
+                keyFileBytes = await ReadKeyFileAsync(fullKeyFilePath, cancellationToken).ConfigureAwait(false);
+            }
+
+            await using (FileStream tarOutput = new(tarStagingPath, CreateOutputFileStreamOptions()))
+            {
+                await WriteTarArchiveAsync(fullInputPaths, tarOutput, cancellationToken).ConfigureAwait(false);
+            }
+
+            await using FileStream tarInput = new(
+                tarStagingPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 81920,
+                FileOptions.SequentialScan);
+            await using (FileStream encryptedOutput = new(
+                encryptedStagingPath,
+                CreateOutputFileStreamOptions()))
+            {
+                FileCrypterOptions archiveOptions = CreateArchiveEncryptionOptions(options);
+                if (keyFileBytes is null)
+                {
+                    await EncryptAsyncCore(
+                        tarInput,
+                        encryptedOutput,
+                        password,
+                        keyFileBytes: null,
+                        archiveOptions,
+                        FileCrypterFormatConstants.PayloadKindTarArchive,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await EncryptAsyncCore(
+                        tarInput,
+                        encryptedOutput,
+                        password,
+                        keyFileBytes,
+                        archiveOptions,
+                        FileCrypterFormatConstants.PayloadKindTarArchive,
+                        cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            File.Move(encryptedStagingPath, fullOutputPath, overwrite);
+            completed = true;
+            return fullOutputPath;
+        }
+        finally
+        {
+            if (keyFileBytes is not null)
+            {
+                CryptographicOperations.ZeroMemory(keyFileBytes);
+            }
+
+            TryDeleteFile(tarStagingPath);
+            if (!completed)
+            {
+                TryDeleteFile(encryptedStagingPath);
+            }
+        }
+    }
+
+    private static async Task<IReadOnlyList<string>> DecryptArchiveCoreAsync(
+        string encryptedArchivePath,
+        string outputDirectory,
+        string password,
+        string? keyFilePath,
+        FileCrypterOptions? options,
+        bool overwrite,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(encryptedArchivePath);
+        ArgumentException.ThrowIfNullOrEmpty(outputDirectory);
+        ArgumentNullException.ThrowIfNull(password);
+
+        string fullEncryptedArchivePath = Path.GetFullPath(encryptedArchivePath);
+        string fullOutputDirectory = Path.GetFullPath(outputDirectory);
+        string? fullKeyFilePath = keyFilePath is null ? null : Path.GetFullPath(keyFilePath);
+        ValidateInputPath(fullEncryptedArchivePath);
+        ValidateBatchOutputDirectory(fullOutputDirectory);
+        if (fullKeyFilePath is not null)
+        {
+            ValidateKeyFilePath(fullKeyFilePath);
+        }
+
+        string tarStagingPath = CreateStagingPath(Path.Combine(fullOutputDirectory, "archive.tar"));
+        byte[]? keyFileBytes = null;
+
+        try
+        {
+            if (fullKeyFilePath is not null)
+            {
+                keyFileBytes = await ReadKeyFileAsync(fullKeyFilePath, cancellationToken).ConfigureAwait(false);
+            }
+
+            await using FileStream encryptedInput = new(
+                fullEncryptedArchivePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 81920,
+                FileOptions.SequentialScan);
+            await using (FileStream tarOutput = new(tarStagingPath, CreateOutputFileStreamOptions()))
+            {
+                if (keyFileBytes is null)
+                {
+                    await DecryptAsyncCore(
+                        encryptedInput,
+                        tarOutput,
+                        password,
+                        keyFileBytes: null,
+                        options,
+                        FileCrypterFormatConstants.PayloadKindTarArchive,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await DecryptAsyncCore(
+                        encryptedInput,
+                        tarOutput,
+                        password,
+                        keyFileBytes,
+                        options,
+                        FileCrypterFormatConstants.PayloadKindTarArchive,
+                        cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            return await ExtractTarArchiveAsync(
+                tarStagingPath,
+                fullOutputDirectory,
+                overwrite,
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (keyFileBytes is not null)
+            {
+                CryptographicOperations.ZeroMemory(keyFileBytes);
+            }
+
+            TryDeleteFile(tarStagingPath);
+        }
+    }
+
     private static void ValidateInputPath(string fullInputPath)
     {
         if (Directory.Exists(fullInputPath))
@@ -671,7 +965,27 @@ public static class FileCrypter
         }
     }
 
+    private static void ValidateArchiveInputFileCount(int fileCount)
+    {
+        if (fileCount == 0)
+        {
+            throw new ArgumentException("At least one input file is required.", nameof(fileCount));
+        }
+
+        ValidateBatchFileCount(fileCount);
+    }
+
     private static FileCrypterOptions CreateBatchEncryptionOptions(FileCrypterOptions? options)
+    {
+        return CreateCompressionEnabledOptions(options);
+    }
+
+    private static FileCrypterOptions CreateArchiveEncryptionOptions(FileCrypterOptions? options)
+    {
+        return CreateCompressionEnabledOptions(options);
+    }
+
+    private static FileCrypterOptions CreateCompressionEnabledOptions(FileCrypterOptions? options)
     {
         FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
         return new FileCrypterOptions
@@ -684,6 +998,170 @@ public static class FileCrypter
             Progress = sourceOptions.Progress,
             RandomSource = sourceOptions.RandomSource,
         };
+    }
+
+    private static async Task WriteTarArchiveAsync(
+        IEnumerable<string> fullInputPaths,
+        Stream tarOutput,
+        CancellationToken cancellationToken)
+    {
+        using var writer = new TarWriter(tarOutput, TarEntryFormat.Pax, leaveOpen: true);
+        var entryNames = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (string fullInputPath in fullInputPaths)
+        {
+            string entryName = GetAvailableArchiveEntryName(Path.GetFileName(fullInputPath), entryNames);
+            await writer.WriteEntryAsync(fullInputPath, entryName, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task<IReadOnlyList<string>> ExtractTarArchiveAsync(
+        string tarPath,
+        string fullOutputDirectory,
+        bool overwrite,
+        CancellationToken cancellationToken)
+    {
+        var stagedExtractions = new List<StagedArchiveExtraction>();
+        var reservedFinalPaths = new HashSet<string>(PathComparer);
+        bool completed = false;
+
+        try
+        {
+            await using FileStream tarInput = new(
+                tarPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 81920,
+                FileOptions.SequentialScan);
+            using var reader = new TarReader(tarInput, leaveOpen: false);
+
+            while (await reader.GetNextEntryAsync(copyData: false, cancellationToken).ConfigureAwait(false) is { } entry)
+            {
+                if (!IsRegularFileEntry(entry))
+                {
+                    throw new FileCrypterFormatException(
+                        FileCrypterFormatErrorCode.InvalidArchivePayload,
+                        "The FileCrypter archive contains an unsupported tar entry.");
+                }
+
+                if (entry.DataStream is null)
+                {
+                    throw new FileCrypterFormatException(
+                        FileCrypterFormatErrorCode.InvalidArchivePayload,
+                        "The FileCrypter archive contains a file entry without data.");
+                }
+
+                string requestedOutputPath = CreateArchiveExtractionOutputPath(entry.Name, fullOutputDirectory);
+                string finalOutputPath = overwrite
+                    ? requestedOutputPath
+                    : GetAvailableOutputPath(requestedOutputPath, reservedFinalPaths);
+                ValidateOutputPath(finalOutputPath, overwrite);
+                if (!reservedFinalPaths.Add(NormalizePathForComparison(finalOutputPath)))
+                {
+                    throw new FileCrypterFormatException(
+                        FileCrypterFormatErrorCode.InvalidArchivePayload,
+                        "The FileCrypter archive contains duplicate extraction paths.");
+                }
+
+                string stagingPath = CreateStagingPath(finalOutputPath);
+                await using (FileStream output = new(stagingPath, CreateOutputFileStreamOptions()))
+                {
+                    await entry.DataStream.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+                }
+
+                stagedExtractions.Add(new StagedArchiveExtraction(stagingPath, finalOutputPath));
+            }
+
+            foreach (StagedArchiveExtraction extraction in stagedExtractions)
+            {
+                File.Move(extraction.StagingPath, extraction.FinalPath, overwrite);
+            }
+
+            completed = true;
+            return stagedExtractions.Select(extraction => extraction.FinalPath).ToArray();
+        }
+        catch (Exception exception) when (exception is InvalidDataException or EndOfStreamException)
+        {
+            throw new FileCrypterFormatException(
+                FileCrypterFormatErrorCode.InvalidArchivePayload,
+                "The FileCrypter archive payload is invalid.",
+                exception);
+        }
+        finally
+        {
+            if (!completed)
+            {
+                foreach (StagedArchiveExtraction extraction in stagedExtractions)
+                {
+                    TryDeleteFile(extraction.StagingPath);
+                }
+            }
+        }
+    }
+
+    private static bool IsRegularFileEntry(TarEntry entry)
+    {
+        return entry.EntryType is TarEntryType.RegularFile
+            or TarEntryType.V7RegularFile
+            or TarEntryType.ContiguousFile;
+    }
+
+    private static string CreateArchiveExtractionOutputPath(string entryName, string fullOutputDirectory)
+    {
+        string fileName = Path.GetFileName(entryName);
+        if (string.IsNullOrEmpty(fileName) ||
+            !string.Equals(entryName, fileName, StringComparison.Ordinal) ||
+            Path.IsPathRooted(entryName) ||
+            entryName.Contains('\\', StringComparison.Ordinal) ||
+            entryName.Contains('/', StringComparison.Ordinal) ||
+            entryName == "." ||
+            entryName == "..")
+        {
+            throw new FileCrypterFormatException(
+                FileCrypterFormatErrorCode.InvalidArchivePayload,
+                "The FileCrypter archive contains an unsafe entry path.");
+        }
+
+        string outputPath = Path.GetFullPath(Path.Combine(fullOutputDirectory, fileName));
+        string fullOutputDirectoryWithSeparator = Path.EndsInDirectorySeparator(fullOutputDirectory)
+            ? fullOutputDirectory
+            : fullOutputDirectory + Path.DirectorySeparatorChar;
+
+        if (!outputPath.StartsWith(fullOutputDirectoryWithSeparator, PathComparison))
+        {
+            throw new FileCrypterFormatException(
+                FileCrypterFormatErrorCode.InvalidArchivePayload,
+                "The FileCrypter archive contains an unsafe entry path.");
+        }
+
+        return outputPath;
+    }
+
+    private static string GetAvailableArchiveEntryName(string entryName, HashSet<string> usedEntryNames)
+    {
+        if (string.IsNullOrEmpty(entryName))
+        {
+            throw new ArgumentException("The input path must include a file name.", nameof(entryName));
+        }
+
+        if (usedEntryNames.Add(entryName))
+        {
+            return entryName;
+        }
+
+        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(entryName);
+        string extension = Path.GetExtension(entryName);
+        for (int suffix = 1; suffix < int.MaxValue; suffix++)
+        {
+            string candidateName = $"{fileNameWithoutExtension} ({suffix}){extension}";
+            if (usedEntryNames.Add(candidateName))
+            {
+                return candidateName;
+            }
+        }
+
+        throw new IOException("No available archive entry name could be found.");
     }
 
     private static string CreateBatchOutputPath(string inputPath, string fullOutputDirectory, bool encrypt)
@@ -885,9 +1363,18 @@ public static class FileCrypter
 
     private static string GetAvailableOutputPath(string fullOutputPath)
     {
+        return GetAvailableOutputPath(fullOutputPath, reservedPaths: null);
+    }
+
+    private static string GetAvailableOutputPath(string fullOutputPath, HashSet<string>? reservedPaths)
+    {
         if (!PathExistsOrSymbolicLink(fullOutputPath))
         {
-            return fullOutputPath;
+            string normalizedPath = NormalizePathForComparison(fullOutputPath);
+            if (reservedPaths is null || !reservedPaths.Contains(normalizedPath))
+            {
+                return fullOutputPath;
+            }
         }
 
         string? directory = Path.GetDirectoryName(fullOutputPath);
@@ -902,7 +1389,9 @@ public static class FileCrypter
         for (int suffix = 1; suffix < int.MaxValue; suffix++)
         {
             string candidatePath = Path.Combine(directory, $"{fileNameWithoutExtension} ({suffix}){extension}");
-            if (!PathExistsOrSymbolicLink(candidatePath))
+            string normalizedPath = NormalizePathForComparison(candidatePath);
+            if (!PathExistsOrSymbolicLink(candidatePath) &&
+                (reservedPaths is null || !reservedPaths.Contains(normalizedPath)))
             {
                 return candidatePath;
             }
@@ -990,13 +1479,22 @@ public static class FileCrypter
                 : Path.Combine(Path.GetDirectoryName(linkPath) ?? string.Empty, linkTarget));
     }
 
+    private static StringComparer PathComparer => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
+
+    private static StringComparison PathComparison => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
+
+    private static string NormalizePathForComparison(string path)
+    {
+        return Path.GetFullPath(path);
+    }
+
     private static bool PathsEqual(string left, string right)
     {
-        StringComparison comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-
-        return string.Equals(left, right, comparison);
+        return string.Equals(left, right, PathComparison);
     }
 
     private static void TryDeleteFile(string path)
@@ -1010,7 +1508,7 @@ public static class FileCrypter
         }
     }
 
-    private static void ValidateSupportedPayload(FileCrypterHeader header, bool keyFileSupplied)
+    private static void ValidateSupportedPayload(FileCrypterHeader header, bool keyFileSupplied, byte expectedPayloadKind)
     {
         if (header.IsKeyFileRequired && !keyFileSupplied)
         {
@@ -1027,11 +1525,13 @@ public static class FileCrypter
                 "This FileCrypter operation does not support the payload compression algorithm.");
         }
 
-        if (header.PayloadKind != FileCrypterFormatConstants.PayloadKindSingleFile)
+        if (header.PayloadKind != expectedPayloadKind)
         {
             throw new FileCrypterFormatException(
                 FileCrypterFormatErrorCode.UnsupportedPayloadKind,
-                "This FileCrypter operation only supports single-file payloads.");
+                expectedPayloadKind == FileCrypterFormatConstants.PayloadKindTarArchive
+                    ? "This FileCrypter operation only supports archive payloads."
+                    : "This FileCrypter operation only supports single-file payloads.");
         }
 
         if (header.Argon2MemoryKiB > int.MaxValue ||
@@ -1043,6 +1543,8 @@ public static class FileCrypter
                 "The FileCrypter Argon2 parameters are invalid.");
         }
     }
+
+    private sealed record StagedArchiveExtraction(string StagingPath, string FinalPath);
 
     private static async ValueTask<int> ReadChunkAsync(
         Stream source,

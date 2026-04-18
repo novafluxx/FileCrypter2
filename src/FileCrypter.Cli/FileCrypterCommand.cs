@@ -36,8 +36,10 @@ internal sealed class FileCrypterCommand
                 "decrypt" => await RunTransformAsync(args, encrypt: false).ConfigureAwait(false),
                 "batch-encrypt" => await RunBatchAsync(args, encrypt: true).ConfigureAwait(false),
                 "batch-decrypt" => await RunBatchAsync(args, encrypt: false).ConfigureAwait(false),
+                "archive-encrypt" => await RunArchiveEncryptAsync(args).ConfigureAwait(false),
+                "archive-decrypt" => await RunArchiveDecryptAsync(args).ConfigureAwait(false),
                 "settings" => await RunSettingsAsync(args).ConfigureAwait(false),
-                _ => WriteError("Unknown command. Use 'encrypt', 'decrypt', 'batch-encrypt', 'batch-decrypt', or 'settings'."),
+                _ => WriteError("Unknown command. Use 'encrypt', 'decrypt', 'batch-encrypt', 'batch-decrypt', 'archive-encrypt', 'archive-decrypt', or 'settings'."),
             };
         }
         catch (FileCrypterFormatException exception)
@@ -362,6 +364,187 @@ internal sealed class FileCrypterCommand
         return result.Succeeded ? 0 : 1;
     }
 
+    private async Task<int> RunArchiveEncryptAsync(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            return WriteError("Missing output archive path.");
+        }
+
+        string outputArchivePath = args[1];
+        string? password = null;
+        string? keyFilePath = null;
+        bool overwrite = false;
+        var inputPaths = new List<string>();
+
+        for (int index = 2; index < args.Length; index++)
+        {
+            string arg = args[index];
+            switch (arg)
+            {
+                case "--password":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --password.");
+                    }
+
+                    password = args[index];
+                    break;
+
+                case "--password-stdin":
+                    password = await console.In.ReadLineAsync().ConfigureAwait(false);
+                    break;
+
+                case "--key-file":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --key-file.");
+                    }
+
+                    keyFilePath = args[index];
+                    break;
+
+                case "--overwrite":
+                    overwrite = true;
+                    break;
+
+                case "--compress":
+                    break;
+
+                default:
+                    if (arg.StartsWith("-", StringComparison.Ordinal))
+                    {
+                        return WriteError($"Unknown option '{arg}'.");
+                    }
+
+                    inputPaths.Add(arg);
+                    break;
+            }
+        }
+
+        if (inputPaths.Count == 0)
+        {
+            return WriteError("At least one input path is required.");
+        }
+
+        if (password is null)
+        {
+            password = ReadPasswordFromInteractiveConsole();
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
+        }
+
+        string finalOutputPath = keyFilePath is null
+            ? await FileCrypter.Core.FileCrypter.EncryptArchiveAsync(
+                inputPaths,
+                outputArchivePath,
+                password,
+                options,
+                overwrite).ConfigureAwait(false)
+            : await FileCrypter.Core.FileCrypter.EncryptArchiveAsync(
+                inputPaths,
+                outputArchivePath,
+                password,
+                keyFilePath,
+                options,
+                overwrite).ConfigureAwait(false);
+
+        console.Out.WriteLine(finalOutputPath);
+        return 0;
+    }
+
+    private async Task<int> RunArchiveDecryptAsync(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            return WriteError("Missing input archive path.");
+        }
+
+        if (args.Length < 3)
+        {
+            return WriteError("Missing output directory.");
+        }
+
+        string inputArchivePath = args[1];
+        string outputDirectory = args[2];
+        string? password = null;
+        string? keyFilePath = null;
+        bool overwrite = false;
+
+        for (int index = 3; index < args.Length; index++)
+        {
+            string arg = args[index];
+            switch (arg)
+            {
+                case "--password":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --password.");
+                    }
+
+                    password = args[index];
+                    break;
+
+                case "--password-stdin":
+                    password = await console.In.ReadLineAsync().ConfigureAwait(false);
+                    break;
+
+                case "--key-file":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --key-file.");
+                    }
+
+                    keyFilePath = args[index];
+                    break;
+
+                case "--overwrite":
+                    overwrite = true;
+                    break;
+
+                default:
+                    return arg.StartsWith("-", StringComparison.Ordinal)
+                        ? WriteError($"Unknown option '{arg}'.")
+                        : WriteError("archive-decrypt accepts exactly one input archive and one output directory.");
+            }
+        }
+
+        if (password is null)
+        {
+            password = ReadPasswordFromInteractiveConsole();
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
+        }
+
+        IReadOnlyList<string> extractedPaths = keyFilePath is null
+            ? await FileCrypter.Core.FileCrypter.DecryptArchiveAsync(
+                inputArchivePath,
+                outputDirectory,
+                password,
+                options,
+                overwrite).ConfigureAwait(false)
+            : await FileCrypter.Core.FileCrypter.DecryptArchiveAsync(
+                inputArchivePath,
+                outputDirectory,
+                password,
+                keyFilePath,
+                options,
+                overwrite).ConfigureAwait(false);
+
+        foreach (string extractedPath in extractedPaths)
+        {
+            console.Out.WriteLine(extractedPath);
+        }
+
+        return 0;
+    }
+
     private async Task<int> RunSettingsAsync(string[] args)
     {
         if (args.Length == 1 || args[1] == "show")
@@ -528,6 +711,8 @@ internal sealed class FileCrypterCommand
                 "The encrypted file appears incomplete or damaged. Try a fresh copy of the file.",
             FileCrypterFormatErrorCode.InvalidCompressedPayload =>
                 "The compressed payload appears damaged. Try a fresh copy of the encrypted file.",
+            FileCrypterFormatErrorCode.InvalidArchivePayload =>
+                "The archive payload appears damaged or unsafe. Try a fresh copy of the encrypted archive.",
             FileCrypterFormatErrorCode.UnsupportedVersion or
             FileCrypterFormatErrorCode.UnsupportedCompressionAlgorithm or
             FileCrypterFormatErrorCode.UnsupportedPayloadKind or
@@ -573,6 +758,8 @@ internal sealed class FileCrypterCommand
               filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
               filecrypter batch-encrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
               filecrypter batch-decrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+              filecrypter archive-encrypt <output-archive> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+              filecrypter archive-decrypt <input-archive> <output-directory> [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
               filecrypter settings show
               filecrypter settings set compression-default <on|off>
 
@@ -581,6 +768,7 @@ internal sealed class FileCrypterCommand
             Use --compress during encryption to reduce compatible payloads before encryption. Decryption detects compressed files automatically.
             Set compression-default on to compress single-file encryption by default.
             Batch encryption compresses each file automatically and writes one output path per successful file to stdout.
+            Archive encryption writes one compressed tar archive payload and archive decryption writes each extracted path to stdout.
             Use --key-file with an existing key file for password plus key-file protection. The same key file is required
             for decryption; lost or changed key files cannot be recovered. Existing key files may be up to 16 MiB.
             Use --generate-key-file during encryption to create a new 32-byte key file before encrypting. Keep the generated

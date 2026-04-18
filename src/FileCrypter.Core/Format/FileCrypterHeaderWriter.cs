@@ -10,7 +10,22 @@ internal static class FileCrypterHeaderWriter
         ReadOnlySpan<byte> salt,
         ReadOnlySpan<byte> noncePrefix)
     {
-        Write(destination, options, salt, noncePrefix, keyFileRequired: false);
+        WritePasswordOnly(
+            destination,
+            options,
+            salt,
+            noncePrefix,
+            FileCrypterFormatConstants.PayloadKindSingleFile);
+    }
+
+    public static void WritePasswordOnly(
+        Span<byte> destination,
+        FileCrypterOptions options,
+        ReadOnlySpan<byte> salt,
+        ReadOnlySpan<byte> noncePrefix,
+        byte payloadKind)
+    {
+        Write(destination, options, salt, noncePrefix, keyFileRequired: false, payloadKind);
     }
 
     public static void WriteKeyFileRequired(
@@ -19,7 +34,22 @@ internal static class FileCrypterHeaderWriter
         ReadOnlySpan<byte> salt,
         ReadOnlySpan<byte> noncePrefix)
     {
-        Write(destination, options, salt, noncePrefix, keyFileRequired: true);
+        WriteKeyFileRequired(
+            destination,
+            options,
+            salt,
+            noncePrefix,
+            FileCrypterFormatConstants.PayloadKindSingleFile);
+    }
+
+    public static void WriteKeyFileRequired(
+        Span<byte> destination,
+        FileCrypterOptions options,
+        ReadOnlySpan<byte> salt,
+        ReadOnlySpan<byte> noncePrefix,
+        byte payloadKind)
+    {
+        Write(destination, options, salt, noncePrefix, keyFileRequired: true, payloadKind);
     }
 
     private static void Write(
@@ -27,7 +57,8 @@ internal static class FileCrypterHeaderWriter
         FileCrypterOptions options,
         ReadOnlySpan<byte> salt,
         ReadOnlySpan<byte> noncePrefix,
-        bool keyFileRequired)
+        bool keyFileRequired,
+        byte payloadKind)
     {
         if (destination.Length < FileCrypterFormatConstants.HeaderLength)
         {
@@ -57,7 +88,7 @@ internal static class FileCrypterHeaderWriter
         destination[FileCrypterFormatConstants.CompressionAlgorithmOffset] = options.EnableCompression
             ? FileCrypterFormatConstants.CompressionZstd
             : FileCrypterFormatConstants.CompressionNone;
-        destination[FileCrypterFormatConstants.PayloadKindOffset] = FileCrypterFormatConstants.PayloadKindSingleFile;
+        destination[FileCrypterFormatConstants.PayloadKindOffset] = payloadKind;
         WriteUInt32(destination, FileCrypterFormatConstants.ChunkSizeOffset, (uint)options.ChunkSize);
         salt.CopyTo(destination.Slice(FileCrypterFormatConstants.SaltOffset, FileCrypterFormatConstants.SaltLength));
         noncePrefix.CopyTo(destination.Slice(FileCrypterFormatConstants.NoncePrefixOffset, FileCrypterFormatConstants.NoncePrefixLength));

@@ -5,7 +5,9 @@ public sealed class FileCrypterCommandTests
 {
     private const string Password = "correct horse battery staple";
     private const int CompressionAlgorithmOffset = 16;
+    private const int PayloadKindOffset = 17;
     private const byte CompressionZstd = 1;
+    private const byte PayloadKindTarArchive = 2;
 
     [Fact]
     public async Task EncryptAndDecrypt_WithExplicitOutputs_Succeeds()
@@ -246,6 +248,73 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task ArchiveEncryptAndArchiveDecrypt_Succeeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string inputDirectory = Path.Combine(directory.Path, "input");
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(inputDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        string firstPlaintextPath = Path.Combine(inputDirectory, "first.txt");
+        string secondPlaintextPath = Path.Combine(inputDirectory, "second.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        string firstOutputPath = Path.Combine(outputDirectory, "first.txt");
+        string secondOutputPath = Path.Combine(outputDirectory, "second.txt");
+        byte[] firstPlaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("first\n", 512)));
+        byte[] secondPlaintextBytes = Encoding.UTF8.GetBytes("second");
+        await File.WriteAllBytesAsync(firstPlaintextPath, firstPlaintextBytes);
+        await File.WriteAllBytesAsync(secondPlaintextPath, secondPlaintextBytes);
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["archive-encrypt", encryptedArchivePath, firstPlaintextPath, secondPlaintextPath, "--password", Password]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["archive-decrypt", encryptedArchivePath, outputDirectory, "--password", Password]);
+
+        byte[] encryptedBytes = await File.ReadAllBytesAsync(encryptedArchivePath);
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(CompressionZstd, encryptedBytes[CompressionAlgorithmOffset]);
+        Assert.Equal(PayloadKindTarArchive, encryptedBytes[PayloadKindOffset]);
+        Assert.Equal(Path.GetFullPath(encryptedArchivePath) + Environment.NewLine, encryptConsole.Output);
+        Assert.Equal(
+            Path.GetFullPath(firstOutputPath) + Environment.NewLine +
+            Path.GetFullPath(secondOutputPath) + Environment.NewLine,
+            decryptConsole.Output);
+        Assert.Equal(firstPlaintextBytes, await File.ReadAllBytesAsync(firstOutputPath));
+        Assert.Equal(secondPlaintextBytes, await File.ReadAllBytesAsync(secondOutputPath));
+    }
+
+    [Fact]
+    public async Task ArchiveEncryptAndArchiveDecrypt_WithKeyFile_Succeeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(outputDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        string extractedPath = Path.Combine(outputDirectory, "plain.txt");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("archive cli key file");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["archive-encrypt", encryptedArchivePath, plaintextPath, "--password", Password, "--key-file", keyFilePath]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["archive-decrypt", encryptedArchivePath, outputDirectory, "--password", Password, "--key-file", keyFilePath]);
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(Path.GetFullPath(encryptedArchivePath) + Environment.NewLine, encryptConsole.Output);
+        Assert.Equal(Path.GetFullPath(extractedPath) + Environment.NewLine, decryptConsole.Output);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(extractedPath));
+    }
+
+    [Fact]
     public async Task BatchEncrypt_WithMixedSuccess_ContinuesAndReturnsFailure()
     {
         using var directory = new TemporaryDirectory();
@@ -322,6 +391,8 @@ public sealed class FileCrypterCommandTests
         Assert.Contains("create a new 32-byte key file", console.Output, StringComparison.Ordinal);
         Assert.Contains("batch-encrypt", console.Output, StringComparison.Ordinal);
         Assert.Contains("Batch encryption compresses each file automatically", console.Output, StringComparison.Ordinal);
+        Assert.Contains("archive-encrypt", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Archive encryption writes one compressed tar archive payload", console.Output, StringComparison.Ordinal);
         Assert.Contains("settings set compression-default", console.Output, StringComparison.Ordinal);
         Assert.Empty(console.ErrorOutput);
     }

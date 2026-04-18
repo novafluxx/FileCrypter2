@@ -59,17 +59,20 @@ codex/phase-1-file-format
 - CLI-host settings persistence is implemented with a local JSON settings file and a `settings show` / `settings set compression-default <on|off>` command.
 - Single-file encryption applies the persisted compression default when `--compress` is omitted, while explicit `--compress` still enables compression for that run.
 - Settings coverage includes missing settings defaults, save/load behavior, compression-default application, corrupt settings troubleshooting, and decrypt ignoring corrupt settings.
+- Core archive encryption/extraction is implemented for file-list archives using tar payloads, Zstandard compression, the v1 archive payload-kind marker, staged temporary files, key-file support, duplicate input-name auto-renaming, and safe extraction path validation.
+- CLI archive commands are wired as `archive-encrypt <output-archive> <input>...` and `archive-decrypt <input-archive> <output-directory>`, with encrypted or extracted output paths written to stdout.
+- Archive coverage includes password-only and key-file round trips, archive header markers, duplicate entry renaming, extraction overwrite protection, malformed archive handling, CLI archive round trips, and archive help text.
 
 ## Current Format Decisions
 
 - Default encrypted suffix: `.encrypted`.
-- Future archive suffix: `.tar.zst.encrypted`.
+- Archive suffix: `.tar.zst.encrypted`.
 - Header: fixed 64-byte little-endian binary layout.
 - Magic bytes: ASCII `FCRYPT\r\n`.
 - Version: `1`.
 - AEAD: AES-256-GCM, 12-byte nonce, 16-byte tag.
 - KDF: Argon2id, version `0x13`, 32-byte derived key.
-- Compression: none by default, optional Zstandard for single-file payloads.
+- Compression: none by default, optional Zstandard for single-file payloads, required Zstandard for archive encryption.
 - Key-file binding: SHA-256 digest of raw key-file bytes in the credential preimage when key-file protection is enabled.
 - Default Argon2id parameters: 65536 KiB memory, 3 iterations, 4 lanes.
 - Default chunk size: 1048576 bytes.
@@ -78,13 +81,13 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest persisted compression-default pass:
+These commands passed after the latest archive-mode pass:
 
 ```bash
 dotnet test
 ```
 
-Latest test count at handoff: 113 passed, 0 failed.
+Latest test count at handoff: 120 passed, 0 failed.
 
 Focused CLI coverage also passed:
 
@@ -110,7 +113,6 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 
 ## Not Started
 
-- Archive mode.
 - Broader settings, help, update flow, and graphical UI.
 - Broader CLI command polish.
 
@@ -124,6 +126,7 @@ The current implementation is aligned with the product outline for the foundatio
 - password plus existing-key-file single-file encrypt/decrypt path
 - generated key-file single-file encrypt path
 - batch individual-file encrypt/decrypt path
+- compressed tar archive encrypt/decrypt path for file-list archives
 - persisted compression default for single-file encryption
 - versioned documented encrypted file format
 - AES-256-GCM, Argon2id, unique per-file salt, unique per-file nonce prefix, and chunk-level authentication
@@ -136,22 +139,17 @@ Remaining product-level gaps are expected for later phases:
 
 - broader key-file UX/help
 - broader batch UX and aggregate progress
-- archive creation/extraction
 - broader settings and help UX
 - broader CLI command polish
 - update flow and graphical UI
 
 ## Recommended Next Step
 
-Start archive mode.
+Broaden settings/help UX and CLI polish now that the archive foundation is in place.
 
-Immediate next slice:
+Recommended next slices:
 
-- Add a core archive encryption path that bundles multiple input files into one compressed archive payload before encryption.
-- Pick the first archive container implementation and output naming convention.
-- Add CLI shape for archive encryption with an output archive path or generated archive name.
-- Cover archive creation, decryption/extraction, overwrite protection, and malformed archive handling.
-
-Recommended follow-up work:
-
-- Broaden settings/help UX after the archive foundation is in place.
+- Add generated archive-name handling for archive encryption.
+- Add archive progress reporting across tar creation, encryption, decryption, and extraction phases.
+- Broaden CLI help/troubleshooting for archive-specific user mistakes.
+- Continue toward graphical UI once the remaining CLI contract is stable.

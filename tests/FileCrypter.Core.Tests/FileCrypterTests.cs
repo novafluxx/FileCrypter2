@@ -325,6 +325,165 @@ public sealed class FileCrypterTests
     }
 
     [Fact]
+    public async Task EncryptArchiveAsyncDecryptArchiveAsync_RoundTripsAndMarksArchiveHeader()
+    {
+        using var directory = new TemporaryDirectory();
+        string inputDirectory = Path.Combine(directory.Path, "input");
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(inputDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        string firstPlaintextPath = Path.Combine(inputDirectory, "first.txt");
+        string secondPlaintextPath = Path.Combine(inputDirectory, "second.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        byte[] firstPlaintextBytes = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("first archive file\n", 256)));
+        byte[] secondPlaintextBytes = Encoding.UTF8.GetBytes("second archive file");
+        await File.WriteAllBytesAsync(firstPlaintextPath, firstPlaintextBytes);
+        await File.WriteAllBytesAsync(secondPlaintextPath, secondPlaintextBytes);
+
+        string finalArchivePath = await FileCrypter.EncryptArchiveAsync(
+            [firstPlaintextPath, secondPlaintextPath],
+            encryptedArchivePath,
+            Password,
+            CreateFastOptions());
+        IReadOnlyList<string> extractedPaths = await FileCrypter.DecryptArchiveAsync(
+            finalArchivePath,
+            outputDirectory,
+            Password,
+            CreateFastOptions());
+
+        byte[] encryptedBytes = await File.ReadAllBytesAsync(finalArchivePath);
+        FileCrypterHeader header = FileCrypterHeaderParser.Parse(
+            encryptedBytes.AsSpan(0, FileCrypterFormatConstants.HeaderLength));
+        Assert.Equal(encryptedArchivePath, finalArchivePath);
+        Assert.Equal(FileCrypterFormatConstants.PayloadKindTarArchive, header.PayloadKind);
+        Assert.Equal(FileCrypterFormatConstants.CompressionZstd, header.CompressionAlgorithmId);
+        Assert.Equal(
+            [Path.Combine(outputDirectory, "first.txt"), Path.Combine(outputDirectory, "second.txt")],
+            extractedPaths);
+        Assert.Equal(firstPlaintextBytes, await File.ReadAllBytesAsync(Path.Combine(outputDirectory, "first.txt")));
+        Assert.Equal(secondPlaintextBytes, await File.ReadAllBytesAsync(Path.Combine(outputDirectory, "second.txt")));
+        Assert.Empty(Directory.GetFiles(directory.Path, "*.tmp"));
+        Assert.Empty(Directory.GetFiles(outputDirectory, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task EncryptArchiveAsyncDecryptArchiveAsync_WithKeyFile_RoundTrips()
+    {
+        using var directory = new TemporaryDirectory();
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(outputDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("archive key file");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+
+        string finalArchivePath = await FileCrypter.EncryptArchiveAsync(
+            [plaintextPath],
+            encryptedArchivePath,
+            Password,
+            keyFilePath,
+            CreateFastOptions());
+        IReadOnlyList<string> extractedPaths = await FileCrypter.DecryptArchiveAsync(
+            finalArchivePath,
+            outputDirectory,
+            Password,
+            keyFilePath,
+            CreateFastOptions());
+
+        Assert.Equal([Path.Combine(outputDirectory, "plain.txt")], extractedPaths);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(extractedPaths[0]));
+    }
+
+    [Fact]
+    public async Task EncryptArchiveAsync_WithDuplicateInputFileNames_AutoRenamesArchiveEntries()
+    {
+        using var directory = new TemporaryDirectory();
+        string firstDirectory = Path.Combine(directory.Path, "first");
+        string secondDirectory = Path.Combine(directory.Path, "second");
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(firstDirectory);
+        Directory.CreateDirectory(secondDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        string firstPlaintextPath = Path.Combine(firstDirectory, "same.txt");
+        string secondPlaintextPath = Path.Combine(secondDirectory, "same.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        await File.WriteAllTextAsync(firstPlaintextPath, "first");
+        await File.WriteAllTextAsync(secondPlaintextPath, "second");
+
+        string finalArchivePath = await FileCrypter.EncryptArchiveAsync(
+            [firstPlaintextPath, secondPlaintextPath],
+            encryptedArchivePath,
+            Password,
+            CreateFastOptions());
+        IReadOnlyList<string> extractedPaths = await FileCrypter.DecryptArchiveAsync(
+            finalArchivePath,
+            outputDirectory,
+            Password,
+            CreateFastOptions());
+
+        Assert.Equal(
+            [Path.Combine(outputDirectory, "same.txt"), Path.Combine(outputDirectory, "same (1).txt")],
+            extractedPaths);
+        Assert.Equal("first", await File.ReadAllTextAsync(Path.Combine(outputDirectory, "same.txt")));
+        Assert.Equal("second", await File.ReadAllTextAsync(Path.Combine(outputDirectory, "same (1).txt")));
+    }
+
+    [Fact]
+    public async Task DecryptArchiveAsync_WhenOutputExistsWithoutOverwrite_AutoRenamesExtraction()
+    {
+        using var directory = new TemporaryDirectory();
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(outputDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string existingOutputPath = Path.Combine(outputDirectory, "plain.txt");
+        string autoRenamedOutputPath = Path.Combine(outputDirectory, "plain (1).txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "from archive");
+        await File.WriteAllTextAsync(existingOutputPath, "keep me");
+
+        string finalArchivePath = await FileCrypter.EncryptArchiveAsync(
+            [plaintextPath],
+            encryptedArchivePath,
+            Password,
+            CreateFastOptions());
+        IReadOnlyList<string> extractedPaths = await FileCrypter.DecryptArchiveAsync(
+            finalArchivePath,
+            outputDirectory,
+            Password,
+            CreateFastOptions());
+
+        Assert.Equal([autoRenamedOutputPath], extractedPaths);
+        Assert.Equal("keep me", await File.ReadAllTextAsync(existingOutputPath));
+        Assert.Equal("from archive", await File.ReadAllTextAsync(autoRenamedOutputPath));
+    }
+
+    [Fact]
+    public async Task DecryptArchiveAsync_WithMalformedArchivePayload_ThrowsAndDoesNotCreateOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedArchivePath = Path.Combine(directory.Path, "bad.tar.zst.encrypted");
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(outputDirectory);
+        byte[] encryptedBytes = EncryptSingleChunkPayload(
+            Encoding.UTF8.GetBytes("this is authenticated, but it is not a tar archive"),
+            CreateFastOptions(),
+            FileCrypterFormatConstants.PayloadKindTarArchive);
+        await File.WriteAllBytesAsync(encryptedArchivePath, encryptedBytes);
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.DecryptArchiveAsync(
+                encryptedArchivePath,
+                outputDirectory,
+                Password,
+                CreateFastOptions()));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidArchivePayload, exception.Code);
+        Assert.Empty(Directory.GetFiles(outputDirectory));
+    }
+
+    [Fact]
     public async Task EncryptFilesAsync_WhenFileCountExceedsLimit_Throws()
     {
         using var directory = new TemporaryDirectory();
@@ -1088,10 +1247,15 @@ public sealed class FileCrypterTests
 
     private static byte[] EncryptSingleChunkPayload(byte[] payload, FileCrypterOptions options)
     {
+        return EncryptSingleChunkPayload(payload, options, FileCrypterFormatConstants.PayloadKindSingleFile);
+    }
+
+    private static byte[] EncryptSingleChunkPayload(byte[] payload, FileCrypterOptions options, byte payloadKind)
+    {
         byte[] headerBytes = new byte[FileCrypterFormatConstants.HeaderLength];
         byte[] salt = Enumerable.Range(1, FileCrypterFormatConstants.SaltLength).Select(value => (byte)value).ToArray();
         byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
-        FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, options, salt, noncePrefix);
+        FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, options, salt, noncePrefix, payloadKind);
         FileCrypterHeader header = FileCrypterHeaderParser.Parse(headerBytes);
         byte[] key = FileCrypterKeyDeriver.DerivePasswordOnlyKey(Password, header);
 

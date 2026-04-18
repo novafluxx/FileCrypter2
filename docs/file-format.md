@@ -2,13 +2,13 @@
 
 This document defines the draft v1 FileCrypter encrypted file format. The format is new for the .NET implementation; compatibility with earlier FileCrypter outputs is not required.
 
-Phase 1 documents and validates the header format. Phase 2 implements password-only and password plus key-file encryption/decryption for single-file streams. Compression is implemented for core single-file streams; archive handling and richer CLI inspection are implemented in later phases.
+Phase 1 documents and validates the header format. Phase 2 implements password-only and password plus key-file encryption/decryption for single-file streams. Compression is implemented for core single-file streams. Archive payload creation/extraction is implemented for file-list archive workflows; richer CLI inspection is implemented in later phases.
 
 ## Naming
 
 Single-file and batch encrypted outputs append `.encrypted` by default.
 
-Future archive outputs may use `.tar.zst.encrypted` when the payload is a tar archive compressed with Zstandard before encryption.
+Archive outputs may use `.tar.zst.encrypted` when the payload is a tar archive compressed with Zstandard before encryption.
 
 ## Encoding Rules
 
@@ -29,7 +29,7 @@ Future archive outputs may use `.tar.zst.encrypted` when the payload is a tar ar
 | 14 | 1 | `AeadAlgorithmId` | `1` = AES-256-GCM |
 | 15 | 1 | `KdfAlgorithmId` | `1` = Argon2id |
 | 16 | 1 | `CompressionAlgorithmId` | `0` = none, `1` = Zstd |
-| 17 | 1 | `PayloadKind` | `1` = single-file stream, `2` = tar archive reserved |
+| 17 | 1 | `PayloadKind` | `1` = single-file stream, `2` = tar archive |
 | 18 | 4 | `ChunkSize` | default `1048576`; valid range `65536` to `16777216`, multiple of `1024` |
 | 22 | 16 | `Salt` | Argon2id salt |
 | 38 | 8 | `NoncePrefix` | first 8 bytes of each AES-GCM nonce |
@@ -56,7 +56,7 @@ Argon2id is the v1 password-based key derivation function. The derived key lengt
 
 Key files are optional. When the key-file-required flag is set, the key-file hash algorithm must be SHA-256. When the flag is not set, the key-file hash algorithm must be none.
 
-Existing key-file encryption/decryption is implemented. Existing key files are capped at 16 MiB to avoid accidental large-file selection and memory pressure. Generated key files are future Phase 4 work.
+Existing key-file encryption/decryption is implemented. Existing key files are capped at 16 MiB to avoid accidental large-file selection and memory pressure. Generated key files contain at least 32 bytes of cryptographically random data.
 
 The key derivation input is:
 
@@ -68,7 +68,7 @@ Supplying a key file while decrypting a password-only payload does not change th
 
 ## Chunk Layout
 
-Encrypted payload data is a sequence of chunk frames. When `CompressionAlgorithmId` is `1`, the chunk plaintext is the Zstandard-compressed byte stream, and decryptors decompress it after chunk authentication succeeds.
+Encrypted payload data is a sequence of chunk frames. When `CompressionAlgorithmId` is `1`, the chunk plaintext is the Zstandard-compressed byte stream, and decryptors decompress it after chunk authentication succeeds. Archive payloads are tar streams before compression and encryption.
 
 | Offset | Size | Field | Value |
 | ---: | ---: | --- | --- |
@@ -103,7 +103,7 @@ Readers must reject:
 - unknown header flags
 - unsupported AEAD or KDF ids
 - compression ids other than none or Zstd
-- payload kinds other than single-file stream or reserved tar archive
+- payload kinds other than single-file stream or tar archive
 - chunk sizes outside the valid range or not divisible by 1024
 - Argon2 memory, iteration, or parallelism values of zero
 - Argon2 versions other than `0x13`
