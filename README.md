@@ -2,7 +2,7 @@
 
 FileCrypter is a local-first file encryption product for protecting files before storage, transfer, backup, or sharing. Sensitive operations happen on the local machine; there is no cloud service, account, or remote processing dependency.
 
-The current implementation is a reusable .NET crypto core plus a command-line host. A graphical UI is still future work.
+The current implementation is a reusable .NET crypto core, a command-line host, and the start of an Avalonia desktop UI.
 
 ## Current Phase
 
@@ -19,6 +19,7 @@ The repository currently supports:
 - a persisted single-file compression default setting
 - safe staged writes, overwrite protection, auto-renamed outputs, and CLI progress reporting
 - a documented v1 encrypted file format in `docs/file-format.md`
+- an Avalonia 12 desktop app shell with sidebar navigation and a first single-file encrypt workflow
 
 The CLI writes final output paths to stdout and progress, warnings, and errors to stderr.
 
@@ -30,9 +31,11 @@ FileCrypterDotNet/
   src/
     FileCrypter.Core/
     FileCrypter.Cli/
+    FileCrypter.App/
   tests/
     FileCrypter.Core.Tests/
     FileCrypter.Cli.Tests/
+    FileCrypter.App.Tests/
   docs/
     planning-brief.md
     file-format.md
@@ -179,3 +182,18 @@ dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set 
 - Original input files are left unchanged.
 - Existing output files are not overwritten unless `--overwrite` is supplied; otherwise FileCrypter auto-renames the new output.
 - Use `archive-decrypt` for `.tar.zst.encrypted` archives and `decrypt` for single-file `.encrypted` files.
+
+## Run The GUI
+
+The Avalonia desktop app is an early shell around the same core library:
+
+```bash
+dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
+```
+
+Current GUI scope:
+
+- windowed Avalonia 12 app with persistent sidebar navigation
+- implemented Encrypt page for single-file encryption
+- placeholder Decrypt, Batch, Help, and Settings pages
+- view model tests for navigation and the first encrypt workflow

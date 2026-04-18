@@ -67,6 +67,8 @@ codex/phase-1-file-format
 - CLI archive troubleshooting now points users to `archive-decrypt` when they try to use single-file `decrypt` on an archive payload, and points users back to `decrypt` when they try `archive-decrypt` on a single-file payload.
 - CLI batch item troubleshooting now includes format hints, including a specific `archive-decrypt` hint when `batch-decrypt` receives an archive payload.
 - `README.md` now reflects the current CLI surface, including single-file, compression, key-file generation, batch, archive, settings, smoke-test commands, and safety notes.
+- Avalonia 12.0.1 GUI work is started in `src/FileCrypter.App` with a desktop MVVM app shell, persistent sidebar navigation, placeholder Decrypt/Batch/Help/Settings pages, and an implemented single-file Encrypt view model wired to `FileCrypter.Core`.
+- GUI view model coverage lives in `tests/FileCrypter.App.Tests` and covers sidebar navigation, encrypt command validation, compression propagation, running-state behavior, success, and failure messaging.
 
 ## Current Format Decisions
 
@@ -86,19 +88,15 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest README-refresh pass:
+These commands passed after the latest Avalonia GUI shell pass:
 
 ```bash
-dotnet test --no-build
-```
-
-Latest test count at handoff: 126 passed, 0 failed.
-
-A full build-and-test pass also passed after the latest CLI troubleshooting changes:
-
-```bash
+dotnet restore
+dotnet build
 dotnet test
 ```
+
+Latest test count at handoff: 133 passed, 0 failed.
 
 Focused CLI coverage also passed:
 
@@ -152,12 +150,13 @@ Remaining product-level gaps are expected for later phases:
 - broader batch UX and aggregate progress
 - broader settings and help UX
 - broader CLI command polish
-- update flow and graphical UI
+- update flow and broader graphical UI
 
 ## Recommended Next Step
 
-Broaden settings/help UX and CLI polish now that the archive foundation is in place.
+Continue the Avalonia GUI now that the shell and first encrypt workflow are scaffolded.
 
 Recommended next slices:
 
-- Continue toward graphical UI planning/prototyping now that the CLI contract is documented.
+- Add real file-picker integration tests/manual coverage and tighten the Encrypt page UX around mutually exclusive key-file choices.
+- Add the single-file Decrypt page using the same app-service pattern.

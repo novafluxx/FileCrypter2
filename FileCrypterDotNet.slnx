@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/FileCrypter.App/FileCrypter.App.csproj" />
     <Project Path="src/FileCrypter.Cli/FileCrypter.Cli.csproj" />
     <Project Path="src/FileCrypter.Core/FileCrypter.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj" />
     <Project Path="tests/FileCrypter.Cli.Tests/FileCrypter.Cli.Tests.csproj" />
     <Project Path="tests/FileCrypter.Core.Tests/FileCrypter.Core.Tests.csproj" />
   </Folder>
