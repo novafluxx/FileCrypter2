@@ -61,6 +61,64 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task EncryptAndDecrypt_WithGeneratedKeyFile_Succeeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "generated.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("cli generated key file round trip");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var encryptConsole = TestConsole.CreateRedirected();
+        var decryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--generate-key-file", keyFilePath]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["decrypt", encryptedPath, decryptedPath, "--password", Password, "--key-file", keyFilePath]);
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(FileCrypter.Core.FileCrypter.DefaultGeneratedKeyFileSizeBytes, new FileInfo(keyFilePath).Length);
+        Assert.Equal(Path.GetFullPath(encryptedPath) + Environment.NewLine, encryptConsole.Output);
+        Assert.Contains($"Generated key file: {Path.GetFullPath(keyFilePath)}", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("losing it makes the encrypted file unrecoverable", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WithGeneratedKeyFileExistingWithoutOverwrite_AutoRenamesKeyFileAndSucceeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string generatedKeyFilePath = Path.Combine(directory.Path, "filecrypter (1).key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("cli generated key file auto rename");
+        byte[] existingKeyBytes = Encoding.UTF8.GetBytes("existing key file");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await File.WriteAllBytesAsync(keyFilePath, existingKeyBytes);
+        var encryptConsole = TestConsole.CreateRedirected();
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--generate-key-file", keyFilePath]);
+        await FileCrypter.Core.FileCrypter.DecryptFileAsync(
+            encryptedPath,
+            decryptedPath,
+            Password,
+            generatedKeyFilePath,
+            CreateFastOptions());
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(existingKeyBytes, await File.ReadAllBytesAsync(keyFilePath));
+        Assert.Equal(FileCrypter.Core.FileCrypter.DefaultGeneratedKeyFileSizeBytes, new FileInfo(generatedKeyFilePath).Length);
+        Assert.Contains($"Generated key file: {Path.GetFullPath(generatedKeyFilePath)}", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
     public async Task EncryptAndDecrypt_WithCompression_SucceedsAndReportsProgress()
     {
         using var directory = new TemporaryDirectory();
@@ -166,6 +224,8 @@ public sealed class FileCrypterCommandTests
         Assert.Contains("Decryption detects compressed files automatically", console.Output, StringComparison.Ordinal);
         Assert.Contains("lost or changed key files cannot be recovered", console.Output, StringComparison.Ordinal);
         Assert.Contains("Existing key files may be up to 16 MiB", console.Output, StringComparison.Ordinal);
+        Assert.Contains("--generate-key-file", console.Output, StringComparison.Ordinal);
+        Assert.Contains("create a new 32-byte key file", console.Output, StringComparison.Ordinal);
         Assert.Empty(console.ErrorOutput);
     }
 
@@ -420,6 +480,122 @@ public sealed class FileCrypterCommandTests
         Assert.Contains("key file is too large", console.ErrorOutput, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(console.Output);
         Assert.False(File.Exists(encryptedPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenGeneratedKeyFileDirectoryIsMissing_FailsWithPathTroubleshooting()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string missingDirectory = Path.Combine(directory.Path, "missing");
+        string keyFilePath = Path.Combine(missingDirectory, "generated.key");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--generate-key-file", keyFilePath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("output directory already exists", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(encryptedPath));
+        Assert.False(Directory.Exists(missingDirectory));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenKeyFileAndGenerateKeyFileAreBothSupplied_Fails()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string generatedKeyFilePath = Path.Combine(directory.Path, "generated.key");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            [
+                "encrypt",
+                plaintextPath,
+                "--password",
+                Password,
+                "--key-file",
+                keyFilePath,
+                "--generate-key-file",
+                generatedKeyFilePath,
+            ]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Use either --key-file or --generate-key-file, not both.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(generatedKeyFilePath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenGeneratedKeyFileMatchesInput_FailsWithoutChangingInput()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("keep the input");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            [
+                "encrypt",
+                plaintextPath,
+                encryptedPath,
+                "--password",
+                Password,
+                "--generate-key-file",
+                plaintextPath,
+                "--overwrite",
+            ]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("input and generated key file paths must be different", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(encryptedPath));
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(plaintextPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenGeneratedKeyFileMatchesOutput_FailsBeforeWriting()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--generate-key-file", encryptedPath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("output and generated key file paths must be different", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(encryptedPath));
+    }
+
+    [Fact]
+    public async Task Decrypt_WhenGenerateKeyFileIsSupplied_Fails()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string generatedKeyFilePath = Path.Combine(directory.Path, "generated.key");
+        await File.WriteAllTextAsync(encryptedPath, "not checked");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["decrypt", encryptedPath, "--password", Password, "--generate-key-file", generatedKeyFilePath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("--generate-key-file is only supported with encrypt.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(generatedKeyFilePath));
     }
 
     [Fact]

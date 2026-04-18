@@ -2,7 +2,7 @@
 
 This document is a handoff note for continuing FileCrypter development in a fresh session.
 
-Last updated: 2026-04-17.
+Last updated: 2026-04-18.
 
 ## Branch
 
@@ -49,6 +49,10 @@ codex/phase-1-file-format
 - Compression coverage includes password-only round trips, password plus key-file round trips, wrong-password failure, and authenticated malformed compressed payload failure.
 - CLI encryption now accepts `--compress`, passes `EnableCompression = true` into the core options, and keeps decryption automatic through the header compression marker.
 - CLI compression coverage includes compressed password-only round trips, progress reporting, wrong-password failure, password plus key-file round trips, and help text.
+- Core key-file generation is implemented with a 32-byte default, cryptographic randomness, staged writes, private Unix permissions where supported, and safe auto-renamed outputs by default.
+- CLI encryption now accepts `--generate-key-file <path>` to create a new key file before encryption, then uses it for password plus key-file protection while keeping stdout reserved for the encrypted output path.
+- Generated key-file CLI behavior preserves existing key files by auto-renaming, rejects generated key-file paths that match the input or encrypted output, and keeps recovery warnings visible.
+- Tests cover generated key-file bytes, generated-key-file round trips, overwrite protection, path validation, CLI mutual-exclusion behavior, and generated-key-file help/recovery messaging.
 
 ## Current Format Decisions
 
@@ -68,13 +72,13 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest CLI compression controls pass:
+These commands passed after the latest key-file generation pass:
 
 ```bash
 dotnet test
 ```
 
-Latest test count at handoff: 86 passed, 0 failed.
+Latest test count at handoff: 99 passed, 0 failed.
 
 Focused CLI coverage also passed:
 
@@ -102,7 +106,6 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 
 - Archive mode.
 - Batch workflows.
-- Key-file generation.
 - Settings, help, update flow, and graphical UI.
 - Broader CLI command polish.
 
@@ -114,6 +117,7 @@ The current implementation is aligned with the product outline for the foundatio
 - reusable core library consumed by a CLI host
 - password-only single-file encrypt/decrypt path
 - password plus existing-key-file single-file encrypt/decrypt path
+- generated key-file single-file encrypt path
 - versioned documented encrypted file format
 - AES-256-GCM, Argon2id, unique per-file salt, unique per-file nonce prefix, and chunk-level authentication
 - bounded-memory streaming for large-file readiness
@@ -123,7 +127,7 @@ The current implementation is aligned with the product outline for the foundatio
 
 Remaining product-level gaps are expected for later phases:
 
-- key-file generation and broader key-file UX/help
+- broader key-file UX/help
 - batch individual-file workflows
 - archive creation/extraction
 - broader CLI command polish
@@ -131,15 +135,15 @@ Remaining product-level gaps are expected for later phases:
 
 ## Recommended Next Step
 
-Start key-file generation.
+Start batch individual-file workflows or compression default settings.
 
 Immediate next slice:
 
-- Add a core helper/API for generating a key file with cryptographically random bytes.
-- Pick the first CLI shape for generation, likely an encrypt-only option that writes a new key file before encryption or a small standalone command.
-- Preserve existing-key-file behavior and keep recovery warnings visible.
-- Cover generated-key-file round trips, overwrite protection, path validation, and recovery/help messaging.
+- Add core batch orchestration for multiple independent files using the existing staged path APIs.
+- Pick a first CLI shape for batch encrypt/decrypt inputs and output directory handling.
+- Preserve per-file overwrite protection and continue on per-file failures where safe.
+- Cover aggregate success, mixed success/failure, default output naming, and key-file/compression interactions.
 
 Recommended follow-up work:
 
-- Start batch individual-file workflows or compression defaults after key-file generation is tested.
+- Add persisted compression defaults after the first batch workflow is in place.

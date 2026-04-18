@@ -72,6 +72,129 @@ public sealed class FileCrypterTests
     }
 
     [Fact]
+    public void GenerateKeyFileBytes_WithInjectedRandomness_ReturnsExpectedBytes()
+    {
+        byte[] expectedKeyFileBytes = Enumerable.Range(200, FileCrypter.DefaultGeneratedKeyFileSizeBytes)
+            .Select(value => (byte)value)
+            .ToArray();
+
+        byte[] keyFileBytes = FileCrypter.GenerateKeyFileBytes(
+            CreateFastOptions(new FixedRandomSource(expectedKeyFileBytes)));
+
+        Assert.Equal(expectedKeyFileBytes, keyFileBytes);
+    }
+
+    [Fact]
+    public async Task GenerateKeyFileAsyncEncryptFileAsyncDecryptFileAsync_RoundTrips()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "generated.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("generated key file round trip");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+
+        string finalKeyFilePath = await FileCrypter.GenerateKeyFileAsync(
+            keyFilePath,
+            CreateFastOptions());
+        string finalEncryptedPath = await FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            finalKeyFilePath,
+            CreateFastOptions());
+        string finalDecryptedPath = await FileCrypter.DecryptFileAsync(
+            finalEncryptedPath,
+            decryptedPath,
+            Password,
+            finalKeyFilePath,
+            CreateFastOptions());
+
+        Assert.Equal(keyFilePath, finalKeyFilePath);
+        Assert.Equal(FileCrypter.DefaultGeneratedKeyFileSizeBytes, new FileInfo(finalKeyFilePath).Length);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(finalDecryptedPath));
+    }
+
+    [Fact]
+    public async Task GenerateKeyFileAsync_WhenOutputExistsWithoutOverwrite_AutoRenamesOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string autoRenamedPath = Path.Combine(directory.Path, "filecrypter (1).key");
+        byte[] existingBytes = Encoding.UTF8.GetBytes("keep me");
+        byte[] generatedBytes = Enumerable.Range(1, FileCrypter.DefaultGeneratedKeyFileSizeBytes)
+            .Select(value => (byte)value)
+            .ToArray();
+        await File.WriteAllBytesAsync(keyFilePath, existingBytes);
+
+        string finalKeyFilePath = await FileCrypter.GenerateKeyFileAsync(
+            keyFilePath,
+            CreateFastOptions(new FixedRandomSource(generatedBytes)));
+
+        Assert.Equal(autoRenamedPath, finalKeyFilePath);
+        Assert.Equal(existingBytes, await File.ReadAllBytesAsync(keyFilePath));
+        Assert.Equal(generatedBytes, await File.ReadAllBytesAsync(autoRenamedPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task GenerateKeyFileAsync_WhenOutputDirectoryIsMissing_ThrowsAndDoesNotCreateStagingOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        string missingDirectory = Path.Combine(directory.Path, "missing");
+        string keyFilePath = Path.Combine(missingDirectory, "filecrypter.key");
+
+        DirectoryNotFoundException exception = await Assert.ThrowsAsync<DirectoryNotFoundException>(
+            () => FileCrypter.GenerateKeyFileAsync(
+                keyFilePath,
+                CreateFastOptions()));
+
+        Assert.Contains(missingDirectory, exception.Message, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(missingDirectory));
+        Assert.Empty(Directory.GetFiles(directory.Path, "*.tmp"));
+    }
+
+    [Fact]
+    public void GenerateKeyFileBytes_WhenByteCountIsTooSmall_Throws()
+    {
+        ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(
+            () => FileCrypter.GenerateKeyFileBytes(
+                FileCrypter.DefaultGeneratedKeyFileSizeBytes - 1,
+                CreateFastOptions()));
+
+        Assert.Equal("byteCount", exception.ParamName);
+    }
+
+    [Fact]
+    public async Task GenerateKeyFileAsync_OnUnix_CreatesOutputWithUserOnlyPermissions()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var directory = new TemporaryDirectory();
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+
+        string finalKeyFilePath = await FileCrypter.GenerateKeyFileAsync(
+            keyFilePath,
+            CreateFastOptions());
+
+        const UnixFileMode accessMask =
+            UnixFileMode.UserRead |
+            UnixFileMode.UserWrite |
+            UnixFileMode.UserExecute |
+            UnixFileMode.GroupRead |
+            UnixFileMode.GroupWrite |
+            UnixFileMode.GroupExecute |
+            UnixFileMode.OtherRead |
+            UnixFileMode.OtherWrite |
+            UnixFileMode.OtherExecute;
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(finalKeyFilePath) & accessMask);
+    }
+
+    [Fact]
     public async Task EncryptFileAsync_WithOversizedKeyFile_ThrowsAndDoesNotCreateOutput()
     {
         using var directory = new TemporaryDirectory();

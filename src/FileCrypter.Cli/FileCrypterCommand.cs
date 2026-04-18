@@ -57,6 +57,7 @@ internal sealed class FileCrypterCommand
         string? outputPath = null;
         string? password = null;
         string? keyFilePath = null;
+        string? generateKeyFilePath = null;
         bool overwrite = false;
         bool compress = false;
 
@@ -85,6 +86,20 @@ internal sealed class FileCrypterCommand
                     }
 
                     keyFilePath = args[index];
+                    break;
+
+                case "--generate-key-file":
+                    if (!encrypt)
+                    {
+                        return WriteError("--generate-key-file is only supported with encrypt.");
+                    }
+
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --generate-key-file.");
+                    }
+
+                    generateKeyFilePath = args[index];
                     break;
 
                 case "--overwrite":
@@ -116,6 +131,11 @@ internal sealed class FileCrypterCommand
             }
         }
 
+        if (keyFilePath is not null && generateKeyFilePath is not null)
+        {
+            return WriteError("Use either --key-file or --generate-key-file, not both.");
+        }
+
         if (password is null)
         {
             password = ReadPasswordFromInteractiveConsole();
@@ -132,14 +152,37 @@ internal sealed class FileCrypterCommand
         }
 
         outputPath ??= encrypt ? inputPath + DefaultEncryptedSuffix : GetDefaultDecryptedPath(inputPath);
+        if (encrypt && generateKeyFilePath is not null)
+        {
+            if (PathsEqual(Path.GetFullPath(inputPath), Path.GetFullPath(generateKeyFilePath)))
+            {
+                return WritePathError("The input and generated key file paths must be different.");
+            }
+
+            if (PathsEqual(Path.GetFullPath(outputPath), Path.GetFullPath(generateKeyFilePath)))
+            {
+                return WritePathError("The output and generated key file paths must be different.");
+            }
+        }
+
         long inputLength = new FileInfo(inputPath).Length;
         (FileCrypterOptions transformOptions, CliProgressReporter progressReporter) =
             CreateTransformOptionsWithProgress(inputLength, encrypt, compress);
         string finalOutputPath;
+        string? transformKeyFilePath = keyFilePath;
+
+        if (encrypt && generateKeyFilePath is not null)
+        {
+            transformKeyFilePath = await FileCrypter.Core.FileCrypter.GenerateKeyFileAsync(
+                generateKeyFilePath,
+                options).ConfigureAwait(false);
+            console.Error.WriteLine($"Generated key file: {transformKeyFilePath}");
+            console.Error.WriteLine("Keep this key file unchanged; losing it makes the encrypted file unrecoverable.");
+        }
 
         if (encrypt)
         {
-            finalOutputPath = keyFilePath is null
+            finalOutputPath = transformKeyFilePath is null
                 ? await FileCrypter.Core.FileCrypter.EncryptFileAsync(
                     inputPath,
                     outputPath,
@@ -150,13 +193,13 @@ internal sealed class FileCrypterCommand
                     inputPath,
                     outputPath,
                     password,
-                    keyFilePath,
+                    transformKeyFilePath,
                     transformOptions,
                     overwrite).ConfigureAwait(false);
         }
         else
         {
-            finalOutputPath = keyFilePath is null
+            finalOutputPath = transformKeyFilePath is null
                 ? await FileCrypter.Core.FileCrypter.DecryptFileAsync(
                     inputPath,
                     outputPath,
@@ -167,7 +210,7 @@ internal sealed class FileCrypterCommand
                     inputPath,
                     outputPath,
                     password,
-                    keyFilePath,
+                    transformKeyFilePath,
                     transformOptions,
                     overwrite).ConfigureAwait(false);
         }
@@ -219,6 +262,15 @@ internal sealed class FileCrypterCommand
         return inputPath.EndsWith(DefaultEncryptedSuffix, StringComparison.OrdinalIgnoreCase)
             ? inputPath[..^DefaultEncryptedSuffix.Length]
             : inputPath + ".decrypted";
+    }
+
+    private static bool PathsEqual(string left, string right)
+    {
+        StringComparison comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        return string.Equals(left, right, comparison);
     }
 
     private (FileCrypterOptions Options, CliProgressReporter Reporter) CreateTransformOptionsWithProgress(
@@ -291,7 +343,7 @@ internal sealed class FileCrypterCommand
         console.Out.WriteLine(
             """
             Usage:
-              filecrypter encrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--compress] [--overwrite]
+              filecrypter encrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path> | --generate-key-file <path>] [--compress] [--overwrite]
               filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
 
             If no password option is supplied, FileCrypter prompts without echoing the password when run interactively.
@@ -299,6 +351,8 @@ internal sealed class FileCrypterCommand
             Use --compress during encryption to reduce compatible payloads before encryption. Decryption detects compressed files automatically.
             Use --key-file with an existing key file for password plus key-file protection. The same key file is required
             for decryption; lost or changed key files cannot be recovered. Existing key files may be up to 16 MiB.
+            Use --generate-key-file during encryption to create a new 32-byte key file before encrypting. Keep the generated
+            key file unchanged; losing it makes the encrypted file unrecoverable.
             """);
     }
 

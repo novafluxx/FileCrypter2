@@ -8,8 +8,83 @@ namespace FileCrypter.Core;
 
 public static class FileCrypter
 {
+    public const int DefaultGeneratedKeyFileSizeBytes = 32;
+
     private const UnixFileMode PrivateFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     private const int ZstdCompressionLevel = 3;
+
+    public static byte[] GenerateKeyFileBytes(FileCrypterOptions? options = null)
+    {
+        return GenerateKeyFileBytes(DefaultGeneratedKeyFileSizeBytes, options);
+    }
+
+    public static byte[] GenerateKeyFileBytes(int byteCount, FileCrypterOptions? options = null)
+    {
+        ValidateGeneratedKeyFileByteCount(byteCount);
+
+        byte[] keyFileBytes = new byte[byteCount];
+        FillRandom(keyFileBytes, options ?? new FileCrypterOptions());
+        return keyFileBytes;
+    }
+
+    public static Task<string> GenerateKeyFileAsync(
+        string keyFilePath,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        return GenerateKeyFileAsync(
+            keyFilePath,
+            DefaultGeneratedKeyFileSizeBytes,
+            options,
+            overwrite,
+            cancellationToken);
+    }
+
+    public static async Task<string> GenerateKeyFileAsync(
+        string keyFilePath,
+        int byteCount,
+        FileCrypterOptions? options = null,
+        bool overwrite = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(keyFilePath);
+        ValidateGeneratedKeyFileByteCount(byteCount);
+
+        string fullKeyFilePath = Path.GetFullPath(keyFilePath);
+        ValidateOutputPath(fullKeyFilePath, overwrite);
+        if (!overwrite)
+        {
+            fullKeyFilePath = GetAvailableOutputPath(fullKeyFilePath);
+        }
+
+        string stagingPath = CreateStagingPath(fullKeyFilePath);
+        byte[] keyFileBytes = GenerateKeyFileBytes(byteCount, options);
+        bool completed = false;
+
+        try
+        {
+            await using (FileStream output = new(
+                stagingPath,
+                CreateOutputFileStreamOptions()))
+            {
+                await output.WriteAsync(keyFileBytes, cancellationToken).ConfigureAwait(false);
+            }
+
+            File.Move(stagingPath, fullKeyFilePath, overwrite);
+            completed = true;
+            return fullKeyFilePath;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(keyFileBytes);
+
+            if (!completed)
+            {
+                TryDeleteFile(stagingPath);
+            }
+        }
+    }
 
     public static Task<string> EncryptFileAsync(
         string plaintextPath,
@@ -516,6 +591,17 @@ public static class FileCrypter
         if (options.Argon2MemoryKiB <= 0 || options.Argon2Iterations <= 0 || options.Argon2Parallelism <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(options), "The Argon2 parameters must be positive.");
+        }
+    }
+
+    private static void ValidateGeneratedKeyFileByteCount(int byteCount)
+    {
+        if (byteCount < DefaultGeneratedKeyFileSizeBytes ||
+            byteCount > FileCrypterFormatConstants.MaximumKeyFileSizeBytes)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(byteCount),
+                $"Generated key files must be between {DefaultGeneratedKeyFileSizeBytes} and {FileCrypterFormatConstants.MaximumKeyFileSizeBytes} bytes.");
         }
     }
 
