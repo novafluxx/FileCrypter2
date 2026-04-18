@@ -65,6 +65,7 @@ codex/phase-1-file-format
 - CLI archive encryption can now accept an output directory, generate a timestamped `.tar.zst.encrypted` archive name, and accept a validated `--archive-name` basename for directory outputs.
 - Archive progress reporting now covers tar creation, archive encryption, archive decryption, and extraction phases through core progress callbacks and CLI stderr output.
 - CLI archive troubleshooting now points users to `archive-decrypt` when they try to use single-file `decrypt` on an archive payload, and points users back to `decrypt` when they try `archive-decrypt` on a single-file payload.
+- CLI batch item troubleshooting now includes format hints, including a specific `archive-decrypt` hint when `batch-decrypt` receives an archive payload.
 
 ## Current Format Decisions
 
@@ -84,13 +85,13 @@ codex/phase-1-file-format
 
 ## Verified
 
-These commands passed after the latest archive-troubleshooting pass:
+These commands passed after the latest batch-troubleshooting pass:
 
 ```bash
 dotnet test
 ```
 
-Latest test count at handoff: 125 passed, 0 failed.
+Latest test count at handoff: 126 passed, 0 failed.
 
 Focused CLI coverage also passed:
 
@@ -152,5 +153,5 @@ Broaden settings/help UX and CLI polish now that the archive foundation is in pl
 
 Recommended next slices:
 
-- Continue broader CLI command polish around archive and batch troubleshooting, especially mixed-command mistakes that surface inside batch item failures.
+- Refresh `README.md` so first-run instructions match the current CLI, including batch, archive, key-file generation, settings, and the latest smoke-test commands.
 - Continue toward graphical UI once the remaining CLI contract is stable.

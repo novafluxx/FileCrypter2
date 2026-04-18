@@ -472,6 +472,35 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task BatchDecrypt_WithArchivePayload_FailsItemWithArchiveDecryptHint()
+    {
+        using var directory = new TemporaryDirectory();
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(outputDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "archive does not belong in batch-decrypt");
+        await FileCrypter.Core.FileCrypter.EncryptArchiveAsync(
+            [plaintextPath],
+            encryptedArchivePath,
+            Password,
+            CreateFastOptions());
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["batch-decrypt", outputDirectory, encryptedArchivePath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains($"Failed: {encryptedArchivePath}", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("UnsupportedPayloadKind", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("This batch item contains an archive.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Use 'filecrypter archive-decrypt <input-archive> <output-directory>'", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Batch complete: 0/1 succeeded.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.Empty(Directory.GetFiles(outputDirectory));
+    }
+
+    [Fact]
     public async Task Decrypt_WithCompressedPayloadAndWrongPassword_FailsSafely()
     {
         using var directory = new TemporaryDirectory();

@@ -357,7 +357,7 @@ internal sealed class FileCrypterCommand
             }
             else
             {
-                WriteBatchItemError(item);
+                WriteBatchItemError(encrypt ? "batch-encrypt" : "batch-decrypt", item);
             }
         }
 
@@ -860,6 +860,8 @@ internal sealed class FileCrypterCommand
                 {
                     "decrypt" =>
                         "This encrypted file contains an archive. Use 'filecrypter archive-decrypt <input-archive> <output-directory>' to extract it.",
+                    "batch-decrypt" =>
+                        "This batch item contains an archive. Use 'filecrypter archive-decrypt <input-archive> <output-directory>' to extract it.",
                     "archive-decrypt" =>
                         "This encrypted file contains a single file. Use 'filecrypter decrypt <input> [output]' to decrypt it.",
                     _ => "This FileCrypter build cannot open that payload yet.",
@@ -886,14 +888,19 @@ internal sealed class FileCrypterCommand
         return 1;
     }
 
-    private void WriteBatchItemError(FileCrypterBatchItemResult item)
+    private void WriteBatchItemError(string command, FileCrypterBatchItemResult item)
     {
         Exception exception = item.Error ?? new InvalidOperationException("The batch item failed without an error.");
-        string message = exception is FileCrypterFormatException formatException
-            ? $"{formatException.Message} ({formatException.Code})"
+        FileCrypterFormatException? formatError = exception as FileCrypterFormatException;
+        string message = formatError is not null
+            ? $"{formatError.Message} ({formatError.Code})"
             : exception.Message;
         console.Error.WriteLine($"Failed: {item.InputPath}");
         console.Error.WriteLine(message);
+        if (formatError is not null)
+        {
+            console.Error.WriteLine(GetFormatTroubleshootingHint(command, formatError.Code));
+        }
     }
 
     private void WriteUsage()
