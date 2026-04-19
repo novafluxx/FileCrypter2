@@ -126,6 +126,25 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         ? "Auto-generated from input filename..."
         : OutputPath;
 
+    public bool ApplyDroppedSourcePaths(IEnumerable<string> droppedPaths)
+    {
+        ArgumentNullException.ThrowIfNull(droppedPaths);
+
+        if (IsRunning)
+        {
+            return false;
+        }
+
+        string? selectedPath = droppedPaths.FirstOrDefault(path => !string.IsNullOrWhiteSpace(path));
+        if (string.IsNullOrWhiteSpace(selectedPath))
+        {
+            return false;
+        }
+
+        SourcePath = Path.GetFullPath(selectedPath);
+        return true;
+    }
+
     public void ApplySettings(FileCrypterSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);

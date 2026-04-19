@@ -88,7 +88,8 @@
                     BorderBrush="#4a4d4b"
                     BorderThickness="1"
                     CornerRadius="8"
-                    Padding="28">
+                    Padding="28"
+                    x:Name="SourceDropZone">
                 <StackPanel Spacing="14">
                     <TextBlock Text="{Binding SourceHeading}"
                                Foreground="#aaa"
@@ -97,6 +98,9 @@
                                LetterSpacing="2" />
                     <TextBlock Text="{Binding FilesSummaryText}"
                                Foreground="#b8b9b5"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="Use the button or drop local files here."
+                               Foreground="#aaa"
                                TextWrapping="Wrap" />
 
                     <Grid ColumnDefinitions="*,180" ColumnSpacing="16">

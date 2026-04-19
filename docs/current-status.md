@@ -101,6 +101,11 @@ codex/avalonia-gui-shell
 - The Avalonia Settings page now exposes those shared defaults with local validation plus native folder picking for the default output directory.
 - Encrypt, Decrypt, and Batch now honor the shared overwrite/output defaults on startup, while Batch still falls back to first-selected-source autofill when no saved default output directory is active.
 - App test coverage now includes shared-settings save/reload/reset behavior plus focused startup-default coverage for Encrypt, Decrypt, Batch, and main-window settings propagation.
+- A focused bundled macOS app smoke is now also complete for the shared-settings slice: saved overwrite/output defaults were verified across Encrypt, Decrypt, and Batch, reset-to-defaults restored the expected startup state, and Batch still fell back to first-source autofill when no default output directory was saved.
+- A packaging follow-up fixed a macOS bundle-signing issue that could surface as early startup aborts or Launch Services relaunch trouble. The bundle script now re-signs the completed `.app`, and the packaging test now verifies `codesign --verify` on macOS.
+- Desktop file-drop support is now implemented in `src/FileCrypter.App` for the Encrypt and Decrypt source-file cards plus the Batch source list, using local-file drag/drop handling that keeps the existing shell structure and visual language intact.
+- Encrypt and Decrypt now accept dropped source files through the same source-path/output-suggestion flow as picker selections, while Batch drop handling preserves the existing dedupe behavior, archive-extract replacement behavior, and first-source output-directory autofill when no saved default output directory is active.
+- App test coverage now also includes focused dropped-file behavior for Encrypt, Decrypt, and Batch, including Batch dedupe/autofill preservation and archive-extract replacement behavior.
 
 ## Current Format Decisions
 
@@ -120,7 +125,7 @@ codex/avalonia-gui-shell
 
 ## Verified
 
-These commands passed after the latest Help-page and update-status pass:
+These commands passed after the latest desktop drag-and-drop/file-drop pass:
 
 ```bash
 dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj
@@ -153,7 +158,16 @@ The packaged app was launched as a real macOS bundle and exercised through nativ
 - extraction-directory selection through the native folder picker
 - archive extraction into `/tmp/filecrypter-batch-smoke/extract-out/`, with `alpha.txt`, `beta.txt`, and `gamma.txt` confirmed on disk after the run
 
-Latest test count at handoff: 177 passed, 0 failed.
+The packaged app was also exercised through a focused shared-settings smoke. That pass verified:
+
+- saved `Default overwrite protection` propagation across Encrypt, Decrypt, and Batch
+- saved `Default output directory` propagation across Encrypt, Decrypt, and Batch
+- `Reset settings to defaults` restoring startup defaults after relaunch
+- Batch first-source autofill still taking over when no default output directory is saved
+
+The macOS bundle workflow now includes a post-assembly ad-hoc re-sign, which resolved a previously observed invalid-bundle-signature state and stabilized normal `open artifacts/macos/FileCrypter.app` launches in local verification.
+
+Latest test count at handoff: 181 passed, 0 failed.
 
 Previous GUI launch smoke coverage:
 
@@ -222,6 +236,6 @@ Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and b
 
 Recommended next slices:
 
-- Rebuild the bundled macOS app and run a focused desktop smoke for the new shared-settings behavior: saved overwrite default, saved default output directory, Batch fallback autofill when no default directory is saved, and reset-to-defaults behavior.
-- After that smoke pass, pick the next practical GUI slice that stays local-first and distribution-light, such as drag-and-drop/file-drop workflows or additional settings/help polish.
+- Rebuild the bundled macOS app and run a focused desktop smoke for dropped-file workflows across Encrypt, Decrypt, and Batch using `./scripts/package-macos-app.sh` followed by `open artifacts/macos/FileCrypter.app`.
+- After that smoke, consider small workflow polish that stays within the current shell and local-first scope, such as clearer drop affordances or result-copy conveniences.
 - Keep automatic install/relaunch updater work deferred until there is real release/distribution infrastructure to attach it to.

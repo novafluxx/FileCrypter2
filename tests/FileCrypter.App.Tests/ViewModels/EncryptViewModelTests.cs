@@ -170,6 +170,24 @@ public sealed class EncryptViewModelTests
         Assert.Equal(Path.Combine(outputDirectory.Path, "plain.txt.encrypted"), viewModel.OutputPath);
     }
 
+    [Fact]
+    public void ApplyDroppedSourcePaths_UsesFirstDroppedFileAndRefreshesSuggestedOutput()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var viewModel = new EncryptViewModel(
+            new RecordingWorkflowService(),
+            new FileCrypterSettings
+            {
+                DefaultOutputDirectory = outputDirectory.Path,
+            });
+
+        bool applied = viewModel.ApplyDroppedSourcePaths(["/tmp/dropped.txt", "/tmp/other.txt"]);
+
+        Assert.True(applied);
+        Assert.Equal("/tmp/dropped.txt", viewModel.SourcePath);
+        Assert.Equal(Path.Combine(outputDirectory.Path, "dropped.txt.encrypted"), viewModel.OutputPath);
+    }
+
     private static EncryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)
     {
         return new EncryptViewModel(workflow)

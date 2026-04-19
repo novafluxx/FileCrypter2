@@ -134,6 +134,49 @@ public sealed class BatchViewModelTests
     }
 
     [Fact]
+    public void ApplyDroppedSourcePaths_AddsFilesSkipsDuplicatesAndAutofillsOutputDirectory()
+    {
+        using var sourceDirectory = new TemporaryDirectory();
+        string firstPath = Path.Combine(sourceDirectory.Path, "first.txt");
+        string secondPath = Path.Combine(sourceDirectory.Path, "second.txt");
+        File.WriteAllText(firstPath, "first");
+        File.WriteAllText(secondPath, "second");
+
+        var viewModel = new BatchViewModel(new RecordingWorkflowService());
+
+        bool applied = viewModel.ApplyDroppedSourcePaths([firstPath, secondPath, firstPath]);
+
+        Assert.True(applied);
+        Assert.Equal(2, viewModel.SourcePaths.Count);
+        Assert.Equal(firstPath, viewModel.SourcePaths[0]);
+        Assert.Equal(secondPath, viewModel.SourcePaths[1]);
+        Assert.Equal(sourceDirectory.Path, viewModel.OutputDirectory);
+    }
+
+    [Fact]
+    public void ApplyDroppedSourcePaths_InArchiveDecryptMode_ReplacesSelection()
+    {
+        using var sourceDirectory = new TemporaryDirectory();
+        string archivePath = Path.Combine(sourceDirectory.Path, "archive.tar.zst.encrypted");
+        File.WriteAllText(archivePath, "archive");
+
+        var viewModel = new BatchViewModel(new RecordingWorkflowService())
+        {
+            ArchiveMode = true,
+            EncryptMode = false,
+        };
+        viewModel.SourcePaths.Add("/tmp/old-first.tar.zst.encrypted");
+        viewModel.SourcePaths.Add("/tmp/old-second.tar.zst.encrypted");
+
+        bool applied = viewModel.ApplyDroppedSourcePaths([archivePath]);
+
+        Assert.True(applied);
+        Assert.Single(viewModel.SourcePaths);
+        Assert.Equal(archivePath, viewModel.SourcePaths[0]);
+        Assert.Equal(sourceDirectory.Path, viewModel.OutputDirectory);
+    }
+
+    [Fact]
     public async Task StartBatchCommand_WhenSuccessful_ReportsSummaryAndResults()
     {
         using var outputDirectory = new TemporaryDirectory();

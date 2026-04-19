@@ -249,6 +249,37 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             ? "Choose archive extraction directory"
             : "Choose batch output directory";
 
+    public bool ApplyDroppedSourcePaths(IEnumerable<string> droppedPaths)
+    {
+        ArgumentNullException.ThrowIfNull(droppedPaths);
+
+        if (IsRunning)
+        {
+            return false;
+        }
+
+        string[] normalizedPaths = droppedPaths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(Path.GetFullPath)
+            .ToArray();
+
+        if (normalizedPaths.Length == 0)
+        {
+            return false;
+        }
+
+        if (ArchiveMode && !EncryptMode)
+        {
+            SetSourcePaths(normalizedPaths);
+        }
+        else
+        {
+            AddSourcePaths(normalizedPaths);
+        }
+
+        return true;
+    }
+
     partial void OnEncryptModeChanged(bool value)
     {
         OnPropertyChanged(nameof(IsDecryptMode));

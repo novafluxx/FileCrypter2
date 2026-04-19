@@ -21,7 +21,8 @@
                     BorderBrush="#4a4d4b"
                     BorderThickness="1"
                     CornerRadius="8"
-                    Padding="28">
+                    Padding="28"
+                    x:Name="SourceDropZone">
                 <StackPanel Spacing="14">
                     <TextBlock Text="SOURCE FILE"
                                Foreground="#aaa"

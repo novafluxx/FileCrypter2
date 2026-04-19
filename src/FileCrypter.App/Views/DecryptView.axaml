@@ -21,7 +21,8 @@
                     BorderBrush="#4a4d4b"
                     BorderThickness="1"
                     CornerRadius="8"
-                    Padding="28">
+                    Padding="28"
+                    x:Name="SourceDropZone">
                 <StackPanel Spacing="14">
                     <TextBlock Text="ENCRYPTED FILE"
                                Foreground="#aaa"
@@ -30,7 +31,7 @@
                                LetterSpacing="2" />
                     <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
                         <TextBox Text="{Binding SourcePath}"
-                                 PlaceholderText="Select a .encrypted file..."
+                                 PlaceholderText="Select or drag a .encrypted file..."
                                  FontSize="20" />
                         <Button Grid.Column="1"
                                 Content="Browse"
