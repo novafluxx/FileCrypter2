@@ -28,7 +28,8 @@ public partial class App : Application
                 new AvaloniaFilePickerService(mainWindow),
                 new AppMetadataService(),
                 new DevelopmentAppUpdateService(),
-                new AvaloniaAppThemeService(this));
+                new AvaloniaAppThemeService(this),
+                new AvaloniaClipboardService(mainWindow));
             desktop.MainWindow = mainWindow;
         }
 

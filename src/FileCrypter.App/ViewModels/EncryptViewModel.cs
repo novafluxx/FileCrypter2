@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
+using System.Text;
 
 namespace FileCrypter.App.ViewModels;
 
@@ -10,6 +11,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 {
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
+    private readonly IClipboardService? clipboardService;
     private string defaultOutputDirectory = string.Empty;
     private OutputPathOrigin outputPathOrigin;
     private bool isUpdatingOutputPathInternally;
@@ -61,9 +63,11 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private string progressText = "No file selected";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyErrorCommand))]
     private string errorMessage = "No files selected. Choose a file to encrypt.";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyResultCommand))]
     private string resultPath = string.Empty;
 
     [ObservableProperty]
@@ -71,28 +75,33 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public EncryptViewModel(
         IFileCrypterWorkflowService workflowService,
-        IFilePickerService? filePickerService = null)
-        : this(workflowService, enableCompressionByDefault: false, filePickerService)
+        IFilePickerService? filePickerService = null,
+        IClipboardService? clipboardService = null)
+        : this(workflowService, enableCompressionByDefault: false, filePickerService, clipboardService)
     {
     }
 
     public EncryptViewModel(
         IFileCrypterWorkflowService workflowService,
         bool enableCompressionByDefault,
-        IFilePickerService? filePickerService = null)
+        IFilePickerService? filePickerService = null,
+        IClipboardService? clipboardService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
+        this.clipboardService = clipboardService;
         EnableCompression = enableCompressionByDefault;
     }
 
     public EncryptViewModel(
         IFileCrypterWorkflowService workflowService,
         FileCrypterSettings initialSettings,
-        IFilePickerService? filePickerService = null)
+        IFilePickerService? filePickerService = null,
+        IClipboardService? clipboardService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
+        this.clipboardService = clipboardService;
         ApplySettings(initialSettings);
     }
 
@@ -346,6 +355,18 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanCopyError))]
+    private Task CopyErrorAsync()
+    {
+        return CopyTextAsync(ErrorMessage, "Copied issue details.");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCopyResult))]
+    private Task CopyResultAsync()
+    {
+        return CopyTextAsync(BuildResultClipboardText(), "Copied result details.");
+    }
+
     private bool CanBrowse()
     {
         return !IsRunning;
@@ -376,6 +397,16 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         return !IsRunning &&
             !string.IsNullOrWhiteSpace(SourcePath) &&
             !string.IsNullOrWhiteSpace(Password);
+    }
+
+    private bool CanCopyError()
+    {
+        return clipboardService is not null && HasError;
+    }
+
+    private bool CanCopyResult()
+    {
+        return clipboardService is not null && HasResult;
     }
 
     private string? GetSuggestedOutputFileName()
@@ -463,6 +494,38 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         {
             ProgressText = $"{progress.InputBytes} bytes processed";
         }
+    }
+
+    private async Task CopyTextAsync(string text, string successProgressText)
+    {
+        if (clipboardService is null || string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        try
+        {
+            await clipboardService.SetTextAsync(text, CancellationToken.None).ConfigureAwait(true);
+            ProgressText = successProgressText;
+        }
+        catch (Exception exception)
+        {
+            ProgressText = $"Clipboard copy failed: {exception.Message}";
+        }
+    }
+
+    private string BuildResultClipboardText()
+    {
+        StringBuilder builder = new();
+        builder.AppendLine("Encryption complete.");
+        builder.AppendLine($"Encrypted file: {ResultPath}");
+
+        if (HasGeneratedKeyFileResult)
+        {
+            builder.AppendLine($"Generated key file: {GeneratedKeyFileResultPath}");
+        }
+
+        return builder.ToString().TrimEnd();
     }
 
     private void OnKeyFileChoiceStateChanged()

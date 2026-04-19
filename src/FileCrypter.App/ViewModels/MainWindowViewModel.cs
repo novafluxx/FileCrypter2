@@ -34,7 +34,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IFilePickerService? filePickerService = null,
         IAppMetadataService? appMetadataService = null,
         IAppUpdateService? appUpdateService = null,
-        IAppThemeService? appThemeService = null)
+        IAppThemeService? appThemeService = null,
+        IClipboardService? clipboardService = null)
     {
         this.appMetadataService = appMetadataService ?? new AppMetadataService();
         this.appThemeService = appThemeService
@@ -48,9 +49,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         encryptViewModel = new EncryptViewModel(
             workflowService,
             initialSettings,
-            filePickerService);
-        decryptViewModel = new DecryptViewModel(workflowService, initialSettings, filePickerService);
-        batchViewModel = new BatchViewModel(workflowService, initialSettings, filePickerService);
+            filePickerService,
+            clipboardService);
+        decryptViewModel = new DecryptViewModel(workflowService, initialSettings, filePickerService, clipboardService);
+        batchViewModel = new BatchViewModel(workflowService, initialSettings, filePickerService, clipboardService);
         helpViewModel = new HelpViewModel(this.appMetadataService, appUpdateService);
         settingsViewModel = new SettingsViewModel(
             settingsService,

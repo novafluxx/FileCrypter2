@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
+using System.Text;
 using CoreFileCrypter = FileCrypter.Core.FileCrypter;
 
 namespace FileCrypter.App.ViewModels;
@@ -14,6 +15,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private int activeProgressRunId;
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
+    private readonly IClipboardService? clipboardService;
     private readonly StringComparer pathComparer = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
@@ -69,17 +71,21 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private string progressText = "No batch files selected";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyErrorCommand))]
     private string errorMessage = "No batch files selected. Add files to encrypt.";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyResultsCommand))]
     private string resultSummary = string.Empty;
 
     public BatchViewModel(
         IFileCrypterWorkflowService workflowService,
-        IFilePickerService? filePickerService = null)
+        IFilePickerService? filePickerService = null,
+        IClipboardService? clipboardService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
+        this.clipboardService = clipboardService;
 
         SourcePaths.CollectionChanged += OnSourcePathsChanged;
         Results.CollectionChanged += OnResultsChanged;
@@ -88,8 +94,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     public BatchViewModel(
         IFileCrypterWorkflowService workflowService,
         FileCrypterSettings initialSettings,
-        IFilePickerService? filePickerService = null)
-        : this(workflowService, filePickerService)
+        IFilePickerService? filePickerService = null,
+        IClipboardService? clipboardService = null)
+        : this(workflowService, filePickerService, clipboardService)
     {
         ApplySettings(initialSettings);
     }
@@ -471,6 +478,18 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanCopyError))]
+    private Task CopyErrorAsync()
+    {
+        return CopyTextAsync(ErrorMessage, "Copied issue details.");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCopyResults))]
+    private Task CopyResultsAsync()
+    {
+        return CopyTextAsync(BuildResultsClipboardText(), "Copied batch results.");
+    }
+
     private bool CanBrowseFiles()
     {
         return !IsRunning && filePickerService is not null;
@@ -510,6 +529,16 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             HasValidArchiveName();
     }
 
+    private bool CanCopyError()
+    {
+        return clipboardService is not null && HasError;
+    }
+
+    private bool CanCopyResults()
+    {
+        return clipboardService is not null && HasResults;
+    }
+
     private void OnSourcePathsChanged(object? sender, NotifyCollectionChangedEventArgs args)
     {
         if (!IsRunning && HasResults)
@@ -536,6 +565,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         OnPropertyChanged(nameof(HasResults));
         OnPropertyChanged(nameof(HasFailures));
+        CopyResultsCommand.NotifyCanExecuteChanged();
     }
 
     private void OnWorkflowModeChanged()
@@ -994,6 +1024,58 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         return !string.IsNullOrWhiteSpace(path) && Directory.Exists(path)
             ? path
             : string.Empty;
+    }
+
+    private async Task CopyTextAsync(string text, string successProgressText)
+    {
+        if (clipboardService is null || string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        try
+        {
+            await clipboardService.SetTextAsync(text, CancellationToken.None).ConfigureAwait(true);
+            ProgressText = successProgressText;
+        }
+        catch (Exception exception)
+        {
+            ProgressText = $"Clipboard copy failed: {exception.Message}";
+        }
+    }
+
+    private string BuildResultsClipboardText()
+    {
+        StringBuilder builder = new();
+        if (HasResultSummary)
+        {
+            builder.AppendLine(ResultSummary);
+            builder.AppendLine();
+        }
+
+        foreach (BatchResultItemViewModel item in Results)
+        {
+            builder.AppendLine($"{item.StatusLabel}: {item.TitleText}");
+
+            if (!string.IsNullOrWhiteSpace(item.PrimaryText))
+            {
+                builder.AppendLine(item.PrimaryText);
+            }
+
+            if (!string.IsNullOrWhiteSpace(item.DetailText))
+            {
+                builder.AppendLine($"{item.DetailLabel}: {item.DetailText}");
+            }
+
+            if (item.HasSecondaryText)
+            {
+                builder.AppendLine(item.SecondaryText);
+            }
+
+            builder.AppendLine();
+        }
+
+        return builder.ToString().TrimEnd();
     }
 
     private enum OutputDirectoryOrigin

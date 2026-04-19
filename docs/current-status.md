@@ -2,14 +2,14 @@
 
 This document is a handoff note for continuing FileCrypter development in a fresh session.
 
-Last updated: 2026-04-18.
+Last updated: 2026-04-19.
 
 ## Branch
 
 Current working branch:
 
 ```text
-codex/avalonia-gui-shell
+main
 ```
 
 ## Completed
@@ -112,6 +112,8 @@ codex/avalonia-gui-shell
 - The running desktop app now applies the selected theme through Avalonia theme variants, and the shell's shared brushes now have light/dark variants so the existing visual language carries across theme switches without a redesign.
 - App test coverage now also includes focused settings-store and theme-application coverage for the theme slice, including autosave, debounced directory persistence, reload/reset, failure reversion, and main-window/app-theme propagation.
 - A focused bundled macOS app smoke is now also complete for the settings-autosave slice: compression-default changes took effect immediately without a save step, typed default-output-directory changes autosaved after the debounce window and updated Encrypt output suggestions, and `Reset to defaults` restored the expected startup behavior afterward.
+- Avalonia workflow feedback cards now expose copy actions for visible issue text plus single-file and batch result details, using a small clipboard service that stays within the existing app-service/MVVM pattern.
+- App test coverage now also includes focused clipboard-copy behavior for Encrypt success details, Decrypt troubleshooting copy, and Batch result-summary/detail copy.
 
 ## Current Format Decisions
 
@@ -180,14 +182,14 @@ The packaged app was also exercised through a focused desktop file-drop smoke. T
 
 The macOS bundle workflow now includes a post-assembly ad-hoc re-sign, which resolved a previously observed invalid-bundle-signature state and stabilized normal `open artifacts/macos/FileCrypter.app` launches in local verification.
 
-The latest theme-support slice was verified with automated coverage only in this session. The preferred packaged-app flow for any follow-up manual desktop smoke remains:
+The latest workflow-feedback copy slice was verified with automated coverage only in this session. The preferred packaged-app flow for any follow-up manual desktop smoke remains:
 
 ```bash
 ./scripts/package-macos-app.sh
 open artifacts/macos/FileCrypter.app
 ```
 
-Latest test count at handoff: 184 passed, 0 failed.
+Latest test count at handoff: 192 passed, 0 failed.
 
 Previous GUI launch smoke coverage:
 
@@ -256,7 +258,7 @@ Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and b
 
 Recommended next slices:
 
-- Favor another small workflow-polish slice that stays within the current shell and local-first scope, with help/troubleshooting polish plus copyable result or error text as the strongest current candidates.
-- If a thinner UI-only slice feels better, clearer drag/drop affordances or simple path-copy conveniences would also fit the current boundary well.
+- Favor another small workflow-polish slice that stays within the current shell and local-first scope, with help/troubleshooting polish as the strongest current candidate now that copyable workflow feedback is in place.
+- If a thinner UI-only slice feels better, clearer drag/drop affordances or deeper path/open-folder conveniences would also fit the current boundary well.
 - After that, keep choosing practical GUI slices that preserve the existing shell structure and avoid drifting into installer, updater, or broader distribution infrastructure.
 - Keep automatic install/relaunch updater work deferred until there is real release/distribution infrastructure to attach it to.

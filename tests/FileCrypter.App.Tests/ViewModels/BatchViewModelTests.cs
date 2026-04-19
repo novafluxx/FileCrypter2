@@ -1,4 +1,5 @@
 using FileCrypter.App.Services;
+using FileCrypter.App.Tests.TestDoubles;
 using FileCrypter.App.ViewModels;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
@@ -252,6 +253,47 @@ public sealed class BatchViewModelTests
         Assert.Equal(2, viewModel.Results.Count);
         Assert.All(viewModel.Results, item => Assert.True(item.Succeeded));
         Assert.Contains("extracted", viewModel.ResultSummary, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CopyResultsCommand_CopiesSummaryAndItemDetails()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var clipboard = new RecordingClipboardService();
+        var workflow = new RecordingWorkflowService
+        {
+            BatchResult = new BatchTransformResult(
+            [
+                new BatchTransformItemResult(
+                    "/tmp/first.txt",
+                    Path.Combine(outputDirectory.Path, "first.txt.encrypted"),
+                    Path.Combine(outputDirectory.Path, "first.txt.encrypted"),
+                    null),
+                new BatchTransformItemResult(
+                    "/tmp/missing.txt",
+                    Path.Combine(outputDirectory.Path, "missing.txt.encrypted"),
+                    null,
+                    new IOException("Missing input.")),
+            ]),
+        };
+        var viewModel = new BatchViewModel(workflow, filePickerService: null, clipboardService: clipboard)
+        {
+            OutputDirectory = outputDirectory.Path,
+            Password = "secret",
+        };
+        viewModel.SourcePaths.Add("/tmp/first.txt");
+        viewModel.SourcePaths.Add("/tmp/missing.txt");
+
+        await viewModel.StartBatchCommand.ExecuteAsync(null);
+        await viewModel.CopyResultsCommand.ExecuteAsync(null);
+
+        Assert.NotNull(clipboard.LastText);
+        Assert.Contains("Batch encryption finished with 1 failure", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Contains("Succeeded: first.txt", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Contains("OUTPUT: ", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Contains("Failed: missing.txt", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Contains("ISSUE: Path error: Missing input.", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Equal("Copied batch results.", viewModel.ProgressText);
     }
 
     [Fact]

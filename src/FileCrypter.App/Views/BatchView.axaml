@@ -11,10 +11,15 @@
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,18">
-                <TextBlock Text="{Binding ErrorMessage}"
-                           Foreground="{DynamicResource ErrorForegroundBrush}"
-                           FontSize="18"
-                           TextWrapping="Wrap" />
+                <StackPanel Spacing="12">
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Foreground="{DynamicResource ErrorForegroundBrush}"
+                               FontSize="18"
+                               TextWrapping="Wrap" />
+                    <Button Content="Copy issue"
+                            Command="{Binding CopyErrorCommand}"
+                            HorizontalAlignment="Left" />
+                </StackPanel>
             </Border>
 
             <Border Background="{DynamicResource SurfaceBackgroundBrush}"
@@ -247,6 +252,9 @@
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource ResultHeadingForegroundBrush}"
                                TextWrapping="Wrap" />
+                    <Button Content="Copy results"
+                            Command="{Binding CopyResultsCommand}"
+                            HorizontalAlignment="Left" />
 
                     <ItemsControl ItemsSource="{Binding Results}">
                         <ItemsControl.ItemTemplate>

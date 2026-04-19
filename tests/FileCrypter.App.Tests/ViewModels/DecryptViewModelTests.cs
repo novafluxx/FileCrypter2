@@ -1,5 +1,6 @@
 using System.IO;
 using FileCrypter.App.Services;
+using FileCrypter.App.Tests.TestDoubles;
 using FileCrypter.App.ViewModels;
 using FileCrypter.Core;
 using FileCrypter.Core.Format;
@@ -77,6 +78,30 @@ public sealed class DecryptViewModelTests
         Assert.True(viewModel.HasError);
         Assert.Contains("Check the password and key file", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("Ready", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task CopyErrorCommand_CopiesTroubleshootingMessage()
+    {
+        var clipboard = new RecordingClipboardService();
+        var workflow = new RecordingWorkflowService
+        {
+            Error = new FileCrypterFormatException(
+                FileCrypterFormatErrorCode.AuthenticationFailed,
+                "Authentication failed."),
+        };
+        var viewModel = new DecryptViewModel(workflow, filePickerService: null, clipboardService: clipboard)
+        {
+            SourcePath = "/tmp/plain.txt.encrypted",
+            Password = "secret",
+        };
+
+        await viewModel.StartDecryptCommand.ExecuteAsync(null);
+        await viewModel.CopyErrorCommand.ExecuteAsync(null);
+
+        Assert.NotNull(clipboard.LastText);
+        Assert.Contains("Check the password and key file", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Equal("Copied issue details.", viewModel.ProgressText);
     }
 
     [Fact]

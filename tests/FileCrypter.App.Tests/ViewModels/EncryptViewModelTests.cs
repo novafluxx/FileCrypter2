@@ -1,4 +1,5 @@
 using FileCrypter.App.Services;
+using FileCrypter.App.Tests.TestDoubles;
 using FileCrypter.App.ViewModels;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
@@ -87,6 +88,30 @@ public sealed class EncryptViewModelTests
         Assert.Contains("Path error:", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("output directory is missing", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("Ready", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task CopyResultCommand_CopiesEncryptedAndGeneratedKeyFilePaths()
+    {
+        var clipboard = new RecordingClipboardService();
+        var workflow = new RecordingWorkflowService
+        {
+            Result = new EncryptFileResult("/tmp/plain.txt.encrypted", "/tmp/plain.key"),
+        };
+        var viewModel = new EncryptViewModel(workflow, filePickerService: null, clipboardService: clipboard)
+        {
+            SourcePath = "/tmp/plain.txt",
+            Password = "secret",
+        };
+
+        await viewModel.StartEncryptCommand.ExecuteAsync(null);
+        await viewModel.CopyResultCommand.ExecuteAsync(null);
+
+        Assert.NotNull(clipboard.LastText);
+        Assert.Contains("Encryption complete.", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Contains("Encrypted file: /tmp/plain.txt.encrypted", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Contains("Generated key file: /tmp/plain.key", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Equal("Copied result details.", viewModel.ProgressText);
     }
 
     [Fact]

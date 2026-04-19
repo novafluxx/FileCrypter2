@@ -11,10 +11,15 @@
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,18">
-                <TextBlock Text="{Binding ErrorMessage}"
-                           Foreground="{DynamicResource ErrorForegroundBrush}"
-                           FontSize="18"
-                           TextWrapping="Wrap" />
+                <StackPanel Spacing="12">
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Foreground="{DynamicResource ErrorForegroundBrush}"
+                               FontSize="18"
+                               TextWrapping="Wrap" />
+                    <Button Content="Copy issue"
+                            Command="{Binding CopyErrorCommand}"
+                            HorizontalAlignment="Left" />
+                </StackPanel>
             </Border>
 
             <Border Background="{DynamicResource SurfaceBackgroundBrush}"
@@ -163,7 +168,7 @@
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,18">
-                <StackPanel Spacing="8">
+                <StackPanel Spacing="10">
                     <TextBlock Text="Encryption complete."
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource SuccessAccentForegroundBrush}" />
@@ -178,6 +183,9 @@
                                Text="{Binding GeneratedKeyFileResultPath}"
                                Foreground="{DynamicResource SuccessForegroundBrush}"
                                TextWrapping="Wrap" />
+                    <Button Content="Copy result"
+                            Command="{Binding CopyResultCommand}"
+                            HorizontalAlignment="Left" />
                 </StackPanel>
             </Border>
         </StackPanel>

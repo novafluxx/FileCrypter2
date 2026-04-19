@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
+using System.Text;
 
 namespace FileCrypter.App.ViewModels;
 
@@ -13,6 +14,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
+    private readonly IClipboardService? clipboardService;
     private string defaultOutputDirectory = string.Empty;
     private OutputPathOrigin outputPathOrigin;
     private bool isUpdatingOutputPathInternally;
@@ -54,26 +56,32 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private string progressText = "No encrypted file selected";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyErrorCommand))]
     private string errorMessage = "No encrypted file selected. Choose a file to decrypt.";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyResultCommand))]
     private string resultPath = string.Empty;
 
     public DecryptViewModel(
         IFileCrypterWorkflowService workflowService,
-        IFilePickerService? filePickerService = null)
+        IFilePickerService? filePickerService = null,
+        IClipboardService? clipboardService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
+        this.clipboardService = clipboardService;
     }
 
     public DecryptViewModel(
         IFileCrypterWorkflowService workflowService,
         FileCrypterSettings initialSettings,
-        IFilePickerService? filePickerService = null)
+        IFilePickerService? filePickerService = null,
+        IClipboardService? clipboardService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
+        this.clipboardService = clipboardService;
         ApplySettings(initialSettings);
     }
 
@@ -261,6 +269,18 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanCopyError))]
+    private Task CopyErrorAsync()
+    {
+        return CopyTextAsync(ErrorMessage, "Copied issue details.");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCopyResult))]
+    private Task CopyResultAsync()
+    {
+        return CopyTextAsync(BuildResultClipboardText(), "Copied result details.");
+    }
+
     private bool CanBrowse()
     {
         return !IsRunning;
@@ -281,6 +301,16 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         return !IsRunning &&
             !string.IsNullOrWhiteSpace(SourcePath) &&
             !string.IsNullOrWhiteSpace(Password);
+    }
+
+    private bool CanCopyError()
+    {
+        return clipboardService is not null && HasError;
+    }
+
+    private bool CanCopyResult()
+    {
+        return clipboardService is not null && HasResult;
     }
 
     private string? GetSuggestedOutputFileName()
@@ -374,6 +404,32 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         {
             ProgressText = $"{progress.InputBytes} bytes processed";
         }
+    }
+
+    private async Task CopyTextAsync(string text, string successProgressText)
+    {
+        if (clipboardService is null || string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        try
+        {
+            await clipboardService.SetTextAsync(text, CancellationToken.None).ConfigureAwait(true);
+            ProgressText = successProgressText;
+        }
+        catch (Exception exception)
+        {
+            ProgressText = $"Clipboard copy failed: {exception.Message}";
+        }
+    }
+
+    private string BuildResultClipboardText()
+    {
+        StringBuilder builder = new();
+        builder.AppendLine("Decryption complete.");
+        builder.AppendLine($"Decrypted file: {ResultPath}");
+        return builder.ToString().TrimEnd();
     }
 
     private enum OutputPathOrigin
