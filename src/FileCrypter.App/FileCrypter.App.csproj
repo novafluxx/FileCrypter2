@@ -2,10 +2,15 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>FileCrypter.App</AssemblyName>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Version>0.1.0</Version>
+    <MacBundleName>FileCrypter</MacBundleName>
+    <MacBundleDisplayName>FileCrypter</MacBundleDisplayName>
+    <MacBundleIdentifier>com.novafluxx.filecrypter</MacBundleIdentifier>
+    <MacMinimumSystemVersion>13.0</MacMinimumSystemVersion>
   </PropertyGroup>
 
   <ItemGroup>

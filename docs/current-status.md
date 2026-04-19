@@ -91,6 +91,15 @@ codex/avalonia-gui-shell
 - The desktop shell version label now comes from an app metadata service rather than a hardcoded string, which keeps the sidebar and Help page aligned on the same displayed version.
 - The first Help/update-flow slice uses the existing app-service and MVVM pattern with a small update-status abstraction that currently reports the local development-build state while leaving fuller automatic install/relaunch work for later.
 - App test coverage now includes Help page metadata/update-state behavior, update-check failure handling, and main-window Help navigation/footer wiring.
+- A repo-native macOS packaging script now creates a true `artifacts/macos/FileCrypter.app` bundle for local use by publishing `src/FileCrypter.App` as a framework-dependent Release macOS apphost and wrapping it in the standard `Contents/MacOS`, `Contents/Resources`, and `Info.plist` structure.
+- The macOS bundle metadata now lives in `src/FileCrypter.App/FileCrypter.App.csproj`, which keeps the bundle name, identifier, version, executable name, and minimum macOS version deterministic for the packaging script.
+- App test coverage now also includes a focused macOS packaging test that runs the repo bundle script on macOS and verifies the resulting `.app` contents, `Info.plist`, executable permissions, and absence of CLI payloads.
+- A real macOS `.app` smoke pass is now complete for the Batch page using the bundled desktop app, native file/folder pickers, and Computer Use against `artifacts/macos/FileCrypter.app`.
+- That desktop Batch smoke covered individual-file encrypt picker flow, output-folder autofill from selected sources, folder override via the native picker, archive-encrypt multi-file selection, archive-decrypt single-selection validation, single-archive native selection, extraction-folder picking, and a full archive encrypt/decrypt round trip with extracted files landing in the chosen folder.
+- Shared local settings now also cover default overwrite protection, default output directory, and reset-to-defaults behavior through the same `src/FileCrypter.Core/Settings` persistence used by the CLI host.
+- The Avalonia Settings page now exposes those shared defaults with local validation plus native folder picking for the default output directory.
+- Encrypt, Decrypt, and Batch now honor the shared overwrite/output defaults on startup, while Batch still falls back to first-selected-source autofill when no saved default output directory is active.
+- App test coverage now includes shared-settings save/reload/reset behavior plus focused startup-default coverage for Encrypt, Decrypt, Batch, and main-window settings propagation.
 
 ## Current Format Decisions
 
@@ -117,7 +126,33 @@ dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj
 dotnet test
 ```
 
-Latest test count at handoff: 172 passed, 0 failed.
+These commands also passed after the macOS bundle workflow was added:
+
+```bash
+./scripts/package-macos-app.sh
+```
+
+These bundled-app launch and manual desktop smoke steps also passed on macOS:
+
+```bash
+./scripts/package-macos-app.sh
+open artifacts/macos/FileCrypter.app
+```
+
+Important testing note: Computer Use needs the app to be rebuilt and launched as the real macOS bundle. For desktop automation or picker smoke tests, rerun `./scripts/package-macos-app.sh` after app changes and then launch with `open artifacts/macos/FileCrypter.app`. Do not rely on `dotnet run` for Computer Use attachment, because the tool sees the bundled `.app` reliably but does not reliably attach to the raw `dotnet`-hosted process.
+
+The packaged app was launched as a real macOS bundle and exercised through native picker dialogs. The Batch page successfully completed:
+
+- individual-file encrypt selection through the native multi-file picker
+- output-directory autofill from the first selected source file
+- output-directory override through the native folder picker
+- archive-encrypt multi-file selection and archive creation
+- archive-decrypt validation for invalid multi-selection
+- archive-decrypt single encrypted-archive selection through the native picker
+- extraction-directory selection through the native folder picker
+- archive extraction into `/tmp/filecrypter-batch-smoke/extract-out/`, with `alpha.txt`, `beta.txt`, and `gamma.txt` confirmed on disk after the run
+
+Latest test count at handoff: 177 passed, 0 failed.
 
 Previous GUI launch smoke coverage:
 
@@ -153,6 +188,7 @@ cmp /tmp/filecrypter-key-smoke.txt /tmp/filecrypter-key-smoke.out
 
 - Automatic update source detection, install, defer, and relaunch flow.
 - Broader CLI command polish.
+- macOS signing, notarization, icon conversion, and DMG packaging.
 
 ## Product Alignment
 
@@ -165,7 +201,7 @@ The current implementation is aligned with the product outline for the foundatio
 - generated key-file single-file encrypt path
 - batch individual-file encrypt/decrypt path
 - compressed tar archive encrypt/decrypt path for file-list archives
-- persisted compression default for single-file encryption
+- persisted shared defaults for single-file compression, overwrite protection, and default output directory
 - versioned documented encrypted file format
 - AES-256-GCM, Argon2id, unique per-file salt, unique per-file nonce prefix, and chunk-level authentication
 - bounded-memory streaming for large-file readiness
@@ -175,9 +211,9 @@ The current implementation is aligned with the product outline for the foundatio
 
 Remaining product-level gaps are expected for later phases:
 
-- manual native-picker smoke coverage for the Batch polish pass
 - fuller update source/install flow
 - broader CLI command polish
+- richer macOS distribution work beyond the local framework-dependent `.app` bundle
 
 ## Recommended Next Step
 
@@ -185,5 +221,6 @@ Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and b
 
 Recommended next slices:
 
-- Do a quick manual smoke pass for native file/folder pickers across Batch individual-file and archive modes to confirm the new output-folder autofill and validation states feel right on the desktop.
-- After that, keep iterating on the Help/update area with a concrete next slice such as wiring a real release source into the new update-status service and deciding how defer/install actions should surface in the shell.
+- Rebuild the bundled macOS app and run a focused desktop smoke for the new shared-settings behavior: saved overwrite default, saved default output directory, Batch fallback autofill when no default directory is saved, and reset-to-defaults behavior.
+- After that smoke pass, pick the next practical GUI slice that stays local-first and distribution-light, such as drag-and-drop/file-drop workflows or additional settings/help polish.
+- Keep automatic install/relaunch updater work deferred until there is real release/distribution infrastructure to attach it to.

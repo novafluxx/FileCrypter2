@@ -54,6 +54,32 @@
                                Foreground="#aaa"
                                Margin="32,0,0,0"
                                TextWrapping="Wrap" />
+
+                    <CheckBox IsChecked="{Binding NeverOverwriteExistingFilesByDefault}"
+                              Content="Protect existing files by default" />
+                    <TextBlock Text="{Binding OverwriteProtectionDescription}"
+                               Foreground="#9cc4ff"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
+
+                    <TextBlock Text="DEFAULT OUTPUT DIRECTORY"
+                               Foreground="#aaa"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2"
+                               Margin="0,12,0,0" />
+                    <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
+                        <TextBox Text="{Binding DefaultOutputDirectory}"
+                                 PlaceholderText="Leave blank to use the source file's folder..."
+                                 FontSize="18" />
+                        <Button Grid.Column="1"
+                                Content="Browse"
+                                Command="{Binding BrowseDefaultOutputDirectoryCommand}" />
+                    </Grid>
+                    <TextBlock Text="{Binding DefaultOutputDirectoryDescription}"
+                               Foreground="#9cc4ff"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
@@ -97,8 +123,8 @@
                                 Content="Reload"
                                 Command="{Binding ReloadSettingsCommand}" />
                         <Button Grid.Column="2"
-                                Content="Restore default"
-                                Command="{Binding RestoreDefaultCommand}" />
+                                Content="Reset to defaults"
+                                Command="{Binding ResetToDefaultsCommand}" />
                     </Grid>
                 </StackPanel>
             </Border>

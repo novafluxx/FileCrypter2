@@ -10,6 +10,9 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 {
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
+    private string defaultOutputDirectory = string.Empty;
+    private OutputPathOrigin outputPathOrigin;
+    private bool isUpdatingOutputPathInternally;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartEncryptCommand))]
@@ -83,6 +86,16 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         EnableCompression = enableCompressionByDefault;
     }
 
+    public EncryptViewModel(
+        IFileCrypterWorkflowService workflowService,
+        FileCrypterSettings initialSettings,
+        IFilePickerService? filePickerService = null)
+    {
+        this.workflowService = workflowService;
+        this.filePickerService = filePickerService;
+        ApplySettings(initialSettings);
+    }
+
     public string Title => "Encrypt a file";
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
@@ -118,6 +131,9 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         ArgumentNullException.ThrowIfNull(settings);
 
         EnableCompression = settings.EnableCompressionByDefault;
+        NeverOverwriteExistingFiles = settings.NeverOverwriteExistingFilesByDefault;
+        defaultOutputDirectory = GetUsableDefaultOutputDirectory(settings.DefaultOutputDirectory);
+        RefreshSuggestedOutputPath();
     }
 
     partial void OnSourcePathChanged(string value)
@@ -127,10 +143,18 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             : string.Empty;
         ProgressText = string.IsNullOrWhiteSpace(value) ? "No file selected" : Path.GetFileName(value);
         OnPropertyChanged(nameof(HasSelectedFile));
+        RefreshSuggestedOutputPath();
     }
 
     partial void OnOutputPathChanged(string value)
     {
+        if (!isUpdatingOutputPathInternally)
+        {
+            outputPathOrigin = string.IsNullOrWhiteSpace(value)
+                ? OutputPathOrigin.None
+                : OutputPathOrigin.Manual;
+        }
+
         OnPropertyChanged(nameof(OutputDisplayText));
     }
 
@@ -342,6 +366,70 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             : Path.GetFileName(SourcePath) + ".encrypted";
     }
 
+    private void RefreshSuggestedOutputPath()
+    {
+        if (string.IsNullOrWhiteSpace(SourcePath))
+        {
+            if (outputPathOrigin == OutputPathOrigin.SettingsDefault)
+            {
+                SetOutputPath(string.Empty, OutputPathOrigin.None);
+            }
+
+            return;
+        }
+
+        if (outputPathOrigin == OutputPathOrigin.Manual)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(defaultOutputDirectory))
+        {
+            if (outputPathOrigin == OutputPathOrigin.SettingsDefault)
+            {
+                SetOutputPath(string.Empty, OutputPathOrigin.None);
+            }
+
+            return;
+        }
+
+        string? suggestedFileName = GetSuggestedOutputFileName();
+        if (string.IsNullOrWhiteSpace(suggestedFileName))
+        {
+            return;
+        }
+
+        SetOutputPath(
+            Path.Combine(defaultOutputDirectory, suggestedFileName),
+            OutputPathOrigin.SettingsDefault);
+    }
+
+    private void SetOutputPath(string value, OutputPathOrigin origin)
+    {
+        if (string.Equals(OutputPath, value, StringComparison.Ordinal) && outputPathOrigin == origin)
+        {
+            return;
+        }
+
+        isUpdatingOutputPathInternally = true;
+        try
+        {
+            outputPathOrigin = origin;
+            OutputPath = value;
+        }
+        finally
+        {
+            isUpdatingOutputPathInternally = false;
+        }
+    }
+
+    private static string GetUsableDefaultOutputDirectory(string? path)
+    {
+        return !string.IsNullOrWhiteSpace(path) && Directory.Exists(path)
+            ? path
+            : string.Empty;
+    }
+
     private void ReportProgress(FileCrypterProgress progress)
     {
         if (progress.TotalInputBytes is > 0)
@@ -371,5 +459,12 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private static string GetTroubleshootingMessage(Exception exception)
     {
         return WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
+    }
+
+    private enum OutputPathOrigin
+    {
+        None,
+        SettingsDefault,
+        Manual,
     }
 }

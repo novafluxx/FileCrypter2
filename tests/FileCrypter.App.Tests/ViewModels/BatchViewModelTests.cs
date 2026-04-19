@@ -1,6 +1,7 @@
 using FileCrypter.App.Services;
 using FileCrypter.App.ViewModels;
 using FileCrypter.Core;
+using FileCrypter.Core.Settings;
 
 namespace FileCrypter.App.Tests.ViewModels;
 
@@ -92,6 +93,29 @@ public sealed class BatchViewModelTests
         Assert.Equal("/tmp/archive.tar.zst.encrypted", viewModel.SourcePaths[0]);
         Assert.Equal("/tmp", viewModel.OutputDirectory);
         Assert.Equal("Choose an encrypted archive to extract", picker.LastOpenTitle);
+    }
+
+    [Fact]
+    public async Task BrowseFilesCommand_WithSavedDefaultOutputDirectory_PreservesThatDirectory()
+    {
+        using var defaultOutputDirectory = new TemporaryDirectory();
+        var picker = new RecordingFilePickerService
+        {
+            OpenFilesResult = ["/tmp/first.txt", "/tmp/second.txt"],
+        };
+        var viewModel = new BatchViewModel(
+            new RecordingWorkflowService(),
+            new FileCrypterSettings
+            {
+                NeverOverwriteExistingFilesByDefault = false,
+                DefaultOutputDirectory = defaultOutputDirectory.Path,
+            },
+            picker);
+
+        await viewModel.BrowseFilesCommand.ExecuteAsync(null);
+
+        Assert.Equal(defaultOutputDirectory.Path, viewModel.OutputDirectory);
+        Assert.False(viewModel.NeverOverwriteExistingFiles);
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
 using FileCrypter.Core;
+using FileCrypter.Core.Settings;
 
 namespace FileCrypter.App.ViewModels;
 
@@ -12,6 +13,9 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
+    private string defaultOutputDirectory = string.Empty;
+    private OutputPathOrigin outputPathOrigin;
+    private bool isUpdatingOutputPathInternally;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartDecryptCommand))]
@@ -63,6 +67,16 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         this.filePickerService = filePickerService;
     }
 
+    public DecryptViewModel(
+        IFileCrypterWorkflowService workflowService,
+        FileCrypterSettings initialSettings,
+        IFilePickerService? filePickerService = null)
+    {
+        this.workflowService = workflowService;
+        this.filePickerService = filePickerService;
+        ApplySettings(initialSettings);
+    }
+
     public string Title => "Decrypt a file";
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
@@ -81,6 +95,15 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         ? "Auto-generated from input filename..."
         : OutputPath;
 
+    public void ApplySettings(FileCrypterSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        NeverOverwriteExistingFiles = settings.NeverOverwriteExistingFilesByDefault;
+        defaultOutputDirectory = GetUsableDefaultOutputDirectory(settings.DefaultOutputDirectory);
+        RefreshSuggestedOutputPath();
+    }
+
     partial void OnSourcePathChanged(string value)
     {
         ErrorMessage = string.IsNullOrWhiteSpace(value)
@@ -88,10 +111,18 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
             : string.Empty;
         ProgressText = string.IsNullOrWhiteSpace(value) ? "No encrypted file selected" : Path.GetFileName(value);
         OnPropertyChanged(nameof(HasSelectedFile));
+        RefreshSuggestedOutputPath();
     }
 
     partial void OnOutputPathChanged(string value)
     {
+        if (!isUpdatingOutputPathInternally)
+        {
+            outputPathOrigin = string.IsNullOrWhiteSpace(value)
+                ? OutputPathOrigin.None
+                : OutputPathOrigin.Manual;
+        }
+
         OnPropertyChanged(nameof(OutputDisplayText));
     }
 
@@ -246,6 +277,70 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
             : inputFileName + DefaultDecryptedSuffix;
     }
 
+    private void RefreshSuggestedOutputPath()
+    {
+        if (string.IsNullOrWhiteSpace(SourcePath))
+        {
+            if (outputPathOrigin == OutputPathOrigin.SettingsDefault)
+            {
+                SetOutputPath(string.Empty, OutputPathOrigin.None);
+            }
+
+            return;
+        }
+
+        if (outputPathOrigin == OutputPathOrigin.Manual)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(defaultOutputDirectory))
+        {
+            if (outputPathOrigin == OutputPathOrigin.SettingsDefault)
+            {
+                SetOutputPath(string.Empty, OutputPathOrigin.None);
+            }
+
+            return;
+        }
+
+        string? suggestedFileName = GetSuggestedOutputFileName();
+        if (string.IsNullOrWhiteSpace(suggestedFileName))
+        {
+            return;
+        }
+
+        SetOutputPath(
+            Path.Combine(defaultOutputDirectory, suggestedFileName),
+            OutputPathOrigin.SettingsDefault);
+    }
+
+    private void SetOutputPath(string value, OutputPathOrigin origin)
+    {
+        if (string.Equals(OutputPath, value, StringComparison.Ordinal) && outputPathOrigin == origin)
+        {
+            return;
+        }
+
+        isUpdatingOutputPathInternally = true;
+        try
+        {
+            outputPathOrigin = origin;
+            OutputPath = value;
+        }
+        finally
+        {
+            isUpdatingOutputPathInternally = false;
+        }
+    }
+
+    private static string GetUsableDefaultOutputDirectory(string? path)
+    {
+        return !string.IsNullOrWhiteSpace(path) && Directory.Exists(path)
+            ? path
+            : string.Empty;
+    }
+
     private void ReportProgress(FileCrypterProgress progress)
     {
         if (progress.TotalInputBytes is > 0)
@@ -260,5 +355,12 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         {
             ProgressText = $"{progress.InputBytes} bytes processed";
         }
+    }
+
+    private enum OutputPathOrigin
+    {
+        None,
+        SettingsDefault,
+        Manual,
     }
 }

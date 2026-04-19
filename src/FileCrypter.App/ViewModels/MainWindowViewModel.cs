@@ -41,12 +41,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         encryptViewModel = new EncryptViewModel(
             workflowService,
-            initialSettings.EnableCompressionByDefault,
+            initialSettings,
             filePickerService);
-        decryptViewModel = new DecryptViewModel(workflowService, filePickerService);
-        batchViewModel = new BatchViewModel(workflowService, filePickerService);
+        decryptViewModel = new DecryptViewModel(workflowService, initialSettings, filePickerService);
+        batchViewModel = new BatchViewModel(workflowService, initialSettings, filePickerService);
         helpViewModel = new HelpViewModel(this.appMetadataService, appUpdateService);
-        settingsViewModel = new SettingsViewModel(settingsService, initialSettings, settingsErrorMessage);
+        settingsViewModel = new SettingsViewModel(settingsService, initialSettings, filePickerService, settingsErrorMessage);
         settingsViewModel.SettingsSaved += ApplySettings;
         currentPage = encryptViewModel;
         currentPageTitle = encryptViewModel.Title;
@@ -160,5 +160,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     private void ApplySettings(FileCrypterSettings settings)
     {
         encryptViewModel.ApplySettings(settings);
+        decryptViewModel.ApplySettings(settings);
+        batchViewModel.ApplySettings(settings);
     }
 }

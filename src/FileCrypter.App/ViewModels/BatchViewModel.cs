@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
 using FileCrypter.Core;
+using FileCrypter.Core.Settings;
 using CoreFileCrypter = FileCrypter.Core.FileCrypter;
 
 namespace FileCrypter.App.ViewModels;
@@ -15,6 +16,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private readonly StringComparer pathComparer = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
+    private OutputDirectoryOrigin outputDirectoryOrigin;
+    private bool isUpdatingOutputDirectoryInternally;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartBatchCommand))]
@@ -79,6 +82,15 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
         SourcePaths.CollectionChanged += OnSourcePathsChanged;
         Results.CollectionChanged += OnResultsChanged;
+    }
+
+    public BatchViewModel(
+        IFileCrypterWorkflowService workflowService,
+        FileCrypterSettings initialSettings,
+        IFilePickerService? filePickerService = null)
+        : this(workflowService, filePickerService)
+    {
+        ApplySettings(initialSettings);
     }
 
     public string Title => "Batch workflows";
@@ -257,6 +269,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     partial void OnOutputDirectoryChanged(string value)
     {
+        if (!isUpdatingOutputDirectoryInternally)
+        {
+            outputDirectoryOrigin = string.IsNullOrWhiteSpace(value)
+                ? OutputDirectoryOrigin.None
+                : OutputDirectoryOrigin.Manual;
+        }
+
         RefreshIdleValidationState();
     }
 
@@ -322,7 +341,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             CancellationToken.None);
         if (!string.IsNullOrWhiteSpace(selectedPath))
         {
-            OutputDirectory = Path.GetFullPath(selectedPath);
+            SetOutputDirectory(Path.GetFullPath(selectedPath), OutputDirectoryOrigin.Manual);
         }
     }
 
@@ -505,6 +524,29 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         StartBatchCommand.NotifyCanExecuteChanged();
         ClearResults();
         ResetIdleStateForMode();
+    }
+
+    public void ApplySettings(FileCrypterSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        NeverOverwriteExistingFiles = settings.NeverOverwriteExistingFilesByDefault;
+        string defaultDirectory = GetUsableDefaultOutputDirectory(settings.DefaultOutputDirectory);
+
+        if (string.IsNullOrWhiteSpace(defaultDirectory))
+        {
+            if (outputDirectoryOrigin == OutputDirectoryOrigin.SettingsDefault)
+            {
+                SetOutputDirectory(string.Empty, OutputDirectoryOrigin.None);
+            }
+
+            return;
+        }
+
+        if (outputDirectoryOrigin is OutputDirectoryOrigin.None or OutputDirectoryOrigin.SettingsDefault)
+        {
+            SetOutputDirectory(defaultDirectory, OutputDirectoryOrigin.SettingsDefault);
+        }
     }
 
     private async Task RunIndividualBatchAsync()
@@ -863,7 +905,41 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         string? sourceDirectory = Path.GetDirectoryName(sourcePath);
         if (!string.IsNullOrWhiteSpace(sourceDirectory) && Directory.Exists(sourceDirectory))
         {
-            OutputDirectory = sourceDirectory;
+            SetOutputDirectory(sourceDirectory, OutputDirectoryOrigin.SourceAutofill);
         }
+    }
+
+    private void SetOutputDirectory(string value, OutputDirectoryOrigin origin)
+    {
+        if (string.Equals(OutputDirectory, value, StringComparison.Ordinal) && outputDirectoryOrigin == origin)
+        {
+            return;
+        }
+
+        isUpdatingOutputDirectoryInternally = true;
+        try
+        {
+            outputDirectoryOrigin = origin;
+            OutputDirectory = value;
+        }
+        finally
+        {
+            isUpdatingOutputDirectoryInternally = false;
+        }
+    }
+
+    private static string GetUsableDefaultOutputDirectory(string? path)
+    {
+        return !string.IsNullOrWhiteSpace(path) && Directory.Exists(path)
+            ? path
+            : string.Empty;
+    }
+
+    private enum OutputDirectoryOrigin
+    {
+        None,
+        SettingsDefault,
+        SourceAutofill,
+        Manual,
     }
 }

@@ -31,20 +31,27 @@ public sealed class SettingsViewModelTests
     }
 
     [Fact]
-    public async Task SaveSettingsCommand_PersistsCompressionDefaultAndRaisesNotification()
+    public async Task SaveSettingsCommand_PersistsSharedDefaultsAndRaisesNotification()
     {
+        using var outputDirectory = new TemporaryDirectory();
         var settingsService = new RecordingSettingsService();
         var viewModel = new SettingsViewModel(settingsService, new FileCrypterSettings());
         FileCrypterSettings? savedSettings = null;
         viewModel.SettingsSaved += settings => savedSettings = settings;
         viewModel.EnableCompressionByDefault = true;
+        viewModel.NeverOverwriteExistingFilesByDefault = false;
+        viewModel.DefaultOutputDirectory = outputDirectory.Path;
 
         await viewModel.SaveSettingsCommand.ExecuteAsync(null);
 
         Assert.NotNull(settingsService.SavedSettings);
         Assert.True(settingsService.SavedSettings.EnableCompressionByDefault);
+        Assert.False(settingsService.SavedSettings.NeverOverwriteExistingFilesByDefault);
+        Assert.Equal(outputDirectory.Path, settingsService.SavedSettings.DefaultOutputDirectory);
         Assert.NotNull(savedSettings);
         Assert.True(savedSettings.EnableCompressionByDefault);
+        Assert.False(savedSettings.NeverOverwriteExistingFilesByDefault);
+        Assert.Equal(outputDirectory.Path, savedSettings.DefaultOutputDirectory);
         Assert.False(viewModel.HasPendingChanges);
         Assert.True(viewModel.HasSuccess);
     }
@@ -52,19 +59,59 @@ public sealed class SettingsViewModelTests
     [Fact]
     public async Task ReloadSettingsCommand_LoadsLatestSettingsFromService()
     {
+        using var outputDirectory = new TemporaryDirectory();
         var settingsService = new RecordingSettingsService
         {
-            LoadedSettings = new FileCrypterSettings { EnableCompressionByDefault = true },
+            LoadedSettings = new FileCrypterSettings
+            {
+                EnableCompressionByDefault = true,
+                NeverOverwriteExistingFilesByDefault = false,
+                DefaultOutputDirectory = outputDirectory.Path,
+            },
         };
         var viewModel = new SettingsViewModel(
             settingsService,
-            new FileCrypterSettings { EnableCompressionByDefault = false });
+            new FileCrypterSettings
+            {
+                EnableCompressionByDefault = false,
+                NeverOverwriteExistingFilesByDefault = true,
+            });
 
         await viewModel.ReloadSettingsCommand.ExecuteAsync(null);
 
         Assert.True(viewModel.EnableCompressionByDefault);
+        Assert.False(viewModel.NeverOverwriteExistingFilesByDefault);
+        Assert.Equal(outputDirectory.Path, viewModel.DefaultOutputDirectory);
         Assert.False(viewModel.HasPendingChanges);
         Assert.True(viewModel.HasSuccess);
+    }
+
+    [Fact]
+    public async Task ResetToDefaultsCommand_PersistsDefaultSettings()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var settingsService = new RecordingSettingsService
+        {
+            LoadedSettings = new FileCrypterSettings
+            {
+                EnableCompressionByDefault = true,
+                NeverOverwriteExistingFilesByDefault = false,
+                DefaultOutputDirectory = outputDirectory.Path,
+            },
+        };
+        var viewModel = new SettingsViewModel(settingsService, settingsService.LoadedSettings);
+
+        await viewModel.ResetToDefaultsCommand.ExecuteAsync(null);
+
+        Assert.NotNull(settingsService.SavedSettings);
+        Assert.False(settingsService.SavedSettings.EnableCompressionByDefault);
+        Assert.True(settingsService.SavedSettings.NeverOverwriteExistingFilesByDefault);
+        Assert.Equal(string.Empty, settingsService.SavedSettings.DefaultOutputDirectory);
+        Assert.False(viewModel.EnableCompressionByDefault);
+        Assert.True(viewModel.NeverOverwriteExistingFilesByDefault);
+        Assert.Equal(string.Empty, viewModel.DefaultOutputDirectory);
+        Assert.True(viewModel.HasSuccess);
+        Assert.False(viewModel.HasPendingChanges);
     }
 
     [Fact]
@@ -112,6 +159,31 @@ public sealed class SettingsViewModelTests
             SavedSettings = settings;
             LoadedSettings = settings;
             return SaveAsyncImpl?.Invoke(settings, cancellationToken) ?? Task.CompletedTask;
+        }
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(Path))
+                {
+                    Directory.Delete(Path, recursive: true);
+                }
+            }
+            catch
+            {
+            }
         }
     }
 

@@ -199,3 +199,30 @@ Current GUI scope:
 - implemented Settings page for the shared local compression default
 - implemented Help page with recovery guidance, troubleshooting, and update-status messaging
 - view model tests for navigation, workflow validation, settings propagation, and help/update state
+
+## Package The macOS App
+
+For local macOS testing, the repository now includes a bundle script that creates a true `.app` wrapper around the published GUI output:
+
+```bash
+./scripts/package-macos-app.sh
+```
+
+This produces:
+
+```text
+artifacts/macos/FileCrypter.app
+```
+
+Launch it with:
+
+```bash
+open artifacts/macos/FileCrypter.app
+```
+
+Notes:
+
+- this first macOS bundle flow is framework-dependent, so `.NET 10` must be installed on the launch machine
+- the bundle includes the GUI app and `FileCrypter.Core`, but not the CLI host
+- signing, notarization, icon conversion, and DMG packaging are intentionally deferred for a later slice
+- Avalonia Parcel remains an optional later path if the project moves to richer macOS distribution automation

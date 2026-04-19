@@ -3,6 +3,7 @@ using FileCrypter.App.Services;
 using FileCrypter.App.ViewModels;
 using FileCrypter.Core;
 using FileCrypter.Core.Format;
+using FileCrypter.Core.Settings;
 
 namespace FileCrypter.App.Tests.ViewModels;
 
@@ -117,6 +118,24 @@ public sealed class DecryptViewModelTests
         Assert.True(viewModel.HasKeyFileChoice);
         Assert.Contains("selected key file", viewModel.KeyFileChoiceStatusText, StringComparison.Ordinal);
         Assert.Equal("Choose the matching key file", picker.LastOpenTitle);
+    }
+
+    [Fact]
+    public void Constructor_WithSharedSettings_AppliesOverwriteAndDefaultOutputDirectory()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var viewModel = new DecryptViewModel(
+            new RecordingWorkflowService(),
+            new FileCrypterSettings
+            {
+                NeverOverwriteExistingFilesByDefault = false,
+                DefaultOutputDirectory = outputDirectory.Path,
+            });
+
+        viewModel.SourcePath = "/tmp/plain.txt.encrypted";
+
+        Assert.False(viewModel.NeverOverwriteExistingFiles);
+        Assert.Equal(Path.Combine(outputDirectory.Path, "plain.txt"), viewModel.OutputPath);
     }
 
     private static DecryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)
@@ -249,6 +268,31 @@ public sealed class DecryptViewModelTests
         public void Finish(DecryptFileResult result)
         {
             completion.SetResult(result);
+        }
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(Path))
+                {
+                    Directory.Delete(Path, recursive: true);
+                }
+            }
+            catch
+            {
+            }
         }
     }
 

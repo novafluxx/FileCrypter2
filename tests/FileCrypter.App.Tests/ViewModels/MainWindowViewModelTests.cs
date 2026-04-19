@@ -23,17 +23,26 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void Constructor_AppliesPersistedCompressionDefaultToEncryptPage()
     {
+        using var outputDirectory = new TemporaryDirectory();
         var viewModel = new MainWindowViewModel(
             new StubWorkflowService(),
             new StubSettingsService
             {
-                LoadedSettings = new FileCrypterSettings { EnableCompressionByDefault = true },
+                LoadedSettings = new FileCrypterSettings
+                {
+                    EnableCompressionByDefault = true,
+                    NeverOverwriteExistingFilesByDefault = false,
+                    DefaultOutputDirectory = outputDirectory.Path,
+                },
             },
             null,
             new StubAppMetadataService());
 
         EncryptViewModel encryptPage = Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
         Assert.True(encryptPage.EnableCompression);
+        Assert.False(encryptPage.NeverOverwriteExistingFiles);
+        encryptPage.SourcePath = "/tmp/plain.txt";
+        Assert.Equal(Path.Combine(outputDirectory.Path, "plain.txt.encrypted"), encryptPage.OutputPath);
     }
 
     [Fact]
@@ -98,6 +107,7 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public async Task SettingsSave_UpdatesEncryptCompressionDefault()
     {
+        using var outputDirectory = new TemporaryDirectory();
         var settingsService = new StubSettingsService();
         var viewModel = new MainWindowViewModel(
             new StubWorkflowService(),
@@ -110,13 +120,21 @@ public sealed class MainWindowViewModelTests
         viewModel.SelectNavigationItemCommand.Execute(settingsItem);
         SettingsViewModel settingsPage = Assert.IsType<SettingsViewModel>(viewModel.CurrentPage);
         settingsPage.EnableCompressionByDefault = true;
+        settingsPage.NeverOverwriteExistingFilesByDefault = false;
+        settingsPage.DefaultOutputDirectory = outputDirectory.Path;
 
         await settingsPage.SaveSettingsCommand.ExecuteAsync(null);
         viewModel.SelectNavigationItemCommand.Execute(encryptItem);
 
         Assert.NotNull(settingsService.SavedSettings);
         Assert.True(settingsService.SavedSettings.EnableCompressionByDefault);
-        Assert.True(Assert.IsType<EncryptViewModel>(viewModel.CurrentPage).EnableCompression);
+        Assert.False(settingsService.SavedSettings.NeverOverwriteExistingFilesByDefault);
+        Assert.Equal(outputDirectory.Path, settingsService.SavedSettings.DefaultOutputDirectory);
+        EncryptViewModel encryptPage = Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
+        Assert.True(encryptPage.EnableCompression);
+        Assert.False(encryptPage.NeverOverwriteExistingFiles);
+        encryptPage.SourcePath = "/tmp/plain.txt";
+        Assert.Equal(Path.Combine(outputDirectory.Path, "plain.txt.encrypted"), encryptPage.OutputPath);
     }
 
     [Fact]
@@ -179,6 +197,31 @@ public sealed class MainWindowViewModelTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult(new BatchTransformResult([]));
+        }
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(Path))
+                {
+                    Directory.Delete(Path, recursive: true);
+                }
+            }
+            catch
+            {
+            }
         }
     }
 

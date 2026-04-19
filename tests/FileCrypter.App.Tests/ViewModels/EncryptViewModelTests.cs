@@ -1,6 +1,7 @@
 using FileCrypter.App.Services;
 using FileCrypter.App.ViewModels;
 using FileCrypter.Core;
+using FileCrypter.Core.Settings;
 
 namespace FileCrypter.App.Tests.ViewModels;
 
@@ -149,6 +150,26 @@ public sealed class EncryptViewModelTests
         Assert.Equal("Choose an existing key file", picker.LastOpenTitle);
     }
 
+    [Fact]
+    public void Constructor_WithSharedSettings_AppliesOverwriteAndDefaultOutputDirectory()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var viewModel = new EncryptViewModel(
+            new RecordingWorkflowService(),
+            new FileCrypterSettings
+            {
+                EnableCompressionByDefault = true,
+                NeverOverwriteExistingFilesByDefault = false,
+                DefaultOutputDirectory = outputDirectory.Path,
+            });
+
+        viewModel.SourcePath = "/tmp/plain.txt";
+
+        Assert.True(viewModel.EnableCompression);
+        Assert.False(viewModel.NeverOverwriteExistingFiles);
+        Assert.Equal(Path.Combine(outputDirectory.Path, "plain.txt.encrypted"), viewModel.OutputPath);
+    }
+
     private static EncryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)
     {
         return new EncryptViewModel(workflow)
@@ -279,6 +300,31 @@ public sealed class EncryptViewModelTests
         public void Finish(EncryptFileResult result)
         {
             completion.SetResult(result);
+        }
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(Path))
+                {
+                    Directory.Delete(Path, recursive: true);
+                }
+            }
+            catch
+            {
+            }
         }
     }
 
