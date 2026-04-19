@@ -110,9 +110,8 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public async Task SettingsSave_UpdatesEncryptCompressionDefault()
+    public void SettingsAutosave_UpdatesEncryptCompressionDefault()
     {
-        using var outputDirectory = new TemporaryDirectory();
         var settingsService = new StubSettingsService();
         var themeService = new StubAppThemeService();
         var viewModel = new MainWindowViewModel(
@@ -130,9 +129,6 @@ public sealed class MainWindowViewModelTests
         settingsPage.ThemePreference = FileCrypterThemePreference.Light;
         settingsPage.EnableCompressionByDefault = true;
         settingsPage.NeverOverwriteExistingFilesByDefault = false;
-        settingsPage.DefaultOutputDirectory = outputDirectory.Path;
-
-        await settingsPage.SaveSettingsCommand.ExecuteAsync(null);
         viewModel.SelectNavigationItemCommand.Execute(encryptItem);
 
         Assert.NotNull(settingsService.SavedSettings);
@@ -140,12 +136,35 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(FileCrypterThemePreference.Light, themeService.LastAppliedThemePreference);
         Assert.True(settingsService.SavedSettings.EnableCompressionByDefault);
         Assert.False(settingsService.SavedSettings.NeverOverwriteExistingFilesByDefault);
-        Assert.Equal(outputDirectory.Path, settingsService.SavedSettings.DefaultOutputDirectory);
         EncryptViewModel encryptPage = Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
         Assert.True(encryptPage.EnableCompression);
         Assert.False(encryptPage.NeverOverwriteExistingFiles);
-        encryptPage.SourcePath = "/tmp/plain.txt";
-        Assert.Equal(Path.Combine(outputDirectory.Path, "plain.txt.encrypted"), encryptPage.OutputPath);
+    }
+
+    [Fact]
+    public void FailedSettingsAutosave_DoesNotPropagateUnsavedDefaults()
+    {
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService
+            {
+                SaveException = new IOException("Access denied."),
+            },
+            null,
+            new StubAppMetadataService(),
+            null,
+            new StubAppThemeService());
+        NavigationItemViewModel settingsItem = viewModel.SecondaryNavigationItems.Single(item => item.Key == "settings");
+        NavigationItemViewModel encryptItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "encrypt");
+
+        viewModel.SelectNavigationItemCommand.Execute(settingsItem);
+        SettingsViewModel settingsPage = Assert.IsType<SettingsViewModel>(viewModel.CurrentPage);
+
+        settingsPage.EnableCompressionByDefault = true;
+        viewModel.SelectNavigationItemCommand.Execute(encryptItem);
+
+        EncryptViewModel encryptPage = Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
+        Assert.False(encryptPage.EnableCompression);
     }
 
     [Fact]
@@ -248,6 +267,8 @@ public sealed class MainWindowViewModelTests
 
         public Exception? SaveException { get; init; }
 
+        public Func<FileCrypterSettings, CancellationToken, Task>? SaveAsyncImpl { get; init; }
+
         public Task<FileCrypterSettings> LoadAsync(CancellationToken cancellationToken)
         {
             return LoadException is null
@@ -255,16 +276,20 @@ public sealed class MainWindowViewModelTests
                 : Task.FromException<FileCrypterSettings>(LoadException);
         }
 
-        public Task SaveAsync(FileCrypterSettings settings, CancellationToken cancellationToken)
+        public async Task SaveAsync(FileCrypterSettings settings, CancellationToken cancellationToken)
         {
             if (SaveException is not null)
             {
-                return Task.FromException(SaveException);
+                throw SaveException;
+            }
+
+            if (SaveAsyncImpl is not null)
+            {
+                await SaveAsyncImpl(settings, cancellationToken);
             }
 
             SavedSettings = settings;
             LoadedSettings = settings;
-            return Task.CompletedTask;
         }
     }
 

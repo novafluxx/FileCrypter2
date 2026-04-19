@@ -7,35 +7,38 @@ namespace FileCrypter.App.ViewModels;
 
 public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusViewModel
 {
+    private const int DefaultOutputDirectoryAutoSaveDelayMilliseconds = 500;
+    private const string IdleAutosaveMessage = "Settings save automatically as you change them.";
+
     private readonly IFileCrypterSettingsService settingsService;
     private readonly IAppThemeService appThemeService;
     private readonly IFilePickerService? filePickerService;
-    private FileCrypterThemePreference savedThemePreference;
-    private bool savedEnableCompressionByDefault;
-    private bool savedNeverOverwriteExistingFilesByDefault;
-    private string savedDefaultOutputDirectory;
+    private readonly object autoSaveGate = new();
+    private readonly TimeSpan defaultOutputDirectoryAutoSaveDelay;
+    private FileCrypterSettings lastSavedSettings;
+    private CancellationTokenSource? defaultOutputDirectoryDebounceCancellationTokenSource;
+    private FileCrypterSettings? pendingAutoSaveSettings;
+    private bool autoSaveLoopActive;
+    private long autoSaveSessionId;
+    private bool suppressAutoSave;
+    private bool saveDefaultOutputDirectoryImmediately;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveSettingsCommand))]
     [NotifyCanExecuteChangedFor(nameof(ReloadSettingsCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseDefaultOutputDirectoryCommand))]
     [NotifyCanExecuteChangedFor(nameof(ResetToDefaultsCommand))]
     private bool isRunning;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveSettingsCommand))]
     private FileCrypterThemePreference themePreference;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveSettingsCommand))]
     private bool enableCompressionByDefault;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveSettingsCommand))]
     private bool neverOverwriteExistingFilesByDefault;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveSettingsCommand))]
     private string defaultOutputDirectory;
 
     [ObservableProperty]
@@ -55,20 +58,21 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
         FileCrypterSettings initialSettings,
         IAppThemeService? appThemeService = null,
         IFilePickerService? filePickerService = null,
-        string initialErrorMessage = "")
+        string initialErrorMessage = "",
+        TimeSpan? defaultOutputDirectoryAutoSaveDelay = null)
     {
         this.settingsService = settingsService;
         this.appThemeService = appThemeService ?? new NoOpAppThemeService();
         this.filePickerService = filePickerService;
-        progressText = settingsService.SettingsPath;
-        savedThemePreference = NormalizeThemePreference(initialSettings.ThemePreference);
-        savedEnableCompressionByDefault = initialSettings.EnableCompressionByDefault;
-        savedNeverOverwriteExistingFilesByDefault = initialSettings.NeverOverwriteExistingFilesByDefault;
-        savedDefaultOutputDirectory = NormalizeDirectoryValue(initialSettings.DefaultOutputDirectory);
-        themePreference = savedThemePreference;
-        enableCompressionByDefault = initialSettings.EnableCompressionByDefault;
-        neverOverwriteExistingFilesByDefault = initialSettings.NeverOverwriteExistingFilesByDefault;
-        defaultOutputDirectory = savedDefaultOutputDirectory;
+        this.defaultOutputDirectoryAutoSaveDelay =
+            defaultOutputDirectoryAutoSaveDelay ?? TimeSpan.FromMilliseconds(DefaultOutputDirectoryAutoSaveDelayMilliseconds);
+
+        lastSavedSettings = NormalizeSettings(initialSettings);
+        themePreference = lastSavedSettings.ThemePreference;
+        enableCompressionByDefault = lastSavedSettings.EnableCompressionByDefault;
+        neverOverwriteExistingFilesByDefault = lastSavedSettings.NeverOverwriteExistingFilesByDefault;
+        defaultOutputDirectory = lastSavedSettings.DefaultOutputDirectory;
+        progressText = IdleAutosaveMessage;
         errorMessage = initialErrorMessage;
     }
 
@@ -77,15 +81,6 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     public string Title => "Settings";
 
     public string SettingsPath => settingsService.SettingsPath;
-
-    public bool HasPendingChanges =>
-        ThemePreference != savedThemePreference ||
-        EnableCompressionByDefault != savedEnableCompressionByDefault ||
-        NeverOverwriteExistingFilesByDefault != savedNeverOverwriteExistingFilesByDefault ||
-        !string.Equals(
-            NormalizeDirectoryValue(DefaultOutputDirectory),
-            savedDefaultOutputDirectory,
-            StringComparison.Ordinal);
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
@@ -119,31 +114,69 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
 
     partial void OnThemePreferenceChanged(FileCrypterThemePreference value)
     {
-        appThemeService.ApplyTheme(NormalizeThemePreference(value));
-        OnPropertyChanged(nameof(HasPendingChanges));
+        FileCrypterThemePreference normalizedPreference = NormalizeThemePreference(value);
+        if (ThemePreference != normalizedPreference)
+        {
+            ThemePreference = normalizedPreference;
+            return;
+        }
+
+        appThemeService.ApplyTheme(normalizedPreference);
         OnPropertyChanged(nameof(ThemePreferenceDescription));
-        SuccessMessage = string.Empty;
+
+        if (suppressAutoSave)
+        {
+            return;
+        }
+
+        BeginAutoSaveFeedback();
+        QueueImmediateAutoSave();
     }
 
     partial void OnEnableCompressionByDefaultChanged(bool value)
     {
-        OnPropertyChanged(nameof(HasPendingChanges));
         OnPropertyChanged(nameof(CompressionDefaultDescription));
-        SuccessMessage = string.Empty;
+
+        if (suppressAutoSave)
+        {
+            return;
+        }
+
+        BeginAutoSaveFeedback();
+        QueueImmediateAutoSave();
     }
 
     partial void OnNeverOverwriteExistingFilesByDefaultChanged(bool value)
     {
-        OnPropertyChanged(nameof(HasPendingChanges));
         OnPropertyChanged(nameof(OverwriteProtectionDescription));
-        SuccessMessage = string.Empty;
+
+        if (suppressAutoSave)
+        {
+            return;
+        }
+
+        BeginAutoSaveFeedback();
+        QueueImmediateAutoSave();
     }
 
     partial void OnDefaultOutputDirectoryChanged(string value)
     {
-        OnPropertyChanged(nameof(HasPendingChanges));
         OnPropertyChanged(nameof(DefaultOutputDirectoryDescription));
-        SuccessMessage = string.Empty;
+
+        if (suppressAutoSave)
+        {
+            return;
+        }
+
+        BeginAutoSaveFeedback();
+        if (saveDefaultOutputDirectoryImmediately)
+        {
+            saveDefaultOutputDirectoryImmediately = false;
+            QueueImmediateAutoSave();
+            return;
+        }
+
+        DebounceDefaultOutputDirectoryAutoSave();
     }
 
     partial void OnErrorMessageChanged(string value)
@@ -156,30 +189,15 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
         OnPropertyChanged(nameof(HasSuccess));
     }
 
-    [RelayCommand(CanExecute = nameof(CanSaveSettings))]
-    private async Task SaveSettingsAsync()
-    {
-        await SaveOrReloadAsync(
-            async cancellationToken =>
-            {
-                FileCrypterSettings settings = CreateCurrentSettings();
-
-                await settingsService.SaveAsync(settings, cancellationToken);
-                ApplySavedSettings(settings);
-                SuccessMessage = "Saved. New workflows now use the updated shared defaults.";
-            },
-            "Saving settings...",
-            "Settings saved.");
-    }
-
     [RelayCommand(CanExecute = nameof(CanReloadSettings))]
     private async Task ReloadSettingsAsync()
     {
-        await SaveOrReloadAsync(
+        CancelPendingAutoSaveWork();
+        await RunSettingsActionAsync(
             async cancellationToken =>
             {
                 FileCrypterSettings settings = await settingsService.LoadAsync(cancellationToken);
-                ApplySavedSettings(settings);
+                ApplyPersistedSettings(settings, notifySettingsSaved: true);
                 SuccessMessage = "Reloaded the current settings file.";
             },
             "Reloading settings...",
@@ -199,6 +217,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
             CancellationToken.None);
         if (!string.IsNullOrWhiteSpace(selectedPath))
         {
+            saveDefaultOutputDirectoryImmediately = true;
             DefaultOutputDirectory = NormalizeDirectoryValue(Path.GetFullPath(selectedPath));
         }
     }
@@ -206,21 +225,17 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     [RelayCommand(CanExecute = nameof(CanResetToDefaults))]
     private async Task ResetToDefaultsAsync()
     {
-        await SaveOrReloadAsync(
+        CancelPendingAutoSaveWork();
+        await RunSettingsActionAsync(
             async cancellationToken =>
             {
                 FileCrypterSettings settings = new();
                 await settingsService.SaveAsync(settings, cancellationToken);
-                ApplySavedSettings(settings);
+                ApplyPersistedSettings(settings, notifySettingsSaved: true);
                 SuccessMessage = "Reset every shared setting back to the default FileCrypter behavior.";
             },
             "Resetting settings...",
             "Settings reset to defaults.");
-    }
-
-    private bool CanSaveSettings()
-    {
-        return !IsRunning && HasPendingChanges;
     }
 
     private bool CanReloadSettings()
@@ -238,7 +253,127 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
         return !IsRunning;
     }
 
-    private async Task SaveOrReloadAsync(
+    private void BeginAutoSaveFeedback()
+    {
+        CancelPendingSuccessMessage();
+        ErrorMessage = string.Empty;
+        StatusText = "Settings";
+        ProgressText = "Saving settings...";
+    }
+
+    private void QueueImmediateAutoSave()
+    {
+        CancelDefaultOutputDirectoryAutoSave();
+        QueueAutoSaveSnapshot();
+    }
+
+    private void DebounceDefaultOutputDirectoryAutoSave()
+    {
+        CancelDefaultOutputDirectoryAutoSave();
+        var cancellationTokenSource = new CancellationTokenSource();
+        defaultOutputDirectoryDebounceCancellationTokenSource = cancellationTokenSource;
+        _ = DebounceDefaultOutputDirectoryAutoSaveAsync(cancellationTokenSource.Token);
+    }
+
+    private async Task DebounceDefaultOutputDirectoryAutoSaveAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(defaultOutputDirectoryAutoSaveDelay, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        QueueAutoSaveSnapshot();
+    }
+
+    private void QueueAutoSaveSnapshot()
+    {
+        FileCrypterSettings settings;
+        try
+        {
+            settings = CreateCurrentSettings();
+        }
+        catch (Exception exception)
+        {
+            HandleAutoSaveFailure(exception);
+            return;
+        }
+
+        bool shouldStartLoop;
+        lock (autoSaveGate)
+        {
+            pendingAutoSaveSettings = settings;
+            shouldStartLoop = !autoSaveLoopActive;
+            if (shouldStartLoop)
+            {
+                autoSaveLoopActive = true;
+            }
+        }
+
+        if (shouldStartLoop)
+        {
+            _ = RunAutoSaveLoopAsync();
+        }
+    }
+
+    private async Task RunAutoSaveLoopAsync()
+    {
+        while (true)
+        {
+            FileCrypterSettings? pendingSettings;
+            long saveSessionId;
+            lock (autoSaveGate)
+            {
+                pendingSettings = pendingAutoSaveSettings;
+                saveSessionId = autoSaveSessionId;
+                pendingAutoSaveSettings = null;
+                if (pendingSettings is null)
+                {
+                    autoSaveLoopActive = false;
+                    IsRunning = false;
+                    StatusText = "Ready";
+                    return;
+                }
+            }
+
+            IsRunning = true;
+            StatusText = "Settings";
+            ProgressText = "Saving settings...";
+
+            try
+            {
+                await settingsService.SaveAsync(pendingSettings, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                lock (autoSaveGate)
+                {
+                    pendingAutoSaveSettings = null;
+                    autoSaveLoopActive = false;
+                }
+
+                HandleAutoSaveFailure(exception);
+                return;
+            }
+
+            if (ShouldIgnoreAutoSaveCompletion(saveSessionId))
+            {
+                continue;
+            }
+
+            CompleteAutoSave(pendingSettings);
+        }
+    }
+
+    private async Task RunSettingsActionAsync(
         Func<CancellationToken, Task> action,
         string progressMessage,
         string completionMessage)
@@ -267,6 +402,90 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
         }
     }
 
+    private void CompleteAutoSave(FileCrypterSettings settings)
+    {
+        lastSavedSettings = NormalizeSettings(settings);
+        ErrorMessage = string.Empty;
+        SuccessMessage = string.Empty;
+        StatusText = "Ready";
+        ProgressText = "Settings saved automatically.";
+        SettingsSaved?.Invoke(lastSavedSettings);
+    }
+
+    private void HandleAutoSaveFailure(Exception exception)
+    {
+        bool restorePersistedSettingsAfterFailure = HasActiveAutoSaveLoop();
+        CancelPendingAutoSaveWork(
+            invalidateInFlightSave: true,
+            restoreLastSavedSettings: restorePersistedSettingsAfterFailure);
+        ApplyPersistedSettings(lastSavedSettings, notifySettingsSaved: false);
+        ErrorMessage = $"Settings error: {exception.Message}";
+        SuccessMessage = string.Empty;
+        StatusText = "Ready";
+        ProgressText = "Settings update failed.";
+        IsRunning = false;
+    }
+
+    private void CancelPendingSuccessMessage()
+    {
+        SuccessMessage = string.Empty;
+    }
+
+    private void CancelPendingAutoSaveWork(
+        bool invalidateInFlightSave = false,
+        bool restoreLastSavedSettings = false)
+    {
+        CancelDefaultOutputDirectoryAutoSave();
+        bool shouldStartLoop = false;
+        lock (autoSaveGate)
+        {
+            pendingAutoSaveSettings = restoreLastSavedSettings ? lastSavedSettings : null;
+            if (invalidateInFlightSave)
+            {
+                autoSaveSessionId++;
+            }
+
+            if (restoreLastSavedSettings && !autoSaveLoopActive)
+            {
+                autoSaveLoopActive = true;
+                shouldStartLoop = true;
+            }
+        }
+
+        if (shouldStartLoop)
+        {
+            _ = RunAutoSaveLoopAsync();
+        }
+    }
+
+    private bool ShouldIgnoreAutoSaveCompletion(long saveSessionId)
+    {
+        lock (autoSaveGate)
+        {
+            return saveSessionId != autoSaveSessionId;
+        }
+    }
+
+    private bool HasActiveAutoSaveLoop()
+    {
+        lock (autoSaveGate)
+        {
+            return autoSaveLoopActive;
+        }
+    }
+
+    private void CancelDefaultOutputDirectoryAutoSave()
+    {
+        if (defaultOutputDirectoryDebounceCancellationTokenSource is null)
+        {
+            return;
+        }
+
+        defaultOutputDirectoryDebounceCancellationTokenSource.Cancel();
+        defaultOutputDirectoryDebounceCancellationTokenSource.Dispose();
+        defaultOutputDirectoryDebounceCancellationTokenSource = null;
+    }
+
     private FileCrypterSettings CreateCurrentSettings()
     {
         string normalizedDefaultOutputDirectory = NormalizeDirectoryValue(DefaultOutputDirectory);
@@ -283,21 +502,39 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
             EnableCompressionByDefault = EnableCompressionByDefault,
             NeverOverwriteExistingFilesByDefault = NeverOverwriteExistingFilesByDefault,
             DefaultOutputDirectory = normalizedDefaultOutputDirectory,
-        };
+        }.Normalize();
     }
 
-    private void ApplySavedSettings(FileCrypterSettings settings)
+    private void ApplyPersistedSettings(FileCrypterSettings settings, bool notifySettingsSaved)
     {
-        savedThemePreference = NormalizeThemePreference(settings.ThemePreference);
-        savedEnableCompressionByDefault = settings.EnableCompressionByDefault;
-        savedNeverOverwriteExistingFilesByDefault = settings.NeverOverwriteExistingFilesByDefault;
-        savedDefaultOutputDirectory = NormalizeDirectoryValue(settings.DefaultOutputDirectory);
-        ThemePreference = savedThemePreference;
-        EnableCompressionByDefault = settings.EnableCompressionByDefault;
-        NeverOverwriteExistingFilesByDefault = settings.NeverOverwriteExistingFilesByDefault;
-        DefaultOutputDirectory = savedDefaultOutputDirectory;
-        OnPropertyChanged(nameof(HasPendingChanges));
-        SettingsSaved?.Invoke(settings);
+        FileCrypterSettings normalizedSettings = NormalizeSettings(settings);
+        lastSavedSettings = normalizedSettings;
+
+        suppressAutoSave = true;
+        saveDefaultOutputDirectoryImmediately = false;
+        try
+        {
+            ThemePreference = normalizedSettings.ThemePreference;
+            EnableCompressionByDefault = normalizedSettings.EnableCompressionByDefault;
+            NeverOverwriteExistingFilesByDefault = normalizedSettings.NeverOverwriteExistingFilesByDefault;
+            DefaultOutputDirectory = normalizedSettings.DefaultOutputDirectory;
+        }
+        finally
+        {
+            suppressAutoSave = false;
+        }
+
+        appThemeService.ApplyTheme(normalizedSettings.ThemePreference);
+        if (notifySettingsSaved)
+        {
+            SettingsSaved?.Invoke(normalizedSettings);
+        }
+    }
+
+    private static FileCrypterSettings NormalizeSettings(FileCrypterSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        return settings.Normalize();
     }
 
     private static string NormalizeDirectoryValue(string? path)

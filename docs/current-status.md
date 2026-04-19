@@ -108,9 +108,9 @@ codex/avalonia-gui-shell
 - App test coverage now also includes focused dropped-file behavior for Encrypt, Decrypt, and Batch, including Batch dedupe/autofill preservation and archive-extract replacement behavior.
 - A focused bundled macOS app smoke is now also complete for the desktop file-drop slice: Encrypt drop updated the source and suggested output, Decrypt drop updated the source and suggested output, Batch multi-file drop preserved dedupe plus first-source output-folder autofill when no saved default output directory was set, and Batch archive-decrypt drop replaced the selection with exactly one archive source.
 - Theme preference support is now implemented across the shared settings model and Avalonia app, with persisted `Light`, `Dark`, and `System` choices stored locally beside the other shared defaults.
-- The Avalonia Settings page now exposes the theme preference alongside the existing shared defaults, and save/reload/reset flows all propagate the current theme choice through the same MVVM settings path.
+- The Avalonia Settings page now exposes the theme preference alongside the existing shared defaults, and those settings now autosave live while `Reload` and `Reset to defaults` remain as explicit recovery actions.
 - The running desktop app now applies the selected theme through Avalonia theme variants, and the shell's shared brushes now have light/dark variants so the existing visual language carries across theme switches without a redesign.
-- App test coverage now also includes focused settings-store and theme-application coverage for the theme slice, including save/load/reload/reset behavior for theme preference plus main-window/app-theme propagation.
+- App test coverage now also includes focused settings-store and theme-application coverage for the theme slice, including autosave, debounced directory persistence, reload/reset, failure reversion, and main-window/app-theme propagation.
 
 ## Current Format Decisions
 

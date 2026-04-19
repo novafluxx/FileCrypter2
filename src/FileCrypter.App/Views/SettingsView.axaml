@@ -129,17 +129,13 @@
                     <TextBlock Text="{Binding ProgressText}"
                                Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
-                        <Button Content="Save settings"
-                                Command="{Binding SaveSettingsCommand}"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Center"
-                                FontSize="18"
-                                FontWeight="SemiBold" />
-                        <Button Grid.Column="1"
-                                Content="Reload"
+                    <TextBlock Text="Reload re-reads the local settings file. Reset restores FileCrypter's default behavior and saves it immediately."
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                               TextWrapping="Wrap" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                        <Button Content="Reload"
                                 Command="{Binding ReloadSettingsCommand}" />
-                        <Button Grid.Column="2"
+                        <Button Grid.Column="1"
                                 Content="Reset to defaults"
                                 Command="{Binding ResetToDefaultsCommand}" />
                     </Grid>
