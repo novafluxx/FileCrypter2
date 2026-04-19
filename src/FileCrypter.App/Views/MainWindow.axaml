@@ -19,11 +19,11 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid Background="#101111" ColumnDefinitions="288,*" RowDefinitions="*,56">
+    <Grid Background="{DynamicResource WindowBackgroundBrush}" ColumnDefinitions="288,*" RowDefinitions="*,56">
         <Border Grid.RowSpan="2"
-                BorderBrush="#363838"
+                BorderBrush="{DynamicResource SidebarBorderBrush}"
                 BorderThickness="0,0,1,0"
-                Background="#202222">
+                Background="{DynamicResource SidebarBackgroundBrush}">
             <Grid RowDefinitions="136,*,Auto">
                 <StackPanel Margin="28,30,28,0">
                     <TextBlock Text="FileCrypter"
@@ -31,7 +31,7 @@
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding AppVersion}"
                                FontSize="17"
-                               Foreground="#a9aaa7"
+                               Foreground="{DynamicResource SidebarDetailForegroundBrush}"
                                Margin="0,8,0,0" />
                 </StackPanel>
 
@@ -64,9 +64,9 @@
         </Border>
 
         <Grid Grid.Column="1" RowDefinitions="88,*">
-            <Border BorderBrush="#363838"
+            <Border BorderBrush="{DynamicResource SidebarBorderBrush}"
                     BorderThickness="0,0,0,1"
-                    Background="#242626">
+                    Background="{DynamicResource SurfaceBackgroundBrush}">
                 <Grid ColumnDefinitions="*,Auto" Margin="32,0">
                     <TextBlock Text="{Binding CurrentPageTitle}"
                                VerticalAlignment="Center"
@@ -75,7 +75,7 @@
                     <TextBlock Grid.Column="1"
                                Text="Changelog"
                                VerticalAlignment="Center"
-                               Foreground="#9cc4ff"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
                                FontSize="18" />
                 </Grid>
             </Border>
@@ -87,17 +87,17 @@
 
         <Border Grid.Column="1"
                 Grid.Row="1"
-                BorderBrush="#363838"
+                BorderBrush="{DynamicResource SidebarBorderBrush}"
                 BorderThickness="0,1,0,0"
-                Background="#242626">
+                Background="{DynamicResource SurfaceBackgroundBrush}">
             <Grid ColumnDefinitions="*,Auto" Margin="32,0">
                 <TextBlock Text="{Binding StatusText}"
                            VerticalAlignment="Center"
-                           Foreground="#b8b9b5" />
+                           Foreground="{DynamicResource MutedForegroundBrush}" />
                 <TextBlock Grid.Column="1"
                            Text="{Binding FooterDetail}"
                            VerticalAlignment="Center"
-                           Foreground="#b8b9b5" />
+                           Foreground="{DynamicResource MutedForegroundBrush}" />
             </Grid>
         </Border>
     </Grid>

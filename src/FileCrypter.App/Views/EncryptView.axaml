@@ -6,26 +6,26 @@
     <ScrollViewer>
         <StackPanel Spacing="24" MaxWidth="1000">
             <Border IsVisible="{Binding HasError}"
-                    Background="#552222"
-                    BorderBrush="#d35d64"
+                    Background="{DynamicResource ErrorBackgroundBrush}"
+                    BorderBrush="{DynamicResource ErrorBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,18">
                 <TextBlock Text="{Binding ErrorMessage}"
-                           Foreground="#f0a0a4"
+                           Foreground="{DynamicResource ErrorForegroundBrush}"
                            FontSize="18"
                            TextWrapping="Wrap" />
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28"
                     x:Name="SourceDropZone">
                 <StackPanel Spacing="14">
                     <TextBlock Text="SOURCE FILE"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
@@ -40,14 +40,14 @@
                 </StackPanel>
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
                 <StackPanel Spacing="14">
                     <TextBlock Text="OUTPUT FILE"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
@@ -63,25 +63,25 @@
                     <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
                               Content="Never overwrite existing files" />
                     <TextBlock Text="Saves as &quot;name (1)&quot; if the output already exists."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                Margin="32,0,0,0" />
 
                     <CheckBox IsChecked="{Binding EnableCompression}"
                               Content="Enable compression (ZSTD)" />
                     <TextBlock Text="Compresses before encrypting. Best for text and documents."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                Margin="32,0,0,0" />
                 </StackPanel>
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
                 <StackPanel Spacing="14">
                     <TextBlock Text="PASSWORD AND KEY FILE"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
@@ -91,10 +91,10 @@
                              FontSize="20" />
 
                     <TextBlock Text="Choose one optional key-file mode: reuse an existing key file or generate a new one for this file."
-                               Foreground="#b8b9b5"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
                     <TextBlock Text="{Binding KeyFileChoiceStatusText}"
-                               Foreground="#9cc4ff"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
                                TextWrapping="Wrap" />
 
                     <Grid ColumnDefinitions="*,140,96" ColumnSpacing="16">
@@ -110,7 +110,7 @@
                                 Command="{Binding ClearKeyFileCommand}" />
                     </Grid>
                     <TextBlock Text="Use a key file you already have. The same unchanged file is required to decrypt later."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                Margin="32,0,0,0"
                                TextWrapping="Wrap" />
 
@@ -127,18 +127,18 @@
                                 Command="{Binding ClearGeneratedKeyFileCommand}" />
                     </Grid>
                     <TextBlock Text="Generate a fresh key file for this run. Keep that new file safe and unchanged."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                Margin="32,0,0,0"
                                TextWrapping="Wrap" />
 
                     <TextBlock Text="If a key file is used, keep it unchanged. Losing it makes the encrypted file unrecoverable."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
@@ -147,7 +147,7 @@
                                  Maximum="100"
                                  Value="{Binding ProgressPercent}" />
                     <TextBlock Text="{Binding ProgressText}"
-                               Foreground="#b8b9b5" />
+                               Foreground="{DynamicResource MutedForegroundBrush}" />
                     <Button Content="Encrypt file"
                             Command="{Binding StartEncryptCommand}"
                             HorizontalAlignment="Stretch"
@@ -158,25 +158,25 @@
             </Border>
 
             <Border IsVisible="{Binding HasResult}"
-                    Background="#1f3927"
-                    BorderBrush="#5fa272"
+                    Background="{DynamicResource SuccessBackgroundBrush}"
+                    BorderBrush="{DynamicResource SuccessBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,18">
                 <StackPanel Spacing="8">
                     <TextBlock Text="Encryption complete."
                                FontWeight="SemiBold"
-                               Foreground="#b8e6c2" />
+                               Foreground="{DynamicResource SuccessAccentForegroundBrush}" />
                     <TextBlock Text="{Binding ResultPath}"
-                               Foreground="#d8f1de"
+                               Foreground="{DynamicResource SuccessForegroundBrush}"
                                TextWrapping="Wrap" />
                     <TextBlock IsVisible="{Binding HasGeneratedKeyFileResult}"
                                Text="Generated key file:"
                                FontWeight="SemiBold"
-                               Foreground="#b8e6c2" />
+                               Foreground="{DynamicResource SuccessAccentForegroundBrush}" />
                     <TextBlock IsVisible="{Binding HasGeneratedKeyFileResult}"
                                Text="{Binding GeneratedKeyFileResultPath}"
-                               Foreground="#d8f1de"
+                               Foreground="{DynamicResource SuccessForegroundBrush}"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>

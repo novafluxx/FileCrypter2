@@ -24,21 +24,26 @@ public sealed class MainWindowViewModelTests
     public void Constructor_AppliesPersistedCompressionDefaultToEncryptPage()
     {
         using var outputDirectory = new TemporaryDirectory();
+        var themeService = new StubAppThemeService();
         var viewModel = new MainWindowViewModel(
             new StubWorkflowService(),
             new StubSettingsService
             {
                 LoadedSettings = new FileCrypterSettings
                 {
+                    ThemePreference = FileCrypterThemePreference.Dark,
                     EnableCompressionByDefault = true,
                     NeverOverwriteExistingFilesByDefault = false,
                     DefaultOutputDirectory = outputDirectory.Path,
                 },
             },
             null,
-            new StubAppMetadataService());
+            new StubAppMetadataService(),
+            null,
+            themeService);
 
         EncryptViewModel encryptPage = Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
+        Assert.Equal(FileCrypterThemePreference.Dark, themeService.LastAppliedThemePreference);
         Assert.True(encryptPage.EnableCompression);
         Assert.False(encryptPage.NeverOverwriteExistingFiles);
         encryptPage.SourcePath = "/tmp/plain.txt";
@@ -109,16 +114,20 @@ public sealed class MainWindowViewModelTests
     {
         using var outputDirectory = new TemporaryDirectory();
         var settingsService = new StubSettingsService();
+        var themeService = new StubAppThemeService();
         var viewModel = new MainWindowViewModel(
             new StubWorkflowService(),
             settingsService,
             null,
-            new StubAppMetadataService());
+            new StubAppMetadataService(),
+            null,
+            themeService);
         NavigationItemViewModel settingsItem = viewModel.SecondaryNavigationItems.Single(item => item.Key == "settings");
         NavigationItemViewModel encryptItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "encrypt");
 
         viewModel.SelectNavigationItemCommand.Execute(settingsItem);
         SettingsViewModel settingsPage = Assert.IsType<SettingsViewModel>(viewModel.CurrentPage);
+        settingsPage.ThemePreference = FileCrypterThemePreference.Light;
         settingsPage.EnableCompressionByDefault = true;
         settingsPage.NeverOverwriteExistingFilesByDefault = false;
         settingsPage.DefaultOutputDirectory = outputDirectory.Path;
@@ -127,6 +136,8 @@ public sealed class MainWindowViewModelTests
         viewModel.SelectNavigationItemCommand.Execute(encryptItem);
 
         Assert.NotNull(settingsService.SavedSettings);
+        Assert.Equal(FileCrypterThemePreference.Light, settingsService.SavedSettings.ThemePreference);
+        Assert.Equal(FileCrypterThemePreference.Light, themeService.LastAppliedThemePreference);
         Assert.True(settingsService.SavedSettings.EnableCompressionByDefault);
         Assert.False(settingsService.SavedSettings.NeverOverwriteExistingFilesByDefault);
         Assert.Equal(outputDirectory.Path, settingsService.SavedSettings.DefaultOutputDirectory);
@@ -280,6 +291,16 @@ public sealed class MainWindowViewModelTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(GetCurrentStatus());
+        }
+    }
+
+    private sealed class StubAppThemeService : IAppThemeService
+    {
+        public FileCrypterThemePreference LastAppliedThemePreference { get; private set; }
+
+        public void ApplyTheme(FileCrypterThemePreference preference)
+        {
+            LastAppliedThemePreference = preference;
         }
     }
 }

@@ -16,7 +16,8 @@ public sealed class SettingsViewModelTests
                 await Task.Yield();
             },
         };
-        var viewModel = new SettingsViewModel(settingsService, new FileCrypterSettings());
+        var themeService = new RecordingAppThemeService();
+        var viewModel = new SettingsViewModel(settingsService, new FileCrypterSettings(), themeService);
         int callingThreadId = Environment.CurrentManagedThreadId;
         int? callbackThreadId = null;
         viewModel.SettingsSaved += _ => callbackThreadId = Environment.CurrentManagedThreadId;
@@ -35,9 +36,11 @@ public sealed class SettingsViewModelTests
     {
         using var outputDirectory = new TemporaryDirectory();
         var settingsService = new RecordingSettingsService();
-        var viewModel = new SettingsViewModel(settingsService, new FileCrypterSettings());
+        var themeService = new RecordingAppThemeService();
+        var viewModel = new SettingsViewModel(settingsService, new FileCrypterSettings(), themeService);
         FileCrypterSettings? savedSettings = null;
         viewModel.SettingsSaved += settings => savedSettings = settings;
+        viewModel.ThemePreference = FileCrypterThemePreference.Dark;
         viewModel.EnableCompressionByDefault = true;
         viewModel.NeverOverwriteExistingFilesByDefault = false;
         viewModel.DefaultOutputDirectory = outputDirectory.Path;
@@ -45,15 +48,33 @@ public sealed class SettingsViewModelTests
         await viewModel.SaveSettingsCommand.ExecuteAsync(null);
 
         Assert.NotNull(settingsService.SavedSettings);
+        Assert.Equal(FileCrypterThemePreference.Dark, settingsService.SavedSettings.ThemePreference);
         Assert.True(settingsService.SavedSettings.EnableCompressionByDefault);
         Assert.False(settingsService.SavedSettings.NeverOverwriteExistingFilesByDefault);
         Assert.Equal(outputDirectory.Path, settingsService.SavedSettings.DefaultOutputDirectory);
         Assert.NotNull(savedSettings);
+        Assert.Equal(FileCrypterThemePreference.Dark, savedSettings.ThemePreference);
+        Assert.Equal(FileCrypterThemePreference.Dark, themeService.LastAppliedThemePreference);
         Assert.True(savedSettings.EnableCompressionByDefault);
         Assert.False(savedSettings.NeverOverwriteExistingFilesByDefault);
         Assert.Equal(outputDirectory.Path, savedSettings.DefaultOutputDirectory);
         Assert.False(viewModel.HasPendingChanges);
         Assert.True(viewModel.HasSuccess);
+    }
+
+    [Fact]
+    public void ThemePreferenceChange_AppliesThemeImmediatelyWithoutSave()
+    {
+        var themeService = new RecordingAppThemeService();
+        var viewModel = new SettingsViewModel(
+            new RecordingSettingsService(),
+            new FileCrypterSettings(),
+            themeService);
+
+        viewModel.ThemePreference = FileCrypterThemePreference.Light;
+
+        Assert.Equal(FileCrypterThemePreference.Light, themeService.LastAppliedThemePreference);
+        Assert.True(viewModel.HasPendingChanges);
     }
 
     [Fact]
@@ -64,6 +85,7 @@ public sealed class SettingsViewModelTests
         {
             LoadedSettings = new FileCrypterSettings
             {
+                ThemePreference = FileCrypterThemePreference.Light,
                 EnableCompressionByDefault = true,
                 NeverOverwriteExistingFilesByDefault = false,
                 DefaultOutputDirectory = outputDirectory.Path,
@@ -73,12 +95,15 @@ public sealed class SettingsViewModelTests
             settingsService,
             new FileCrypterSettings
             {
+                ThemePreference = FileCrypterThemePreference.System,
                 EnableCompressionByDefault = false,
                 NeverOverwriteExistingFilesByDefault = true,
-            });
+            },
+            new RecordingAppThemeService());
 
         await viewModel.ReloadSettingsCommand.ExecuteAsync(null);
 
+        Assert.Equal(FileCrypterThemePreference.Light, viewModel.ThemePreference);
         Assert.True(viewModel.EnableCompressionByDefault);
         Assert.False(viewModel.NeverOverwriteExistingFilesByDefault);
         Assert.Equal(outputDirectory.Path, viewModel.DefaultOutputDirectory);
@@ -94,19 +119,24 @@ public sealed class SettingsViewModelTests
         {
             LoadedSettings = new FileCrypterSettings
             {
+                ThemePreference = FileCrypterThemePreference.Dark,
                 EnableCompressionByDefault = true,
                 NeverOverwriteExistingFilesByDefault = false,
                 DefaultOutputDirectory = outputDirectory.Path,
             },
         };
-        var viewModel = new SettingsViewModel(settingsService, settingsService.LoadedSettings);
+        var themeService = new RecordingAppThemeService();
+        var viewModel = new SettingsViewModel(settingsService, settingsService.LoadedSettings, themeService);
 
         await viewModel.ResetToDefaultsCommand.ExecuteAsync(null);
 
         Assert.NotNull(settingsService.SavedSettings);
+        Assert.Equal(FileCrypterThemePreference.System, settingsService.SavedSettings.ThemePreference);
+        Assert.Equal(FileCrypterThemePreference.System, themeService.LastAppliedThemePreference);
         Assert.False(settingsService.SavedSettings.EnableCompressionByDefault);
         Assert.True(settingsService.SavedSettings.NeverOverwriteExistingFilesByDefault);
         Assert.Equal(string.Empty, settingsService.SavedSettings.DefaultOutputDirectory);
+        Assert.Equal(FileCrypterThemePreference.System, viewModel.ThemePreference);
         Assert.False(viewModel.EnableCompressionByDefault);
         Assert.True(viewModel.NeverOverwriteExistingFilesByDefault);
         Assert.Equal(string.Empty, viewModel.DefaultOutputDirectory);
@@ -122,7 +152,8 @@ public sealed class SettingsViewModelTests
             {
                 SaveException = new IOException("Access denied."),
             },
-            new FileCrypterSettings());
+            new FileCrypterSettings(),
+            new RecordingAppThemeService());
         viewModel.EnableCompressionByDefault = true;
 
         await viewModel.SaveSettingsCommand.ExecuteAsync(null);
@@ -159,6 +190,16 @@ public sealed class SettingsViewModelTests
             SavedSettings = settings;
             LoadedSettings = settings;
             return SaveAsyncImpl?.Invoke(settings, cancellationToken) ?? Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingAppThemeService : IAppThemeService
+    {
+        public FileCrypterThemePreference LastAppliedThemePreference { get; private set; }
+
+        public void ApplyTheme(FileCrypterThemePreference preference)
+        {
+            LastAppliedThemePreference = preference;
         }
     }
 

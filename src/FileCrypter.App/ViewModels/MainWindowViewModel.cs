@@ -10,6 +10,7 @@ namespace FileCrypter.App.ViewModels;
 public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IAppMetadataService appMetadataService;
+    private readonly IAppThemeService appThemeService;
     private readonly EncryptViewModel encryptViewModel;
     private readonly DecryptViewModel decryptViewModel;
     private readonly BatchViewModel batchViewModel;
@@ -32,9 +33,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IFileCrypterSettingsService? settingsService = null,
         IFilePickerService? filePickerService = null,
         IAppMetadataService? appMetadataService = null,
-        IAppUpdateService? appUpdateService = null)
+        IAppUpdateService? appUpdateService = null,
+        IAppThemeService? appThemeService = null)
     {
         this.appMetadataService = appMetadataService ?? new AppMetadataService();
+        this.appThemeService = appThemeService
+            ?? (Avalonia.Application.Current is null
+                ? new NoOpAppThemeService()
+                : new AvaloniaAppThemeService());
         appUpdateService ??= new DevelopmentAppUpdateService();
         settingsService ??= new FileCrypterSettingsService();
         FileCrypterSettings initialSettings = LoadInitialSettings(settingsService, out string settingsErrorMessage);
@@ -46,8 +52,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         decryptViewModel = new DecryptViewModel(workflowService, initialSettings, filePickerService);
         batchViewModel = new BatchViewModel(workflowService, initialSettings, filePickerService);
         helpViewModel = new HelpViewModel(this.appMetadataService, appUpdateService);
-        settingsViewModel = new SettingsViewModel(settingsService, initialSettings, filePickerService, settingsErrorMessage);
+        settingsViewModel = new SettingsViewModel(
+            settingsService,
+            initialSettings,
+            this.appThemeService,
+            filePickerService,
+            settingsErrorMessage);
         settingsViewModel.SettingsSaved += ApplySettings;
+        ApplySettings(initialSettings);
         currentPage = encryptViewModel;
         currentPageTitle = encryptViewModel.Title;
 
@@ -159,6 +171,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private void ApplySettings(FileCrypterSettings settings)
     {
+        appThemeService.ApplyTheme(settings.ThemePreference);
         encryptViewModel.ApplySettings(settings);
         decryptViewModel.ApplySettings(settings);
         batchViewModel.ApplySettings(settings);

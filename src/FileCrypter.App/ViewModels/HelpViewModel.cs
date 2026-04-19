@@ -22,7 +22,7 @@ public sealed partial class HelpViewModel : ViewModelBase, IWorkflowStatusViewMo
     private string lastCheckedText = string.Empty;
 
     [ObservableProperty]
-    private string updateSummaryBrush = "#d7e7e3";
+    private string updateSummaryBrush = "#4f9a61";
 
     public HelpViewModel(
         IAppMetadataService appMetadataService,
@@ -164,10 +164,10 @@ public sealed partial class HelpViewModel : ViewModelBase, IWorkflowStatusViewMo
             : $"Last checked: {result.CheckedAt.Value.LocalDateTime:g}";
         UpdateSummaryBrush = result.Status switch
         {
-            AppUpdateStatus.UpToDate => "#9cc4ff",
-            AppUpdateStatus.UpdateAvailable => "#b8e6c2",
-            AppUpdateStatus.Failed => "#f0a0a4",
-            _ => "#f0d090",
+            AppUpdateStatus.UpToDate => "#4a8ae6",
+            AppUpdateStatus.UpdateAvailable => "#4f9a61",
+            AppUpdateStatus.Failed => "#c85f68",
+            _ => "#c78a2f",
         };
     }
 }

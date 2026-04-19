@@ -1,12 +1,99 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="FileCrypter.App.App"
-             xmlns:local="using:FileCrypter.App"
-             RequestedThemeVariant="Dark">
+             xmlns:local="using:FileCrypter.App">
 
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#101111" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#202222" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#242626" />
+                    <SolidColorBrush x:Key="SurfaceAltBackgroundBrush" Color="#1e2626" />
+                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#363838" />
+                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#4a4d4b" />
+                    <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#3e4240" />
+                    <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#aaaaaa" />
+                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#b8b9b5" />
+                    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#9cc4ff" />
+                    <SolidColorBrush x:Key="SidebarDetailForegroundBrush" Color="#a9aaa7" />
+                    <SolidColorBrush x:Key="ResultHeadingForegroundBrush" Color="#d7e7e3" />
+                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#552222" />
+                    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#d35d64" />
+                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#f0a0a4" />
+                    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#1f3927" />
+                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#5fa272" />
+                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#d8f1de" />
+                    <SolidColorBrush x:Key="SuccessAccentForegroundBrush" Color="#b8e6c2" />
+                    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#3a2915" />
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#d2a45c" />
+                    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#fff2dc" />
+                    <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#f1d7a8" />
+                    <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#2d3440" />
+                    <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#9cc4ff" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#efe6d7" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#e7dccb" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#f7f0e4" />
+                    <SolidColorBrush x:Key="SurfaceAltBackgroundBrush" Color="#efe5d6" />
+                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#cfbea8" />
+                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#d8cab7" />
+                    <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#dccfbd" />
+                    <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#6c6257" />
+                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#5e554c" />
+                    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#2a69c0" />
+                    <SolidColorBrush x:Key="SidebarDetailForegroundBrush" Color="#7c6f61" />
+                    <SolidColorBrush x:Key="ResultHeadingForegroundBrush" Color="#4f5d46" />
+                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#f5dfdf" />
+                    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#cc5a66" />
+                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#962936" />
+                    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#e6eedf" />
+                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#5f9f72" />
+                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#215d36" />
+                    <SolidColorBrush x:Key="SuccessAccentForegroundBrush" Color="#2a7343" />
+                    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#f7e8cf" />
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#d2a45c" />
+                    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#855707" />
+                    <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#9a670f" />
+                    <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#d8e0e8" />
+                    <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#1f5db4" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#101111" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#202222" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#242626" />
+                    <SolidColorBrush x:Key="SurfaceAltBackgroundBrush" Color="#1e2626" />
+                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#363838" />
+                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#4a4d4b" />
+                    <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#3e4240" />
+                    <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#aaaaaa" />
+                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#b8b9b5" />
+                    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#9cc4ff" />
+                    <SolidColorBrush x:Key="SidebarDetailForegroundBrush" Color="#a9aaa7" />
+                    <SolidColorBrush x:Key="ResultHeadingForegroundBrush" Color="#d7e7e3" />
+                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#552222" />
+                    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#d35d64" />
+                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#f0a0a4" />
+                    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#1f3927" />
+                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#5fa272" />
+                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#d8f1de" />
+                    <SolidColorBrush x:Key="SuccessAccentForegroundBrush" Color="#b8e6c2" />
+                    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#3a2915" />
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#d2a45c" />
+                    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#fff2dc" />
+                    <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#f1d7a8" />
+                    <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#2d3440" />
+                    <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#9cc4ff" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
   
     <Application.Styles>
         <FluentTheme />
@@ -30,8 +117,8 @@
         </Style>
 
         <Style Selector="ToggleButton.nav-item:checked">
-            <Setter Property="Background" Value="#2d3440" />
-            <Setter Property="Foreground" Value="#9cc4ff" />
+            <Setter Property="Background" Value="{DynamicResource NavigationSelectedBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource NavigationSelectedForegroundBrush}" />
         </Style>
     </Application.Styles>
 </Application>

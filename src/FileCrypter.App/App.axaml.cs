@@ -27,7 +27,8 @@ public partial class App : Application
                 new FileCrypterSettingsService(),
                 new AvaloniaFilePickerService(mainWindow),
                 new AppMetadataService(),
-                new DevelopmentAppUpdateService());
+                new DevelopmentAppUpdateService(),
+                new AvaloniaAppThemeService(this));
             desktop.MainWindow = mainWindow;
         }
 

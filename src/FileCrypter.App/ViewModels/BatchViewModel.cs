@@ -11,6 +11,7 @@ namespace FileCrypter.App.ViewModels;
 
 public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewModel
 {
+    private int activeProgressRunId;
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
     private readonly StringComparer pathComparer = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
@@ -432,6 +433,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     [RelayCommand(CanExecute = nameof(CanStartBatch))]
     private async Task StartBatchAsync()
     {
+        int progressRunId = BeginProgressRun();
         IsRunning = true;
         ErrorMessage = string.Empty;
         ProgressPercent = 0;
@@ -445,16 +447,16 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             {
                 if (EncryptMode)
                 {
-                    await RunArchiveEncryptAsync();
+                    await RunArchiveEncryptAsync(progressRunId);
                 }
                 else
                 {
-                    await RunArchiveDecryptAsync();
+                    await RunArchiveDecryptAsync(progressRunId);
                 }
             }
             else
             {
-                await RunIndividualBatchAsync();
+                await RunIndividualBatchAsync(progressRunId);
             }
         }
         catch (Exception exception)
@@ -580,7 +582,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         }
     }
 
-    private async Task RunIndividualBatchAsync()
+    private async Task RunIndividualBatchAsync(int progressRunId)
     {
         BatchTransformRequest request = new(
             SourcePaths.ToArray(),
@@ -589,11 +591,12 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             NeverOverwriteExistingFiles,
             string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath);
 
-        Progress<BatchOperationProgress> progress = new(ReportBatchProgress);
+        Progress<BatchOperationProgress> progress = new(value => ReportBatchProgress(progressRunId, value));
         BatchTransformResult result = EncryptMode
             ? await workflowService.EncryptFilesAsync(request, progress, CancellationToken.None)
             : await workflowService.DecryptFilesAsync(request, progress, CancellationToken.None);
 
+        CompleteProgressRun(progressRunId);
         ApplyBatchResults(result);
         ProgressPercent = 100;
         StatusText = "Ready";
@@ -609,7 +612,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
                 : $"Batch decryption finished with {result.FailedCount} failure(s) and {result.SucceededCount} success(es).";
     }
 
-    private async Task RunArchiveEncryptAsync()
+    private async Task RunArchiveEncryptAsync(int progressRunId)
     {
         ArchiveEncryptRequest request = new(
             SourcePaths.ToArray(),
@@ -619,21 +622,22 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath,
             string.IsNullOrWhiteSpace(ArchiveName) ? null : ArchiveName);
 
-        Progress<FileCrypterProgress> progress = new(ReportArchiveProgress);
+        Progress<FileCrypterProgress> progress = new(value => ReportArchiveProgress(progressRunId, value));
         ArchiveEncryptResult result = await workflowService.EncryptArchiveAsync(
             request,
             progress,
             CancellationToken.None);
 
+        CompleteProgressRun(progressRunId);
         Results.Add(new BatchResultItemViewModel(
             succeeded: true,
             statusLabel: "Created",
-            statusBrush: "#b8e6c2",
+            statusBrush: "#4f9a61",
             titleText: Path.GetFileName(result.OutputPath),
             primaryText: result.OutputPath,
             detailLabel: "CONTENTS",
             detailText: $"{SourcePaths.Count} selected file(s) bundled into this encrypted archive.",
-            detailBrush: "#d8f1de",
+            detailBrush: "#4f9a61",
             secondaryText: string.Empty));
         ProgressPercent = 100;
         StatusText = "Ready";
@@ -641,7 +645,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         ResultSummary = $"Archive encryption complete. {SourcePaths.Count} file(s) bundled into one encrypted archive.";
     }
 
-    private async Task RunArchiveDecryptAsync()
+    private async Task RunArchiveDecryptAsync(int progressRunId)
     {
         ArchiveDecryptRequest request = new(
             SourcePaths.Single(),
@@ -650,23 +654,24 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             NeverOverwriteExistingFiles,
             string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath);
 
-        Progress<FileCrypterProgress> progress = new(ReportArchiveProgress);
+        Progress<FileCrypterProgress> progress = new(value => ReportArchiveProgress(progressRunId, value));
         ArchiveDecryptResult result = await workflowService.DecryptArchiveAsync(
             request,
             progress,
             CancellationToken.None);
 
+        CompleteProgressRun(progressRunId);
         foreach (string outputPath in result.OutputPaths)
         {
             Results.Add(new BatchResultItemViewModel(
                 succeeded: true,
                 statusLabel: "Extracted",
-                statusBrush: "#b8e6c2",
+                statusBrush: "#4f9a61",
                 titleText: Path.GetFileName(outputPath),
                 primaryText: outputPath,
                 detailLabel: "SOURCE ARCHIVE",
                 detailText: request.SourcePath,
-                detailBrush: "#d8f1de",
+                detailBrush: "#4f9a61",
                 secondaryText: string.Empty));
         }
 
@@ -718,12 +723,12 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
                 Results.Add(new BatchResultItemViewModel(
                     succeeded: true,
                     statusLabel: "Succeeded",
-                    statusBrush: "#b8e6c2",
+                    statusBrush: "#4f9a61",
                     titleText: Path.GetFileName(item.InputPath),
                     primaryText: item.InputPath,
                     detailLabel: "OUTPUT",
                     detailText: outputPath,
-                    detailBrush: "#d8f1de",
+                    detailBrush: "#4f9a61",
                     secondaryText: string.Empty));
             }
             else
@@ -731,19 +736,24 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
                 Results.Add(new BatchResultItemViewModel(
                     succeeded: false,
                     statusLabel: "Failed",
-                    statusBrush: "#f0c77d",
+                    statusBrush: "#c78a2f",
                     titleText: Path.GetFileName(item.InputPath),
                     primaryText: item.InputPath,
                     detailLabel: "ISSUE",
                     detailText: WorkflowErrorMessageFormatter.GetTroubleshootingMessage(item.Error!),
-                    detailBrush: "#ffe0ab",
+                    detailBrush: "#c78a2f",
                     secondaryText: $"Requested output: {item.RequestedOutputPath}"));
             }
         }
     }
 
-    private void ReportBatchProgress(BatchOperationProgress progress)
+    private void ReportBatchProgress(int progressRunId, BatchOperationProgress progress)
     {
+        if (!IsActiveProgressRun(progressRunId))
+        {
+            return;
+        }
+
         ProgressPercent = progress.Percent;
 
         if (progress.TotalFiles == 0)
@@ -768,8 +778,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             : $"{(EncryptMode ? "Encrypting" : "Decrypting")} file {currentFileNumber} of {progress.TotalFiles}: {currentFileName}";
     }
 
-    private void ReportArchiveProgress(FileCrypterProgress progress)
+    private void ReportArchiveProgress(int progressRunId, FileCrypterProgress progress)
     {
+        if (!IsActiveProgressRun(progressRunId))
+        {
+            return;
+        }
+
         if (progress.TotalInputBytes is > 0)
         {
             ProgressPercent = Math.Clamp(progress.InputBytes * 100d / progress.TotalInputBytes.Value, 0, 100);
@@ -787,6 +802,21 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         ProgressText = progress.TotalInputBytes is > 0
             ? $"{phaseText}: {progress.InputBytes}/{progress.TotalInputBytes.Value} bytes"
             : phaseText;
+    }
+
+    private int BeginProgressRun()
+    {
+        return Interlocked.Increment(ref activeProgressRunId);
+    }
+
+    private void CompleteProgressRun(int progressRunId)
+    {
+        Interlocked.CompareExchange(ref activeProgressRunId, 0, progressRunId);
+    }
+
+    private bool IsActiveProgressRun(int progressRunId)
+    {
+        return Volatile.Read(ref activeProgressRunId) == progressRunId;
     }
 
     private void ResetIdleStateForMode()

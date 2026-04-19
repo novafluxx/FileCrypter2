@@ -107,6 +107,10 @@ codex/avalonia-gui-shell
 - Encrypt and Decrypt now accept dropped source files through the same source-path/output-suggestion flow as picker selections, while Batch drop handling preserves the existing dedupe behavior, archive-extract replacement behavior, and first-source output-directory autofill when no saved default output directory is active.
 - App test coverage now also includes focused dropped-file behavior for Encrypt, Decrypt, and Batch, including Batch dedupe/autofill preservation and archive-extract replacement behavior.
 - A focused bundled macOS app smoke is now also complete for the desktop file-drop slice: Encrypt drop updated the source and suggested output, Decrypt drop updated the source and suggested output, Batch multi-file drop preserved dedupe plus first-source output-folder autofill when no saved default output directory was set, and Batch archive-decrypt drop replaced the selection with exactly one archive source.
+- Theme preference support is now implemented across the shared settings model and Avalonia app, with persisted `Light`, `Dark`, and `System` choices stored locally beside the other shared defaults.
+- The Avalonia Settings page now exposes the theme preference alongside the existing shared defaults, and save/reload/reset flows all propagate the current theme choice through the same MVVM settings path.
+- The running desktop app now applies the selected theme through Avalonia theme variants, and the shell's shared brushes now have light/dark variants so the existing visual language carries across theme switches without a redesign.
+- App test coverage now also includes focused settings-store and theme-application coverage for the theme slice, including save/load/reload/reset behavior for theme preference plus main-window/app-theme propagation.
 
 ## Current Format Decisions
 
@@ -126,7 +130,7 @@ codex/avalonia-gui-shell
 
 ## Verified
 
-These commands passed after the latest desktop drag-and-drop/file-drop pass:
+These commands passed after the latest desktop theme-support pass:
 
 ```bash
 dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj
@@ -175,7 +179,14 @@ The packaged app was also exercised through a focused desktop file-drop smoke. T
 
 The macOS bundle workflow now includes a post-assembly ad-hoc re-sign, which resolved a previously observed invalid-bundle-signature state and stabilized normal `open artifacts/macos/FileCrypter.app` launches in local verification.
 
-Latest test count at handoff: 181 passed, 0 failed.
+The latest theme-support slice was verified with automated coverage only in this session. The preferred packaged-app flow for any follow-up manual desktop smoke remains:
+
+```bash
+./scripts/package-macos-app.sh
+open artifacts/macos/FileCrypter.app
+```
+
+Latest test count at handoff: 184 passed, 0 failed.
 
 Previous GUI launch smoke coverage:
 
@@ -224,7 +235,7 @@ The current implementation is aligned with the product outline for the foundatio
 - generated key-file single-file encrypt path
 - batch individual-file encrypt/decrypt path
 - compressed tar archive encrypt/decrypt path for file-list archives
-- persisted shared defaults for single-file compression, overwrite protection, and default output directory
+- persisted shared defaults for theme preference, single-file compression, overwrite protection, and default output directory
 - versioned documented encrypted file format
 - AES-256-GCM, Argon2id, unique per-file salt, unique per-file nonce prefix, and chunk-level authentication
 - bounded-memory streaming for large-file readiness

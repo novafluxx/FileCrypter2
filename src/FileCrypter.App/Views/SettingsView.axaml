@@ -6,64 +6,81 @@
     <ScrollViewer>
         <StackPanel Spacing="24" MaxWidth="1000">
             <Border IsVisible="{Binding HasError}"
-                    Background="#552222"
-                    BorderBrush="#d35d64"
+                    Background="{DynamicResource ErrorBackgroundBrush}"
+                    BorderBrush="{DynamicResource ErrorBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,18">
                 <TextBlock Text="{Binding ErrorMessage}"
-                           Foreground="#f0a0a4"
+                           Foreground="{DynamicResource ErrorForegroundBrush}"
                            FontSize="18"
                            TextWrapping="Wrap" />
             </Border>
 
             <Border IsVisible="{Binding HasSuccess}"
-                    Background="#1f3927"
-                    BorderBrush="#5fa272"
+                    Background="{DynamicResource SuccessBackgroundBrush}"
+                    BorderBrush="{DynamicResource SuccessBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,18">
                 <TextBlock Text="{Binding SuccessMessage}"
-                           Foreground="#d8f1de"
+                           Foreground="{DynamicResource SuccessForegroundBrush}"
                            FontSize="18"
                            TextWrapping="Wrap" />
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
                 <StackPanel Spacing="16">
+                    <TextBlock Text="APPEARANCE"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               LetterSpacing="2" />
+                    <TextBlock Text="Choose whether FileCrypter stays light, stays dark, or follows the platform default."
+                               Foreground="{DynamicResource MutedForegroundBrush}"
+                               TextWrapping="Wrap" />
+                    <ComboBox ItemsSource="{Binding ThemeOptions}"
+                              SelectedItem="{Binding ThemePreference}"
+                              HorizontalAlignment="Left"
+                              MinWidth="220" />
+                    <TextBlock Text="{Binding ThemePreferenceDescription}"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
+                               Margin="32,0,0,0"
+                               TextWrapping="Wrap" />
+
                     <TextBlock Text="ENCRYPTION DEFAULTS"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="Choose how the Encrypt page behaves before you touch anything. These settings are stored locally and shared with the CLI host."
-                               Foreground="#b8b9b5"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
 
                     <CheckBox IsChecked="{Binding EnableCompressionByDefault}"
                               Content="Enable compression by default for single-file encryption" />
                     <TextBlock Text="{Binding CompressionDefaultDescription}"
-                               Foreground="#9cc4ff"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
                                Margin="32,0,0,0"
                                TextWrapping="Wrap" />
                     <TextBlock Text="Compression helps most with text and documents. Photos, videos, ZIP files, and other already-compressed files usually see little benefit."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                Margin="32,0,0,0"
                                TextWrapping="Wrap" />
 
                     <CheckBox IsChecked="{Binding NeverOverwriteExistingFilesByDefault}"
                               Content="Protect existing files by default" />
                     <TextBlock Text="{Binding OverwriteProtectionDescription}"
-                               Foreground="#9cc4ff"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
                                Margin="32,0,0,0"
                                TextWrapping="Wrap" />
 
                     <TextBlock Text="DEFAULT OUTPUT DIRECTORY"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2"
@@ -77,40 +94,40 @@
                                 Command="{Binding BrowseDefaultOutputDirectoryCommand}" />
                     </Grid>
                     <TextBlock Text="{Binding DefaultOutputDirectoryDescription}"
-                               Foreground="#9cc4ff"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
                                Margin="32,0,0,0"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
                 <StackPanel Spacing="16">
                     <TextBlock Text="LOCAL SETTINGS FILE"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="{Binding SettingsPath}"
-                               Foreground="#d8d9d5"
+                               Foreground="{DynamicResource ResultHeadingForegroundBrush}"
                                TextWrapping="Wrap" />
                     <TextBlock Text="FileCrypter keeps this file on your device only. The app does not store passwords or key files in settings."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
                 <StackPanel Spacing="16">
                     <TextBlock Text="{Binding ProgressText}"
-                               Foreground="#b8b9b5"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
                         <Button Content="Save settings"

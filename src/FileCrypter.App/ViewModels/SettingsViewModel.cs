@@ -8,7 +8,9 @@ namespace FileCrypter.App.ViewModels;
 public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusViewModel
 {
     private readonly IFileCrypterSettingsService settingsService;
+    private readonly IAppThemeService appThemeService;
     private readonly IFilePickerService? filePickerService;
+    private FileCrypterThemePreference savedThemePreference;
     private bool savedEnableCompressionByDefault;
     private bool savedNeverOverwriteExistingFilesByDefault;
     private string savedDefaultOutputDirectory;
@@ -19,6 +21,10 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     [NotifyCanExecuteChangedFor(nameof(BrowseDefaultOutputDirectoryCommand))]
     [NotifyCanExecuteChangedFor(nameof(ResetToDefaultsCommand))]
     private bool isRunning;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveSettingsCommand))]
+    private FileCrypterThemePreference themePreference;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveSettingsCommand))]
@@ -47,15 +53,19 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     public SettingsViewModel(
         IFileCrypterSettingsService settingsService,
         FileCrypterSettings initialSettings,
+        IAppThemeService? appThemeService = null,
         IFilePickerService? filePickerService = null,
         string initialErrorMessage = "")
     {
         this.settingsService = settingsService;
+        this.appThemeService = appThemeService ?? new NoOpAppThemeService();
         this.filePickerService = filePickerService;
         progressText = settingsService.SettingsPath;
+        savedThemePreference = NormalizeThemePreference(initialSettings.ThemePreference);
         savedEnableCompressionByDefault = initialSettings.EnableCompressionByDefault;
         savedNeverOverwriteExistingFilesByDefault = initialSettings.NeverOverwriteExistingFilesByDefault;
         savedDefaultOutputDirectory = NormalizeDirectoryValue(initialSettings.DefaultOutputDirectory);
+        themePreference = savedThemePreference;
         enableCompressionByDefault = initialSettings.EnableCompressionByDefault;
         neverOverwriteExistingFilesByDefault = initialSettings.NeverOverwriteExistingFilesByDefault;
         defaultOutputDirectory = savedDefaultOutputDirectory;
@@ -69,6 +79,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     public string SettingsPath => settingsService.SettingsPath;
 
     public bool HasPendingChanges =>
+        ThemePreference != savedThemePreference ||
         EnableCompressionByDefault != savedEnableCompressionByDefault ||
         NeverOverwriteExistingFilesByDefault != savedNeverOverwriteExistingFilesByDefault ||
         !string.Equals(
@@ -79,6 +90,20 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
     public bool HasSuccess => !string.IsNullOrWhiteSpace(SuccessMessage);
+
+    public IReadOnlyList<FileCrypterThemePreference> ThemeOptions { get; } =
+    [
+        FileCrypterThemePreference.System,
+        FileCrypterThemePreference.Light,
+        FileCrypterThemePreference.Dark,
+    ];
+
+    public string ThemePreferenceDescription => ThemePreference switch
+    {
+        FileCrypterThemePreference.Light => "FileCrypter stays in light mode until you change this setting again.",
+        FileCrypterThemePreference.Dark => "FileCrypter stays in dark mode until you change this setting again.",
+        _ => "FileCrypter follows the platform's default light or dark appearance when Avalonia can detect it.",
+    };
 
     public string CompressionDefaultDescription => EnableCompressionByDefault
         ? "New single-file encryption runs start with compression enabled."
@@ -91,6 +116,14 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     public string DefaultOutputDirectoryDescription => string.IsNullOrWhiteSpace(DefaultOutputDirectory)
         ? "Leave this blank to keep using the source file's folder as the starting output location."
         : $"New workflows start from this output directory when it exists: {NormalizeDirectoryValue(DefaultOutputDirectory)}";
+
+    partial void OnThemePreferenceChanged(FileCrypterThemePreference value)
+    {
+        appThemeService.ApplyTheme(NormalizeThemePreference(value));
+        OnPropertyChanged(nameof(HasPendingChanges));
+        OnPropertyChanged(nameof(ThemePreferenceDescription));
+        SuccessMessage = string.Empty;
+    }
 
     partial void OnEnableCompressionByDefaultChanged(bool value)
     {
@@ -246,6 +279,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
 
         return new FileCrypterSettings
         {
+            ThemePreference = NormalizeThemePreference(ThemePreference),
             EnableCompressionByDefault = EnableCompressionByDefault,
             NeverOverwriteExistingFilesByDefault = NeverOverwriteExistingFilesByDefault,
             DefaultOutputDirectory = normalizedDefaultOutputDirectory,
@@ -254,9 +288,11 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
 
     private void ApplySavedSettings(FileCrypterSettings settings)
     {
+        savedThemePreference = NormalizeThemePreference(settings.ThemePreference);
         savedEnableCompressionByDefault = settings.EnableCompressionByDefault;
         savedNeverOverwriteExistingFilesByDefault = settings.NeverOverwriteExistingFilesByDefault;
         savedDefaultOutputDirectory = NormalizeDirectoryValue(settings.DefaultOutputDirectory);
+        ThemePreference = savedThemePreference;
         EnableCompressionByDefault = settings.EnableCompressionByDefault;
         NeverOverwriteExistingFilesByDefault = settings.NeverOverwriteExistingFilesByDefault;
         DefaultOutputDirectory = savedDefaultOutputDirectory;
@@ -267,5 +303,10 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     private static string NormalizeDirectoryValue(string? path)
     {
         return string.IsNullOrWhiteSpace(path) ? string.Empty : path.Trim();
+    }
+
+    private static FileCrypterThemePreference NormalizeThemePreference(FileCrypterThemePreference preference)
+    {
+        return Enum.IsDefined(preference) ? preference : FileCrypterThemePreference.System;
     }
 }

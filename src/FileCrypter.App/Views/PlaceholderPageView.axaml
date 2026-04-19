@@ -3,8 +3,8 @@
              xmlns:vm="using:FileCrypter.App.ViewModels"
              x:Class="FileCrypter.App.Views.PlaceholderPageView"
              x:DataType="vm:PlaceholderPageViewModel">
-    <Border Background="#242626"
-            BorderBrush="#4a4d4b"
+    <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+            BorderBrush="{DynamicResource SurfaceBorderBrush}"
             BorderThickness="1"
             CornerRadius="8"
             Padding="32"
@@ -15,7 +15,7 @@
                        FontSize="26"
                        FontWeight="SemiBold" />
             <TextBlock Text="{Binding Description}"
-                       Foreground="#b8b9b5"
+                       Foreground="{DynamicResource MutedForegroundBrush}"
                        FontSize="17"
                        TextWrapping="Wrap" />
         </StackPanel>

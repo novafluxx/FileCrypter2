@@ -6,25 +6,25 @@
     <ScrollViewer>
         <StackPanel Spacing="24" MaxWidth="1000">
             <Border IsVisible="{Binding HasError}"
-                    Background="#552222"
-                    BorderBrush="#d35d64"
+                    Background="{DynamicResource ErrorBackgroundBrush}"
+                    BorderBrush="{DynamicResource ErrorBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,18">
                 <TextBlock Text="{Binding ErrorMessage}"
-                           Foreground="#f0a0a4"
+                           Foreground="{DynamicResource ErrorForegroundBrush}"
                            FontSize="18"
                            TextWrapping="Wrap" />
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
                 <StackPanel Spacing="18">
                     <TextBlock Text="WORKFLOW"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
@@ -32,18 +32,18 @@
                                FontSize="24"
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding ModeDescription}"
-                               Foreground="#b8b9b5"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
 
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                        <Border Background="#1e2626"
-                                BorderBrush="#3e4240"
+                        <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
+                                BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="18">
                             <StackPanel Spacing="10">
                                 <TextBlock Text="WORKFLOW TYPE"
-                                           Foreground="#aaa"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                            FontSize="14"
                                            FontWeight="Bold"
                                            LetterSpacing="1.5" />
@@ -57,14 +57,14 @@
                         </Border>
 
                         <Border Grid.Column="1"
-                                Background="#1e2626"
-                                BorderBrush="#3e4240"
+                                Background="{DynamicResource SurfaceAltBackgroundBrush}"
+                                BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="18">
                             <StackPanel Spacing="10">
                                 <TextBlock Text="ACTION"
-                                           Foreground="#aaa"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                            FontSize="14"
                                            FontWeight="Bold"
                                            LetterSpacing="1.5" />
@@ -79,28 +79,28 @@
                     </Grid>
 
                     <TextBlock Text="{Binding WorkflowKindDescription}"
-                               Foreground="#9cc4ff"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28"
                     x:Name="SourceDropZone">
                 <StackPanel Spacing="14">
                     <TextBlock Text="{Binding SourceHeading}"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="{Binding FilesSummaryText}"
-                               Foreground="#b8b9b5"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
                     <TextBlock Text="Use the button or drop local files here."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                TextWrapping="Wrap" />
 
                     <Grid ColumnDefinitions="*,180" ColumnSpacing="16">
@@ -127,14 +127,14 @@
                 </StackPanel>
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
                 <StackPanel Spacing="14">
                     <TextBlock Text="{Binding OutputHeading}"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
@@ -148,13 +148,13 @@
                     </Grid>
 
                     <TextBlock Text="{Binding OutputDescription}"
-                               Foreground="#b8b9b5"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
 
                     <StackPanel IsVisible="{Binding ShowArchiveNameEditor}"
                                 Spacing="10">
                         <TextBlock Text="ARCHIVE NAME"
-                                   Foreground="#aaa"
+                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                    FontSize="15"
                                    FontWeight="Bold"
                                    LetterSpacing="2" />
@@ -162,7 +162,7 @@
                                  PlaceholderText="Optional archive name, like project-docs"
                                  FontSize="18" />
                         <TextBlock Text="{Binding ArchiveNameStatusText}"
-                                   Foreground="#aaa"
+                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                    Margin="32,0,0,0"
                                    TextWrapping="Wrap" />
                     </StackPanel>
@@ -170,20 +170,20 @@
                     <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
                               Content="Never overwrite existing files" />
                     <TextBlock Text="FileCrypter auto-renames each destination when that folder already contains a matching name."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                Margin="32,0,0,0"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
                 <StackPanel Spacing="14">
                     <TextBlock Text="PASSWORD AND OPTIONAL KEY FILE"
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
@@ -193,7 +193,7 @@
                              FontSize="20" />
 
                     <TextBlock Text="{Binding KeyFileChoiceStatusText}"
-                               Foreground="#9cc4ff"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
                                TextWrapping="Wrap" />
 
                     <Grid ColumnDefinitions="*,140,96" ColumnSpacing="16">
@@ -209,14 +209,14 @@
                     </Grid>
 
                     <TextBlock Text="If you use a key file here, keep the original file unchanged because FileCrypter will require that same key file later."
-                               Foreground="#aaa"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                Margin="32,0,0,0"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
 
-            <Border Background="#242626"
-                    BorderBrush="#4a4d4b"
+            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="28">
@@ -225,7 +225,7 @@
                                  Maximum="100"
                                  Value="{Binding ProgressPercent}" />
                     <TextBlock Text="{Binding ProgressText}"
-                               Foreground="#b8b9b5"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
                     <Button Content="{Binding ActionButtonText}"
                             Command="{Binding StartBatchCommand}"
@@ -237,22 +237,22 @@
             </Border>
 
             <Border IsVisible="{Binding HasResults}"
-                    Background="#1e2626"
-                    BorderBrush="#4a4d4b"
+                    Background="{DynamicResource SurfaceAltBackgroundBrush}"
+                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,18">
                 <StackPanel Spacing="14">
                     <TextBlock Text="{Binding ResultSummary}"
                                FontWeight="SemiBold"
-                               Foreground="#d7e7e3"
+                               Foreground="{DynamicResource ResultHeadingForegroundBrush}"
                                TextWrapping="Wrap" />
 
                     <ItemsControl ItemsSource="{Binding Results}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:BatchResultItemViewModel">
-                                <Border Background="#242626"
-                                        BorderBrush="#3e4240"
+                                <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                                        BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="8"
                                         Padding="18"
@@ -265,10 +265,10 @@
                                                    FontSize="17"
                                                    FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding PrimaryText}"
-                                                   Foreground="#b8b9b5"
+                                                   Foreground="{DynamicResource MutedForegroundBrush}"
                                                    TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding DetailLabel}"
-                                                   Foreground="#aaa"
+                                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                                    FontSize="13"
                                                    FontWeight="Bold"
                                                    LetterSpacing="1.5" />
@@ -277,7 +277,7 @@
                                                    TextWrapping="Wrap" />
                                         <TextBlock IsVisible="{Binding HasSecondaryText}"
                                                    Text="{Binding SecondaryText}"
-                                                   Foreground="#aaa"
+                                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                                    TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Border>
