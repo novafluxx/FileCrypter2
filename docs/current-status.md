@@ -111,6 +111,7 @@ codex/avalonia-gui-shell
 - The Avalonia Settings page now exposes the theme preference alongside the existing shared defaults, and those settings now autosave live while `Reload` and `Reset to defaults` remain as explicit recovery actions.
 - The running desktop app now applies the selected theme through Avalonia theme variants, and the shell's shared brushes now have light/dark variants so the existing visual language carries across theme switches without a redesign.
 - App test coverage now also includes focused settings-store and theme-application coverage for the theme slice, including autosave, debounced directory persistence, reload/reset, failure reversion, and main-window/app-theme propagation.
+- A focused bundled macOS app smoke is now also complete for the settings-autosave slice: compression-default changes took effect immediately without a save step, typed default-output-directory changes autosaved after the debounce window and updated Encrypt output suggestions, and `Reset to defaults` restored the expected startup behavior afterward.
 
 ## Current Format Decisions
 
@@ -255,6 +256,7 @@ Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and b
 
 Recommended next slices:
 
-- Consider a small follow-up workflow-polish slice that stays within the current shell and local-first scope, such as clearer drop affordances or result-copy conveniences.
+- Favor another small workflow-polish slice that stays within the current shell and local-first scope, with help/troubleshooting polish plus copyable result or error text as the strongest current candidates.
+- If a thinner UI-only slice feels better, clearer drag/drop affordances or simple path-copy conveniences would also fit the current boundary well.
 - After that, keep choosing practical GUI slices that preserve the existing shell structure and avoid drifting into installer, updater, or broader distribution infrastructure.
 - Keep automatic install/relaunch updater work deferred until there is real release/distribution infrastructure to attach it to.

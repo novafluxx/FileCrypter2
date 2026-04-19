@@ -236,6 +236,8 @@ Requirements:
 
 The product should persist user preferences locally.
 
+For low-risk desktop preferences such as defaults and appearance, the app should apply and persist changes automatically when practical rather than requiring an explicit save step.
+
 Settings should include:
 
 - Theme preference: Light, Dark, or System.
