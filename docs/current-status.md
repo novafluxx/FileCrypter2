@@ -106,6 +106,7 @@ codex/avalonia-gui-shell
 - Desktop file-drop support is now implemented in `src/FileCrypter.App` for the Encrypt and Decrypt source-file cards plus the Batch source list, using local-file drag/drop handling that keeps the existing shell structure and visual language intact.
 - Encrypt and Decrypt now accept dropped source files through the same source-path/output-suggestion flow as picker selections, while Batch drop handling preserves the existing dedupe behavior, archive-extract replacement behavior, and first-source output-directory autofill when no saved default output directory is active.
 - App test coverage now also includes focused dropped-file behavior for Encrypt, Decrypt, and Batch, including Batch dedupe/autofill preservation and archive-extract replacement behavior.
+- A focused bundled macOS app smoke is now also complete for the desktop file-drop slice: Encrypt drop updated the source and suggested output, Decrypt drop updated the source and suggested output, Batch multi-file drop preserved dedupe plus first-source output-folder autofill when no saved default output directory was set, and Batch archive-decrypt drop replaced the selection with exactly one archive source.
 
 ## Current Format Decisions
 
@@ -164,6 +165,13 @@ The packaged app was also exercised through a focused shared-settings smoke. Tha
 - saved `Default output directory` propagation across Encrypt, Decrypt, and Batch
 - `Reset settings to defaults` restoring startup defaults after relaunch
 - Batch first-source autofill still taking over when no default output directory is saved
+
+The packaged app was also exercised through a focused desktop file-drop smoke. That pass verified:
+
+- Encrypt single-file drop updating the source field and suggested output path
+- Decrypt single-file `.encrypted` drop updating the source field and suggested output path
+- Batch multi-file drop preserving dedupe behavior and first-source output-folder autofill when no saved default output directory was active
+- Batch archive-decrypt drop replacing the selection with exactly one archive source
 
 The macOS bundle workflow now includes a post-assembly ad-hoc re-sign, which resolved a previously observed invalid-bundle-signature state and stabilized normal `open artifacts/macos/FileCrypter.app` launches in local verification.
 
@@ -236,6 +244,6 @@ Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and b
 
 Recommended next slices:
 
-- Rebuild the bundled macOS app and run a focused desktop smoke for dropped-file workflows across Encrypt, Decrypt, and Batch using `./scripts/package-macos-app.sh` followed by `open artifacts/macos/FileCrypter.app`.
-- After that smoke, consider small workflow polish that stays within the current shell and local-first scope, such as clearer drop affordances or result-copy conveniences.
+- Consider a small follow-up workflow-polish slice that stays within the current shell and local-first scope, such as clearer drop affordances or result-copy conveniences.
+- After that, keep choosing practical GUI slices that preserve the existing shell structure and avoid drifting into installer, updater, or broader distribution infrastructure.
 - Keep automatic install/relaunch updater work deferred until there is real release/distribution infrastructure to attach it to.
