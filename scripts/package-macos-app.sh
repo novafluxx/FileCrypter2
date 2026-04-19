@@ -105,6 +105,9 @@ cat > "${contents_dir}/Info.plist" <<EOF
 </plist>
 EOF
 
+echo "Applying ad-hoc code signature to ${bundle_name}.app..."
+codesign --force --deep --sign - "${bundle_dir}"
+
 if [[ -e "${final_bundle_dir}" ]]; then
     backup_dir="${artifacts_root}/${bundle_name}.app.backup.$(date +%Y%m%d%H%M%S)"
     mv "${final_bundle_dir}" "${backup_dir}"

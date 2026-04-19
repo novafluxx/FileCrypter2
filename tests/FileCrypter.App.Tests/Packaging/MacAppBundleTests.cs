@@ -65,6 +65,31 @@ public sealed class MacAppBundleTests
         Assert.Contains("<string>com.novafluxx.filecrypter</string>", infoPlist, StringComparison.Ordinal);
         Assert.Contains("<string>0.1.0</string>", infoPlist, StringComparison.Ordinal);
         Assert.Contains("<string>13.0</string>", infoPlist, StringComparison.Ordinal);
+
+        ProcessStartInfo verifyStartInfo = new("/usr/bin/codesign")
+        {
+            WorkingDirectory = repoRoot,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+        };
+        verifyStartInfo.ArgumentList.Add("--verify");
+        verifyStartInfo.ArgumentList.Add("--deep");
+        verifyStartInfo.ArgumentList.Add("--strict");
+        verifyStartInfo.ArgumentList.Add("--verbose=4");
+        verifyStartInfo.ArgumentList.Add(bundlePath);
+
+        using Process verifyProcess = Process.Start(verifyStartInfo)
+            ?? throw new InvalidOperationException("Failed to start codesign verification.");
+
+        string verifyOutput = verifyProcess.StandardOutput.ReadToEnd();
+        string verifyError = verifyProcess.StandardError.ReadToEnd();
+        bool verifyExited = verifyProcess.WaitForExit(milliseconds: 60_000);
+
+        Assert.True(verifyExited, "codesign verification did not exit within 60 seconds.");
+        Assert.True(
+            verifyProcess.ExitCode == 0,
+            $"codesign verification failed with exit code {verifyProcess.ExitCode}.{Environment.NewLine}stdout:{Environment.NewLine}{verifyOutput}{Environment.NewLine}stderr:{Environment.NewLine}{verifyError}");
     }
 
     private static string FindRepositoryRoot()
