@@ -56,6 +56,26 @@ public sealed class SettingsViewModelTests
     }
 
     [Fact]
+    public void Constructor_ExposesVersionAndToggleableChangelog()
+    {
+        var viewModel = new SettingsViewModel(
+            new RecordingSettingsService(),
+            new FileCrypterSettings(),
+            appMetadataService: new StubAppMetadataService("v2.3.4"));
+
+        Assert.Equal("v2.3.4", viewModel.CurrentVersion);
+        Assert.Equal("View changelog", viewModel.ChangelogButtonText);
+        Assert.False(viewModel.IsChangelogExpanded);
+        Assert.NotEmpty(viewModel.ChangelogEntries);
+
+        viewModel.ToggleChangelogCommand.Execute(null);
+
+        Assert.True(viewModel.IsChangelogExpanded);
+        Assert.Equal("Hide changelog", viewModel.ChangelogButtonText);
+        Assert.Equal("v2.3.4 highlights", viewModel.ChangelogHeading);
+    }
+
+    [Fact]
     public async Task DefaultOutputDirectory_TypedChange_AutosavesAfterDebounce()
     {
         using var outputDirectory = new TemporaryDirectory();
@@ -332,6 +352,13 @@ public sealed class SettingsViewModelTests
         {
             return Task.FromResult<string?>(null);
         }
+    }
+
+    private sealed class StubAppMetadataService(string displayVersion) : IAppMetadataService
+    {
+        public string DisplayVersion { get; } = displayVersion;
+
+        public ushort FormatVersion => 1;
     }
 
     private sealed class TemporaryDirectory : IDisposable

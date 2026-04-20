@@ -107,7 +107,7 @@ A set of discrete, independently shippable UI improvements. Slices are ordered b
 
 ## Slice 6 — Relocate the Changelog link
 
-`[ ] TODO:`
+`[x] DONE:`
 
 **Problem.** Top-right "Changelog" competes with the page title on every screen despite most users never opening it outside of update moments.
 

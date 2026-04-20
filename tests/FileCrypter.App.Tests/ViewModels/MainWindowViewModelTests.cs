@@ -193,6 +193,23 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("v5.4.3", viewModel.AppVersion);
     }
 
+    [Fact]
+    public void SettingsPage_UsesMetadataServiceForChangelogVersion()
+    {
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService("v5.4.3"));
+        NavigationItemViewModel settingsItem = viewModel.SecondaryNavigationItems.Single(item => item.Key == "settings");
+
+        viewModel.SelectNavigationItemCommand.Execute(settingsItem);
+
+        SettingsViewModel settingsPage = Assert.IsType<SettingsViewModel>(viewModel.CurrentPage);
+        Assert.Equal("v5.4.3", settingsPage.CurrentVersion);
+        Assert.Equal("v5.4.3 highlights", settingsPage.ChangelogHeading);
+    }
+
     private sealed class StubWorkflowService : IFileCrypterWorkflowService
     {
         public Task<EncryptFileResult> EncryptFileAsync(

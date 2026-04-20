@@ -9,6 +9,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
 {
     private const int DefaultOutputDirectoryAutoSaveDelayMilliseconds = 500;
     private const string IdleAutosaveMessage = "Settings save automatically as you change them.";
+    private const string DefaultChangelogVersion = "this preview";
 
     private readonly IFileCrypterSettingsService settingsService;
     private readonly IAppThemeService appThemeService;
@@ -53,13 +54,17 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     [ObservableProperty]
     private string successMessage = string.Empty;
 
+    [ObservableProperty]
+    private bool isChangelogExpanded;
+
     public SettingsViewModel(
         IFileCrypterSettingsService settingsService,
         FileCrypterSettings initialSettings,
         IAppThemeService? appThemeService = null,
         IFilePickerService? filePickerService = null,
         string initialErrorMessage = "",
-        TimeSpan? defaultOutputDirectoryAutoSaveDelay = null)
+        TimeSpan? defaultOutputDirectoryAutoSaveDelay = null,
+        IAppMetadataService? appMetadataService = null)
     {
         this.settingsService = settingsService;
         this.appThemeService = appThemeService ?? new NoOpAppThemeService();
@@ -74,6 +79,22 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
         defaultOutputDirectory = lastSavedSettings.DefaultOutputDirectory;
         progressText = IdleAutosaveMessage;
         errorMessage = initialErrorMessage;
+
+        CurrentVersion = appMetadataService?.DisplayVersion ?? new AppMetadataService().DisplayVersion;
+        string changelogVersion = string.IsNullOrWhiteSpace(CurrentVersion) ? DefaultChangelogVersion : CurrentVersion;
+        ChangelogHeading = $"{changelogVersion} highlights";
+        ChangelogEntries =
+        [
+            new HelpTopicViewModel(
+                "Richer file pickers",
+                "Encrypt, Decrypt, and Batch now treat file targets like real drop zones, then swap in compact file previews once you choose something."),
+            new HelpTopicViewModel(
+                "Shared desktop defaults",
+                "Theme, compression, overwrite protection, and default output directory now save locally and feed back into every workflow as soon as you change them."),
+            new HelpTopicViewModel(
+                "Clearer workflow feedback",
+                "Status-bar detail, copyable result text, and the Help/update surface now make it easier to confirm what happened or share the exact issue text when something goes wrong."),
+        ];
     }
 
     public event Action<FileCrypterSettings>? SettingsSaved;
@@ -85,6 +106,14 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
     public bool HasSuccess => !string.IsNullOrWhiteSpace(SuccessMessage);
+
+    public string CurrentVersion { get; }
+
+    public string ChangelogHeading { get; }
+
+    public string ChangelogButtonText => IsChangelogExpanded ? "Hide changelog" : "View changelog";
+
+    public IReadOnlyList<HelpTopicViewModel> ChangelogEntries { get; }
 
     public IReadOnlyList<FileCrypterThemePreference> ThemeOptions { get; } =
     [
@@ -187,6 +216,17 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     partial void OnSuccessMessageChanged(string value)
     {
         OnPropertyChanged(nameof(HasSuccess));
+    }
+
+    partial void OnIsChangelogExpandedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ChangelogButtonText));
+    }
+
+    [RelayCommand]
+    private void ToggleChangelog()
+    {
+        IsChangelogExpanded = !IsChangelogExpanded;
     }
 
     [RelayCommand(CanExecute = nameof(CanReloadSettings))]

@@ -73,7 +73,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             initialSettings,
             this.appThemeService,
             filePickerService,
-            settingsErrorMessage);
+            settingsErrorMessage,
+            appMetadataService: this.appMetadataService);
         settingsViewModel.SettingsSaved += ApplySettings;
         ApplySettings(initialSettings);
         currentPage = encryptViewModel;

@@ -114,6 +114,8 @@ main
 - A focused bundled macOS app smoke is now also complete for the settings-autosave slice: compression-default changes took effect immediately without a save step, typed default-output-directory changes autosaved after the debounce window and updated Encrypt output suggestions, and `Reset to defaults` restored the expected startup behavior afterward.
 - Avalonia workflow feedback cards now expose copy actions for visible issue text plus single-file and batch result details, using a small clipboard service that stays within the existing app-service/MVVM pattern.
 - App test coverage now also includes focused clipboard-copy behavior for Encrypt success details, Decrypt troubleshooting copy, and Batch result-summary/detail copy.
+- The global shell-header Changelog label is now removed from page chrome, and Settings now includes an About/Version card with a toggleable local changelog entry tied to the app version metadata.
+- App test coverage now also includes focused Settings/MainWindow metadata wiring for the relocated changelog surface.
 
 ## Current Format Decisions
 
@@ -189,6 +191,14 @@ The latest workflow-feedback copy slice was verified with automated coverage onl
 open artifacts/macos/FileCrypter.app
 ```
 
+The changelog-relocation slice was verified with focused app view-model coverage:
+
+```bash
+dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj --filter "FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~MainWindowViewModelTests"
+```
+
+Note for the current Windows sandbox environment: a broader `dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj` rerun still reports pre-existing path-format assertion failures in unrelated Encrypt/Decrypt/Batch picker-drop tests that expect `/tmp/...`-style paths.
+
 Latest test count at handoff: 192 passed, 0 failed.
 
 Previous GUI launch smoke coverage:
@@ -258,7 +268,7 @@ Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and b
 
 Recommended next slices:
 
-- Favor another small workflow-polish slice that stays within the current shell and local-first scope, with help/troubleshooting polish as the strongest current candidate now that copyable workflow feedback is in place.
+- Favor another small workflow-polish slice that stays within the current shell and local-first scope, with the Batch workflow-card grouping slice as the strongest current candidate now that the changelog chrome cleanup is in place.
 - If a thinner UI-only slice feels better, clearer drag/drop affordances or deeper path/open-folder conveniences would also fit the current boundary well.
 - After that, keep choosing practical GUI slices that preserve the existing shell structure and avoid drifting into installer, updater, or broader distribution infrastructure.
 - Keep automatic install/relaunch updater work deferred until there is real release/distribution infrastructure to attach it to.

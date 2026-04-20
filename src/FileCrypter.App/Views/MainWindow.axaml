@@ -92,16 +92,11 @@
             <Border BorderBrush="{DynamicResource SidebarBorderBrush}"
                     BorderThickness="0,0,0,1"
                     Background="{DynamicResource SurfaceBackgroundBrush}">
-                <Grid ColumnDefinitions="*,Auto" Margin="32,0">
+                <Grid Margin="32,0">
                     <TextBlock Text="{Binding CurrentPageTitle}"
                                VerticalAlignment="Center"
                                FontSize="26"
                                FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1"
-                               Text="Changelog"
-                               VerticalAlignment="Center"
-                               Foreground="{DynamicResource AccentForegroundBrush}"
-                               FontSize="18" />
                 </Grid>
             </Border>
 
