@@ -34,13 +34,61 @@
                                FontSize="15"
                                FontWeight="Bold"
                                LetterSpacing="2" />
-                    <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
-                        <TextBox Text="{Binding SourcePath}"
-                                 PlaceholderText="Select or drag a file..."
-                                 FontSize="20" />
-                        <Button Grid.Column="1"
-                                Content="Browse"
-                                Command="{Binding BrowseSourceCommand}" />
+                    <Grid ColumnDefinitions="*">
+                        <Border Classes="file-drop-zone">
+                            <Grid>
+                                <StackPanel IsVisible="{Binding ShowEmptySourceState}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Spacing="6">
+                                    <Viewbox Width="28"
+                                             Height="28"
+                                             HorizontalAlignment="Center">
+                                        <Path Classes="file-preview-icon"
+                                              Data="M6 2 H14 L20 8 V22 H6 Z M14 2 V8 H20 M12 10 V18 M9 13 L12 10 L15 13 M9 18 H15" />
+                                    </Viewbox>
+                                    <TextBlock Text="Select or drag a file here"
+                                               FontSize="17"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="Click or drag a local file here."
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               HorizontalAlignment="Center"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <Border IsVisible="{Binding HasSelectedFile}"
+                                        Classes="file-preview-row">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                                          ColumnSpacing="14"
+                                          VerticalAlignment="Center">
+                                        <Viewbox Width="22"
+                                                 Height="22"
+                                                 VerticalAlignment="Center">
+                                            <Path Classes="file-preview-icon"
+                                                  Data="{Binding SourcePreview.IconPathData}" />
+                                        </Viewbox>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding SourcePreview.DisplayName}"
+                                                   ToolTip.Tip="{Binding SourcePreview.FullPath}"
+                                                   FontSize="17"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding SourcePreview.SizeText}"
+                                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="3"
+                                                Classes="file-preview-remove"
+                                                Content="x"
+                                                Command="{Binding ClearSourceCommand}"
+                                                ToolTip.Tip="Clear selected file" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </StackPanel>
             </Border>

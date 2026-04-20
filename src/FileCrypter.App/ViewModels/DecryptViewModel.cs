@@ -25,11 +25,16 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     [NotifyCanExecuteChangedFor(nameof(BrowseOutputCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearKeyFileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearSourceCommand))]
     private bool isRunning;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartDecryptCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearSourceCommand))]
     private string sourcePath = string.Empty;
+
+    [ObservableProperty]
+    private FileSelectionPreviewViewModel? sourcePreview;
 
     [ObservableProperty]
     private string outputPath = string.Empty;
@@ -96,6 +101,8 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public bool HasSelectedFile => !string.IsNullOrWhiteSpace(SourcePath);
 
+    public bool ShowEmptySourceState => !HasSelectedFile;
+
     public bool HasKeyFileChoice => !string.IsNullOrWhiteSpace(KeyFilePath);
 
     public string KeyFileChoiceStatusText => HasKeyFileChoice
@@ -137,8 +144,12 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnSourcePathChanged(string value)
     {
         ProgressText = string.IsNullOrWhiteSpace(value) ? "No encrypted file selected" : Path.GetFileName(value);
+        SourcePreview = string.IsNullOrWhiteSpace(value)
+            ? null
+            : new FileSelectionPreviewViewModel(value);
         ClearVisibleError();
         OnPropertyChanged(nameof(HasSelectedFile));
+        OnPropertyChanged(nameof(ShowEmptySourceState));
         RefreshSuggestedOutputPath();
     }
 
@@ -158,6 +169,11 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnPasswordChanged(string value)
     {
         ClearVisibleError();
+    }
+
+    partial void OnIsRunningChanged(bool value)
+    {
+        ClearSourceCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnKeyFilePathChanged(string value)
@@ -190,8 +206,14 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
             CancellationToken.None);
         if (!string.IsNullOrWhiteSpace(selectedPath))
         {
-            SourcePath = selectedPath;
+            SourcePath = Path.GetFullPath(selectedPath);
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearSource))]
+    private void ClearSource()
+    {
+        SourcePath = string.Empty;
     }
 
     [RelayCommand(CanExecute = nameof(CanBrowse))]
@@ -294,6 +316,11 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private bool CanBrowse()
     {
         return !IsRunning;
+    }
+
+    private bool CanClearSource()
+    {
+        return !IsRunning && HasSelectedFile;
     }
 
     private bool CanBrowseKeyFile()

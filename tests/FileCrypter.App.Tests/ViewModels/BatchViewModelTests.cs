@@ -198,6 +198,30 @@ public sealed class BatchViewModelTests
     }
 
     [Fact]
+    public void SourceFilePreviews_ShowMetadataAndRemoveTheirOwnFiles()
+    {
+        using var sourceDirectory = new TemporaryDirectory();
+        string firstPath = Path.Combine(sourceDirectory.Path, "first.txt");
+        string secondPath = Path.Combine(sourceDirectory.Path, "second.txt");
+        File.WriteAllText(firstPath, "first");
+        File.WriteAllText(secondPath, "second");
+
+        var viewModel = new BatchViewModel(new RecordingWorkflowService());
+        viewModel.SourcePaths.Add(firstPath);
+        viewModel.SourcePaths.Add(secondPath);
+
+        Assert.Equal(2, viewModel.SourceFilePreviews.Count);
+        Assert.Equal("5 B", viewModel.SourceFilePreviews[0].SizeText);
+        Assert.Equal(Path.GetFullPath(firstPath), viewModel.SourceFilePreviews[0].FullPath);
+
+        viewModel.SourceFilePreviews[0].RemoveCommand!.Execute(null);
+
+        Assert.Single(viewModel.SourcePaths);
+        Assert.Single(viewModel.SourceFilePreviews);
+        Assert.Equal(secondPath, viewModel.SourcePaths[0]);
+    }
+
+    [Fact]
     public async Task StartBatchCommand_WhenSuccessful_ReportsSummaryAndResults()
     {
         using var outputDirectory = new TemporaryDirectory();

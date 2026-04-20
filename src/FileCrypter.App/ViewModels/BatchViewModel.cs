@@ -109,6 +109,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     public ObservableCollection<string> SourcePaths { get; } = [];
 
+    public ObservableCollection<FileSelectionPreviewViewModel> SourceFilePreviews { get; } = [];
+
     public ObservableCollection<BatchResultItemViewModel> Results { get; } = [];
 
     public bool IsDecryptMode
@@ -136,6 +138,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     }
 
     public bool HasSelectedFiles => SourcePaths.Count > 0;
+
+    public bool ShowEmptySourceState => !HasSelectedFiles;
 
     public bool HasError => !string.IsNullOrWhiteSpace(VisibleErrorMessage);
 
@@ -296,6 +300,14 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         OnPropertyChanged(nameof(IsDecryptMode));
         OnWorkflowModeChanged();
+    }
+
+    partial void OnIsRunningChanged(bool value)
+    {
+        foreach (FileSelectionPreviewViewModel preview in SourceFilePreviews)
+        {
+            preview.NotifyRemoveCommandChanged();
+        }
     }
 
     partial void OnArchiveModeChanged(bool value)
@@ -559,7 +571,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             SelectedSourcePath = null;
         }
 
+        RefreshSourceFilePreviews();
         OnPropertyChanged(nameof(HasSelectedFiles));
+        OnPropertyChanged(nameof(ShowEmptySourceState));
         OnPropertyChanged(nameof(FilesSummaryText));
         StartBatchCommand.NotifyCanExecuteChanged();
         RemoveSelectedFileCommand.NotifyCanExecuteChanged();
@@ -742,6 +756,29 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         SourcePaths.Clear();
         AddSourcePaths(selectedPaths);
+    }
+
+    private void RefreshSourceFilePreviews()
+    {
+        SourceFilePreviews.Clear();
+
+        foreach (string sourcePath in SourcePaths)
+        {
+            string pathForRemoval = sourcePath;
+            SourceFilePreviews.Add(new FileSelectionPreviewViewModel(
+                pathForRemoval,
+                removeAction: () => RemoveSourcePath(pathForRemoval),
+                canRemove: () => !IsRunning));
+        }
+    }
+
+    private void RemoveSourcePath(string sourcePath)
+    {
+        string? existingPath = SourcePaths.FirstOrDefault(path => pathComparer.Equals(path, sourcePath));
+        if (existingPath is not null)
+        {
+            SourcePaths.Remove(existingPath);
+        }
     }
 
     private void ClearResults()

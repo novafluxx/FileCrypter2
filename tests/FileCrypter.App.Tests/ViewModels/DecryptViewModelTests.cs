@@ -202,6 +202,39 @@ public sealed class DecryptViewModelTests
         Assert.Equal(Path.Combine(outputDirectory.Path, "dropped.txt"), viewModel.OutputPath);
     }
 
+    [Fact]
+    public void SourcePreview_ShowsMetadataAndClearCommandRestoresEmptyState()
+    {
+        string tempFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.txt.encrypted");
+        File.WriteAllText(tempFilePath, "encrypted!");
+
+        try
+        {
+            var viewModel = new DecryptViewModel(new RecordingWorkflowService())
+            {
+                SourcePath = tempFilePath,
+            };
+
+            Assert.NotNull(viewModel.SourcePreview);
+            Assert.Equal(Path.GetFullPath(tempFilePath), viewModel.SourcePreview!.FullPath);
+            Assert.Equal("10 B", viewModel.SourcePreview.SizeText);
+            Assert.False(viewModel.ShowEmptySourceState);
+
+            viewModel.ClearSourceCommand.Execute(null);
+
+            Assert.Empty(viewModel.SourcePath);
+            Assert.Null(viewModel.SourcePreview);
+            Assert.True(viewModel.ShowEmptySourceState);
+        }
+        finally
+        {
+            if (File.Exists(tempFilePath))
+            {
+                File.Delete(tempFilePath);
+            }
+        }
+    }
+
     private static DecryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)
     {
         return new DecryptViewModel(workflow)

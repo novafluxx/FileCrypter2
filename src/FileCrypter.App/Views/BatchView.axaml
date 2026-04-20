@@ -104,31 +104,79 @@
                     <TextBlock Text="{Binding FilesSummaryText}"
                                Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
-                    <TextBlock Text="Use the button or drop local files here."
+                    <TextBlock Text="Click the drop zone or drag local files here."
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                TextWrapping="Wrap" />
 
-                    <Grid ColumnDefinitions="*,180" ColumnSpacing="16">
-                        <ListBox ItemsSource="{Binding SourcePaths}"
-                                 SelectedItem="{Binding SelectedSourcePath}"
-                                 MinHeight="220">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding .}"
+                    <Grid ColumnDefinitions="*">
+                        <Border Classes="file-drop-zone">
+                            <Grid>
+                                <StackPanel IsVisible="{Binding ShowEmptySourceState}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Spacing="6">
+                                    <Viewbox Width="28"
+                                             Height="28"
+                                             HorizontalAlignment="Center">
+                                        <Path Classes="file-preview-icon"
+                                              Data="M6 2 H14 L20 8 V22 H6 Z M14 2 V8 H20 M12 10 V18 M9 13 L12 10 L15 13 M9 18 H15" />
+                                    </Viewbox>
+                                    <TextBlock Text="Drop files here to build the batch"
+                                               FontSize="17"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="Click or drag files here. Each selected file gets its own remove action."
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               HorizontalAlignment="Center"
                                                TextWrapping="Wrap" />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                                </StackPanel>
 
-                        <StackPanel Grid.Column="1" Spacing="12">
-                            <Button Content="{Binding BrowseFilesButtonText}"
-                                    Command="{Binding BrowseFilesCommand}" />
-                            <Button Content="Remove selected"
-                                    Command="{Binding RemoveSelectedFileCommand}" />
-                            <Button Content="Clear list"
-                                    Command="{Binding ClearFilesCommand}" />
-                        </StackPanel>
+                                <ScrollViewer IsVisible="{Binding HasSelectedFiles}"
+                                              MaxHeight="240"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding SourceFilePreviews}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:FileSelectionPreviewViewModel">
+                                                <Border Classes="file-preview-row"
+                                                        Margin="0,0,0,10">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                                                          ColumnSpacing="14"
+                                                          VerticalAlignment="Center">
+                                                        <Viewbox Width="22"
+                                                                 Height="22"
+                                                                 VerticalAlignment="Center">
+                                                            <Path Classes="file-preview-icon"
+                                                                  Data="{Binding IconPathData}" />
+                                                        </Viewbox>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding DisplayName}"
+                                                                   ToolTip.Tip="{Binding FullPath}"
+                                                                   FontSize="16"
+                                                                   FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding SizeText}"
+                                                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                                                   VerticalAlignment="Center" />
+                                                        <Button Grid.Column="3"
+                                                                Classes="file-preview-remove"
+                                                                Content="x"
+                                                                Command="{Binding RemoveCommand}"
+                                                                ToolTip.Tip="Remove file from batch" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
                     </Grid>
+                    <Button Content="Clear list"
+                            Command="{Binding ClearFilesCommand}"
+                            HorizontalAlignment="Left" />
                 </StackPanel>
             </Border>
 

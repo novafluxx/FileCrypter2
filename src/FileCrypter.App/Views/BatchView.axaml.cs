@@ -13,6 +13,7 @@ public partial class BatchView : UserControl
         DragDrop.SetAllowDrop(SourceDropZone, true);
         DragDrop.AddDragOverHandler(SourceDropZone, OnSourceDragOver);
         DragDrop.AddDropHandler(SourceDropZone, OnSourceDrop);
+        SourceDropZone.PointerReleased += OnSourcePointerReleased;
     }
 
     private void OnSourceDragOver(object? sender, DragEventArgs e)
@@ -33,8 +34,35 @@ public partial class BatchView : UserControl
         e.Handled = true;
     }
 
+    private void OnSourcePointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (e.InitialPressMouseButton != MouseButton.Left || IsInteractiveChildClick(e.Source))
+        {
+            return;
+        }
+
+        if (DataContext is BatchViewModel viewModel && viewModel.BrowseFilesCommand.CanExecute(null))
+        {
+            _ = viewModel.BrowseFilesCommand.ExecuteAsync(null);
+            e.Handled = true;
+        }
+    }
+
     private bool CanAcceptDrop()
     {
         return DataContext is BatchViewModel { IsRunning: false };
+    }
+
+    private static bool IsInteractiveChildClick(object? source)
+    {
+        for (Control? current = source as Control; current is not null; current = current.Parent as Control)
+        {
+            if (current is Button)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
