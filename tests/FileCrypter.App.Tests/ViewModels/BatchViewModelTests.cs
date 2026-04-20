@@ -14,6 +14,7 @@ public sealed class BatchViewModelTests
         var viewModel = new BatchViewModel(new RecordingWorkflowService());
 
         Assert.False(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.False(viewModel.HasError);
         Assert.Contains("Add files", viewModel.ErrorMessage, StringComparison.OrdinalIgnoreCase);
 
         viewModel.SourcePaths.Add("/tmp/first.txt");
@@ -28,6 +29,25 @@ public sealed class BatchViewModelTests
         viewModel.Password = "secret";
         Assert.True(viewModel.StartBatchCommand.CanExecute(null));
         Assert.Equal(string.Empty, viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ChangingInputsAfterFailure_DismissesVisibleErrorAndRestoresValidationMessage()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var workflow = new RecordingWorkflowService
+        {
+            Error = new IOException("The output directory is missing."),
+        };
+        var viewModel = CreateReadyViewModel(workflow, outputDirectory.Path);
+
+        await viewModel.StartBatchCommand.ExecuteAsync(null);
+        Assert.True(viewModel.HasError);
+
+        viewModel.Password = string.Empty;
+
+        Assert.False(viewModel.HasError);
+        Assert.Contains("Enter a password", viewModel.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

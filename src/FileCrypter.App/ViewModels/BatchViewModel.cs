@@ -75,6 +75,10 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private string errorMessage = "No batch files selected. Add files to encrypt.";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopyErrorCommand))]
+    private string visibleErrorMessage = string.Empty;
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CopyResultsCommand))]
     private string resultSummary = string.Empty;
 
@@ -133,7 +137,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     public bool HasSelectedFiles => SourcePaths.Count > 0;
 
-    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+    public bool HasError => !string.IsNullOrWhiteSpace(VisibleErrorMessage);
 
     public bool HasResults => Results.Count > 0;
 
@@ -302,6 +306,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     partial void OnKeyFilePathChanged(string value)
     {
+        RefreshIdleValidationState();
         OnPropertyChanged(nameof(HasKeyFileChoice));
         OnPropertyChanged(nameof(KeyFileChoiceStatusText));
     }
@@ -329,7 +334,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         RefreshIdleValidationState();
     }
 
-    partial void OnErrorMessageChanged(string value)
+    partial void OnVisibleErrorMessageChanged(string value)
     {
         OnPropertyChanged(nameof(HasError));
     }
@@ -468,7 +473,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         }
         catch (Exception exception)
         {
-            ErrorMessage = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
+            string message = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
+            ErrorMessage = message;
+            VisibleErrorMessage = message;
             ProgressText = GetFailureProgressText();
             StatusText = "Ready";
         }
@@ -481,7 +488,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     [RelayCommand(CanExecute = nameof(CanCopyError))]
     private Task CopyErrorAsync()
     {
-        return CopyTextAsync(ErrorMessage, "Copied issue details.");
+        return CopyTextAsync(VisibleErrorMessage, "Copied issue details.");
     }
 
     [RelayCommand(CanExecute = nameof(CanCopyResults))]
@@ -856,6 +863,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             return;
         }
 
+        VisibleErrorMessage = string.Empty;
         ErrorMessage = GetBlockingValidationMessage();
         ProgressText = GetIdleProgressText();
     }

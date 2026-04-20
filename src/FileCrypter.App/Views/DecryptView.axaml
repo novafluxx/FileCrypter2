@@ -12,7 +12,7 @@
                     CornerRadius="8"
                     Padding="24,18">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="{Binding ErrorMessage}"
+                    <TextBlock Text="{Binding VisibleErrorMessage}"
                                Foreground="{DynamicResource ErrorForegroundBrush}"
                                FontSize="18"
                                TextWrapping="Wrap" />

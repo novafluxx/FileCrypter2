@@ -34,6 +34,8 @@
                     <SolidColorBrush x:Key="WarningBorderBrush" Color="#d2a45c" />
                     <SolidColorBrush x:Key="WarningForegroundBrush" Color="#fff2dc" />
                     <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#f1d7a8" />
+                    <SolidColorBrush x:Key="CheckBoxBorderBrush" Color="#4b4f4d" />
+                    <SolidColorBrush x:Key="NavigationHoverBackgroundBrush" Color="#272c2f" />
                     <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#2d3440" />
                     <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#9cc4ff" />
                 </ResourceDictionary>
@@ -61,6 +63,8 @@
                     <SolidColorBrush x:Key="WarningBorderBrush" Color="#d2a45c" />
                     <SolidColorBrush x:Key="WarningForegroundBrush" Color="#855707" />
                     <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#9a670f" />
+                    <SolidColorBrush x:Key="CheckBoxBorderBrush" Color="#8a7f71" />
+                    <SolidColorBrush x:Key="NavigationHoverBackgroundBrush" Color="#ddd2c1" />
                     <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#d8e0e8" />
                     <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#1f5db4" />
                 </ResourceDictionary>
@@ -88,6 +92,8 @@
                     <SolidColorBrush x:Key="WarningBorderBrush" Color="#d2a45c" />
                     <SolidColorBrush x:Key="WarningForegroundBrush" Color="#fff2dc" />
                     <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#f1d7a8" />
+                    <SolidColorBrush x:Key="CheckBoxBorderBrush" Color="#4b4f4d" />
+                    <SolidColorBrush x:Key="NavigationHoverBackgroundBrush" Color="#272c2f" />
                     <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#2d3440" />
                     <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#9cc4ff" />
                 </ResourceDictionary>
@@ -103,6 +109,11 @@
             <Setter Property="MinHeight" Value="40" />
         </Style>
 
+        <Style Selector="CheckBox">
+            <Setter Property="BorderBrush" Value="{DynamicResource CheckBoxBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+        </Style>
+
         <Style Selector="TextBox">
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="MinHeight" Value="40" />
@@ -114,6 +125,18 @@
             <Setter Property="Margin" Value="0,2" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="Path.nav-item-icon">
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="StrokeThickness" Value="1.8" />
+            <Setter Property="StrokeJoin" Value="Round" />
+            <Setter Property="StrokeLineCap" Value="Round" />
+        </Style>
+
+        <Style Selector="ToggleButton.nav-item:pointerover">
+            <Setter Property="Background" Value="{DynamicResource NavigationHoverBackgroundBrush}" />
         </Style>
 
         <Style Selector="ToggleButton.nav-item:checked">

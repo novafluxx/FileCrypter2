@@ -13,6 +13,29 @@
         MinWidth="860"
         MinHeight="600">
 
+    <Window.Resources>
+        <DataTemplate x:Key="NavigationItemContentTemplate" x:DataType="vm:NavigationItemViewModel">
+            <StackPanel Orientation="Horizontal"
+                        Spacing="12"
+                        VerticalAlignment="Center">
+                <Viewbox Width="18"
+                         Height="18"
+                         Stretch="Uniform">
+                    <Path Classes="nav-item-icon"
+      Data="{Binding IconPathData}"
+      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+      StrokeThickness="1.5"
+      StrokeLineCap="Round"
+      StrokeJoin="Round"
+      Fill="Transparent" />
+                </Viewbox>
+                <TextBlock Text="{Binding Title}"
+                           VerticalAlignment="Center"
+                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
@@ -40,7 +63,8 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:NavigationItemViewModel">
                                 <ToggleButton Classes="nav-item"
-                                              Content="{Binding Title}"
+                                              Content="{Binding}"
+                                              ContentTemplate="{StaticResource NavigationItemContentTemplate}"
                                               IsChecked="{Binding IsSelected}"
                                               Command="{Binding SelectCommand}" />
                             </DataTemplate>
@@ -53,7 +77,8 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:NavigationItemViewModel">
                                 <ToggleButton Classes="nav-item"
-                                              Content="{Binding Title}"
+                                              Content="{Binding}"
+                                              ContentTemplate="{StaticResource NavigationItemContentTemplate}"
                                               IsChecked="{Binding IsSelected}"
                                               Command="{Binding SelectCommand}" />
                             </DataTemplate>

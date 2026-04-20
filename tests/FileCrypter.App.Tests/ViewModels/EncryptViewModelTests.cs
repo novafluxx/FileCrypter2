@@ -14,6 +14,7 @@ public sealed class EncryptViewModelTests
         var viewModel = new EncryptViewModel(new RecordingWorkflowService());
 
         Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.False(viewModel.HasError);
 
         viewModel.SourcePath = "/tmp/plain.txt";
         Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
@@ -88,6 +89,24 @@ public sealed class EncryptViewModelTests
         Assert.Contains("Path error:", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("output directory is missing", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("Ready", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task ChangingInputsAfterFailure_DismissesVisibleError()
+    {
+        var workflow = new RecordingWorkflowService
+        {
+            Error = new IOException("The output directory is missing."),
+        };
+        var viewModel = CreateReadyViewModel(workflow);
+
+        await viewModel.StartEncryptCommand.ExecuteAsync(null);
+        Assert.True(viewModel.HasError);
+
+        viewModel.Password = "different-secret";
+
+        Assert.False(viewModel.HasError);
+        Assert.Equal(string.Empty, viewModel.ErrorMessage);
     }
 
     [Fact]

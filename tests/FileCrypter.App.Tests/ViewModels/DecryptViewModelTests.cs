@@ -16,6 +16,7 @@ public sealed class DecryptViewModelTests
         var viewModel = new DecryptViewModel(new RecordingWorkflowService());
 
         Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.False(viewModel.HasError);
 
         viewModel.SourcePath = "/tmp/plain.txt.encrypted";
         Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
@@ -78,6 +79,26 @@ public sealed class DecryptViewModelTests
         Assert.True(viewModel.HasError);
         Assert.Contains("Check the password and key file", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("Ready", viewModel.StatusText);
+    }
+
+    [Fact]
+    public async Task ChangingInputsAfterFailure_DismissesVisibleError()
+    {
+        var workflow = new RecordingWorkflowService
+        {
+            Error = new FileCrypterFormatException(
+                FileCrypterFormatErrorCode.AuthenticationFailed,
+                "Authentication failed."),
+        };
+        var viewModel = CreateReadyViewModel(workflow);
+
+        await viewModel.StartDecryptCommand.ExecuteAsync(null);
+        Assert.True(viewModel.HasError);
+
+        viewModel.Password = "different-secret";
+
+        Assert.False(viewModel.HasError);
+        Assert.Equal(string.Empty, viewModel.ErrorMessage);
     }
 
     [Fact]

@@ -21,6 +21,20 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void Constructor_AssignsIconPathDataToAllNavigationItems()
+    {
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService());
+
+        Assert.All(
+            viewModel.PrimaryNavigationItems.Concat(viewModel.SecondaryNavigationItems),
+            item => Assert.False(string.IsNullOrWhiteSpace(item.IconPathData)));
+    }
+
+    [Fact]
     public void Constructor_AppliesPersistedCompressionDefaultToEncryptPage()
     {
         using var outputDirectory = new TemporaryDirectory();

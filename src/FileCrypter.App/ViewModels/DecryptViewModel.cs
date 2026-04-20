@@ -56,8 +56,11 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private string progressText = "No encrypted file selected";
 
     [ObservableProperty]
+    private string errorMessage = string.Empty;
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CopyErrorCommand))]
-    private string errorMessage = "No encrypted file selected. Choose a file to decrypt.";
+    private string visibleErrorMessage = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CopyResultCommand))]
@@ -87,7 +90,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public string Title => "Decrypt a file";
 
-    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+    public bool HasError => !string.IsNullOrWhiteSpace(VisibleErrorMessage);
 
     public bool HasResult => !string.IsNullOrWhiteSpace(ResultPath);
 
@@ -133,10 +136,8 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     partial void OnSourcePathChanged(string value)
     {
-        ErrorMessage = string.IsNullOrWhiteSpace(value)
-            ? "No encrypted file selected. Choose a file to decrypt."
-            : string.Empty;
         ProgressText = string.IsNullOrWhiteSpace(value) ? "No encrypted file selected" : Path.GetFileName(value);
+        ClearVisibleError();
         OnPropertyChanged(nameof(HasSelectedFile));
         RefreshSuggestedOutputPath();
     }
@@ -150,16 +151,23 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
                 : OutputPathOrigin.Manual;
         }
 
+        ClearVisibleError();
         OnPropertyChanged(nameof(OutputDisplayText));
+    }
+
+    partial void OnPasswordChanged(string value)
+    {
+        ClearVisibleError();
     }
 
     partial void OnKeyFilePathChanged(string value)
     {
+        ClearVisibleError();
         OnPropertyChanged(nameof(HasKeyFileChoice));
         OnPropertyChanged(nameof(KeyFileChoiceStatusText));
     }
 
-    partial void OnErrorMessageChanged(string value)
+    partial void OnVisibleErrorMessageChanged(string value)
     {
         OnPropertyChanged(nameof(HasError));
     }
@@ -259,7 +267,9 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         }
         catch (Exception exception)
         {
-            ErrorMessage = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
+            string message = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
+            ErrorMessage = message;
+            VisibleErrorMessage = message;
             ProgressText = "Decryption failed.";
             StatusText = "Ready";
         }
@@ -272,7 +282,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     [RelayCommand(CanExecute = nameof(CanCopyError))]
     private Task CopyErrorAsync()
     {
-        return CopyTextAsync(ErrorMessage, "Copied issue details.");
+        return CopyTextAsync(VisibleErrorMessage, "Copied issue details.");
     }
 
     [RelayCommand(CanExecute = nameof(CanCopyResult))]
@@ -306,6 +316,17 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private bool CanCopyError()
     {
         return clipboardService is not null && HasError;
+    }
+
+    private void ClearVisibleError()
+    {
+        if (IsRunning || string.IsNullOrWhiteSpace(VisibleErrorMessage))
+        {
+            return;
+        }
+
+        VisibleErrorMessage = string.Empty;
+        ErrorMessage = string.Empty;
     }
 
     private bool CanCopyResult()
