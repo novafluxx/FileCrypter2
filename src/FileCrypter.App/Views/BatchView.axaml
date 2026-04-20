@@ -39,48 +39,95 @@
                     <TextBlock Text="{Binding ModeDescription}"
                                Foreground="{DynamicResource MutedForegroundBrush}"
                                TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding WorkflowChooserDescription}"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                               TextWrapping="Wrap" />
 
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                        <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="18">
-                            <StackPanel Spacing="10">
-                                <TextBlock Text="WORKFLOW TYPE"
-                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                           FontSize="14"
-                                           FontWeight="Bold"
-                                           LetterSpacing="1.5" />
-                                <RadioButton Content="Individual files"
-                                             GroupName="BatchWorkflowType"
-                                             IsChecked="{Binding IndividualFilesMode}" />
-                                <RadioButton Content="Encrypted archive"
-                                             GroupName="BatchWorkflowType"
-                                             IsChecked="{Binding ArchiveMode}" />
-                            </StackPanel>
-                        </Border>
+                    <Grid ColumnDefinitions="*,1,*" ColumnSpacing="18">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="1. WHAT ARE YOU WORKING WITH?"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="14"
+                                       FontWeight="Bold"
+                                       LetterSpacing="1.5" />
+                            <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
+                                    BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="18">
+                                <StackPanel Spacing="8">
+                                    <RadioButton Content="Individual files"
+                                                 GroupName="BatchWorkflowType"
+                                                 IsChecked="{Binding IndividualFilesMode}"
+                                                 ToolTip.Tip="{Binding IndividualFilesOptionDescription}" />
+                                    <TextBlock Text="{Binding IndividualFilesOptionDescription}"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               Margin="30,0,0,0"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
+                                    BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="18">
+                                <StackPanel Spacing="8">
+                                    <RadioButton Content="Encrypted archive"
+                                                 GroupName="BatchWorkflowType"
+                                                 IsChecked="{Binding ArchiveMode}"
+                                                 ToolTip.Tip="{Binding ArchiveModeOptionDescription}" />
+                                    <TextBlock Text="{Binding ArchiveModeOptionDescription}"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               Margin="30,0,0,0"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
                         <Border Grid.Column="1"
-                                Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="18">
-                            <StackPanel Spacing="10">
-                                <TextBlock Text="ACTION"
-                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                           FontSize="14"
-                                           FontWeight="Bold"
-                                           LetterSpacing="1.5" />
-                                <RadioButton Content="Encrypt"
-                                             GroupName="BatchWorkflowDirection"
-                                             IsChecked="{Binding EncryptMode}" />
-                                <RadioButton Content="Decrypt"
-                                             GroupName="BatchWorkflowDirection"
-                                             IsChecked="{Binding IsDecryptMode}" />
-                            </StackPanel>
-                        </Border>
+                                Background="{DynamicResource SurfaceAltBorderBrush}"
+                                CornerRadius="1"
+                                Margin="0,6" />
+
+                        <StackPanel Grid.Column="2" Spacing="12">
+                            <TextBlock Text="2. WHAT SHOULD FILECRYPTER DO?"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="14"
+                                       FontWeight="Bold"
+                                       LetterSpacing="1.5" />
+                            <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
+                                    BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="18">
+                                <StackPanel Spacing="8">
+                                    <RadioButton Content="Encrypt"
+                                                 GroupName="BatchWorkflowDirection"
+                                                 IsChecked="{Binding EncryptMode}"
+                                                 ToolTip.Tip="{Binding EncryptActionDescription}" />
+                                    <TextBlock Text="{Binding EncryptActionDescription}"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               Margin="30,0,0,0"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
+                                    BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="18">
+                                <StackPanel Spacing="8">
+                                    <RadioButton Content="Decrypt"
+                                                 GroupName="BatchWorkflowDirection"
+                                                 IsChecked="{Binding IsDecryptMode}"
+                                                 ToolTip.Tip="{Binding DecryptActionDescription}" />
+                                    <TextBlock Text="{Binding DecryptActionDescription}"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               Margin="30,0,0,0"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </Grid>
 
                     <TextBlock Text="{Binding WorkflowKindDescription}"

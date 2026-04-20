@@ -187,9 +187,27 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             "Decrypt one encrypted archive and extract every file into the chosen output folder while preserving overwrite protection.",
     };
 
-    public string WorkflowKindDescription => ArchiveMode
-        ? "Archive mode creates one encrypted archive from many files or extracts one encrypted archive back into a folder."
-        : "Individual-file mode processes every selected file separately inside one batch run.";
+    public string WorkflowChooserDescription => "Pick what you have first, then choose what FileCrypter should do with it. All four combinations stay available, including archive extraction.";
+
+    public string IndividualFilesOptionDescription => "Keep every selected file separate so the run produces one output per file.";
+
+    public string ArchiveModeOptionDescription => "Switch to one encrypted archive when many files belong together, or when one archive needs to be extracted.";
+
+    public string EncryptActionDescription => ArchiveMode
+        ? "Create one encrypted archive from the current file list."
+        : "Encrypt each selected file into its own output.";
+
+    public string DecryptActionDescription => ArchiveMode
+        ? "Decrypt and extract one encrypted archive into the chosen folder."
+        : "Decrypt each selected file separately into the chosen folder.";
+
+    public string WorkflowKindDescription => (ArchiveMode, EncryptMode) switch
+    {
+        (false, true) => "Current selection: individual-file encryption. Every chosen file becomes its own encrypted output in the target folder.",
+        (false, false) => "Current selection: individual-file decryption. Every chosen encrypted file is restored separately, and per-file failures stay isolated.",
+        (true, true) => "Current selection: archive encryption. Many selected files are bundled into one compressed .tar.zst.encrypted archive.",
+        _ => "Current selection: archive extraction. Choose exactly one encrypted archive and FileCrypter will decrypt and extract it into the target folder.",
+    };
 
     public string SourceHeading => (ArchiveMode, EncryptMode) switch
     {
@@ -632,6 +650,11 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         OnPropertyChanged(nameof(ModeTitle));
         OnPropertyChanged(nameof(ModeDescription));
+        OnPropertyChanged(nameof(WorkflowChooserDescription));
+        OnPropertyChanged(nameof(IndividualFilesOptionDescription));
+        OnPropertyChanged(nameof(ArchiveModeOptionDescription));
+        OnPropertyChanged(nameof(EncryptActionDescription));
+        OnPropertyChanged(nameof(DecryptActionDescription));
         OnPropertyChanged(nameof(WorkflowKindDescription));
         OnPropertyChanged(nameof(SourceHeading));
         OnPropertyChanged(nameof(OutputHeading));

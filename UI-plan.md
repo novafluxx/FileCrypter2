@@ -123,7 +123,7 @@ A set of discrete, independently shippable UI improvements. Slices are ordered b
 
 ## Slice 7 — Group the Batch workflow cards
 
-`[ ] TODO:`
+`[x] DONE:`
 
 **Problem.** On the Batch page, "Workflow type" and "Action" sit as two separate boxes with no visual tie. Their relationship (and which combinations are valid) isn't clear.
 

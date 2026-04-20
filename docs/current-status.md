@@ -116,6 +116,8 @@ main
 - App test coverage now also includes focused clipboard-copy behavior for Encrypt success details, Decrypt troubleshooting copy, and Batch result-summary/detail copy.
 - The global shell-header Changelog label is now removed from page chrome, and Settings now includes an About/Version card with a toggleable local changelog entry tied to the app version metadata.
 - App test coverage now also includes focused Settings/MainWindow metadata wiring for the relocated changelog surface.
+- The Batch page workflow chooser now presents workflow type and action as one combined decision card with a visual divider, richer per-option captions, and combination-specific helper copy for all four supported batch/archive modes.
+- App test coverage now also includes focused Batch workflow-description coverage so archive extraction and the other mode combinations keep their intended copy.
 
 ## Current Format Decisions
 
@@ -199,6 +201,12 @@ dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj --filter "F
 
 Note for the current Windows sandbox environment: a broader `dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj` rerun still reports pre-existing path-format assertion failures in unrelated Encrypt/Decrypt/Batch picker-drop tests that expect `/tmp/...`-style paths.
 
+The Batch workflow-card grouping slice was verified with focused app view-model coverage:
+
+```bash
+dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj --filter "FullyQualifiedName~BatchViewModelTests.WorkflowKindDescription_FollowsSelectedCombination|FullyQualifiedName~BatchViewModelTests.WorkflowChooserDescription_ExplainsThatAllFourCombinationsAreAvailable|FullyQualifiedName~BatchViewModelTests.SwitchingToArchiveMode_UpdatesTitlesAndShowsArchiveNameInput|FullyQualifiedName~BatchViewModelTests.StartBatchCommand_InArchiveDecryptMode_RequiresExactlyOneArchive"
+```
+
 Latest test count at handoff: 192 passed, 0 failed.
 
 Previous GUI launch smoke coverage:
@@ -268,7 +276,7 @@ Continue the Avalonia GUI now that single-file encrypt, decrypt, settings, and b
 
 Recommended next slices:
 
-- Favor another small workflow-polish slice that stays within the current shell and local-first scope, with the Batch workflow-card grouping slice as the strongest current candidate now that the changelog chrome cleanup is in place.
+- Favor another small workflow-polish slice that stays within the current shell and local-first scope, with checkbox visibility polish plus sidebar hover feedback as the strongest next candidate now that the Batch workflow chooser reads more clearly.
 - If a thinner UI-only slice feels better, clearer drag/drop affordances or deeper path/open-folder conveniences would also fit the current boundary well.
 - After that, keep choosing practical GUI slices that preserve the existing shell structure and avoid drifting into installer, updater, or broader distribution infrastructure.
 - Keep automatic install/relaunch updater work deferred until there is real release/distribution infrastructure to attach it to.

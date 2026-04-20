@@ -403,6 +403,44 @@ public sealed class BatchViewModelTests
     }
 
     [Fact]
+    public void WorkflowKindDescription_FollowsSelectedCombination()
+    {
+        var viewModel = new BatchViewModel(new RecordingWorkflowService());
+
+        Assert.Contains("individual-file encryption", viewModel.WorkflowKindDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("own encrypted output", viewModel.WorkflowKindDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Encrypt each selected file", viewModel.EncryptActionDescription, StringComparison.OrdinalIgnoreCase);
+
+        viewModel.IsDecryptMode = true;
+
+        Assert.Contains("individual-file decryption", viewModel.WorkflowKindDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Decrypt each selected file separately", viewModel.DecryptActionDescription, StringComparison.OrdinalIgnoreCase);
+
+        viewModel.ArchiveMode = true;
+
+        Assert.Contains("archive extraction", viewModel.WorkflowKindDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("exactly one encrypted archive", viewModel.WorkflowKindDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("extract one encrypted archive", viewModel.DecryptActionDescription, StringComparison.OrdinalIgnoreCase);
+
+        viewModel.EncryptMode = true;
+
+        Assert.Contains("archive encryption", viewModel.WorkflowKindDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(".tar.zst.encrypted archive", viewModel.WorkflowKindDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("create one encrypted archive", viewModel.EncryptActionDescription, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void WorkflowChooserDescription_ExplainsThatAllFourCombinationsAreAvailable()
+    {
+        var viewModel = new BatchViewModel(new RecordingWorkflowService());
+
+        Assert.Contains("all four combinations", viewModel.WorkflowChooserDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("archive extraction", viewModel.WorkflowChooserDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("one output per file", viewModel.IndividualFilesOptionDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("one encrypted archive", viewModel.ArchiveModeOptionDescription, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void InvalidArchiveName_BlocksStartAndExplainsIssue()
     {
         using var outputDirectory = new TemporaryDirectory();
