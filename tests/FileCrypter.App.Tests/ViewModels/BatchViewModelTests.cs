@@ -242,7 +242,9 @@ public sealed class BatchViewModelTests
         Assert.Equal(2, viewModel.Results.Count);
         Assert.Contains("failure", viewModel.ResultSummary, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Missing input", viewModel.Results.Single(item => !item.Succeeded).DetailText, StringComparison.Ordinal);
-        Assert.Equal("Ready", viewModel.StatusText);
+        Assert.Equal("Batch encryption completed with failures", viewModel.StatusText);
+        Assert.Equal("1 succeeded, 1 failed - Output folder", viewModel.ProgressText);
+        Assert.Equal(outputDirectory.Path, viewModel.FooterActionText);
         Assert.Equal(100, viewModel.ProgressPercent);
     }
 
@@ -265,7 +267,11 @@ public sealed class BatchViewModelTests
         Assert.Equal("project-docs", workflow.ArchiveEncryptRequest!.ArchiveName);
         Assert.Single(viewModel.Results);
         Assert.Contains("bundled", viewModel.ResultSummary, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal("Ready", viewModel.StatusText);
+        Assert.StartsWith("Archive created in ", viewModel.StatusText, StringComparison.Ordinal);
+        Assert.Equal("Saved to", viewModel.ProgressText);
+        Assert.Equal(
+            Path.Combine(outputDirectory.Path, "filecrypter-archive-20260418-100000.tar.zst.encrypted"),
+            viewModel.FooterActionText);
     }
 
     [Fact]
@@ -297,6 +303,9 @@ public sealed class BatchViewModelTests
         Assert.Equal(2, viewModel.Results.Count);
         Assert.All(viewModel.Results, item => Assert.True(item.Succeeded));
         Assert.Contains("extracted", viewModel.ResultSummary, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith("Archive extracted in ", viewModel.StatusText, StringComparison.Ordinal);
+        Assert.Equal($"Extracted 2 file(s) to", viewModel.ProgressText);
+        Assert.Equal(outputDirectory.Path, viewModel.FooterActionText);
     }
 
     [Fact]
@@ -435,7 +444,7 @@ public sealed class BatchViewModelTests
         Assert.False(viewModel.HasResults);
         Assert.False(viewModel.HasResultSummary);
         Assert.Equal(string.Empty, viewModel.ErrorMessage);
-        Assert.Contains("3 file(s) selected", viewModel.ProgressText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("3 files selected - first.txt + 2 more", viewModel.ProgressText);
     }
 
     private static BatchViewModel CreateReadyViewModel(

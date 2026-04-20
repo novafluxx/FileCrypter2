@@ -40,7 +40,10 @@ public sealed class DecryptViewModelTests
         Assert.True(viewModel.HasResult);
         Assert.Empty(viewModel.ErrorMessage);
         Assert.True(viewModel.StartDecryptCommand.CanExecute(null));
-        Assert.Equal("Ready", viewModel.StatusText);
+        Assert.StartsWith("Decrypted in ", viewModel.StatusText, StringComparison.Ordinal);
+        Assert.Equal("Saved to", viewModel.ProgressText);
+        Assert.Equal("/tmp/plain.txt", viewModel.FooterActionText);
+        Assert.True(viewModel.HasFooterAction);
     }
 
     [Fact]
@@ -78,7 +81,8 @@ public sealed class DecryptViewModelTests
         Assert.Empty(viewModel.ResultPath);
         Assert.True(viewModel.HasError);
         Assert.Contains("Check the password and key file", viewModel.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal("Ready", viewModel.StatusText);
+        Assert.Equal("Decryption failed", viewModel.StatusText);
+        Assert.Contains("Check the password and key file", viewModel.ProgressText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -123,6 +127,30 @@ public sealed class DecryptViewModelTests
         Assert.NotNull(clipboard.LastText);
         Assert.Contains("Check the password and key file", clipboard.LastText, StringComparison.Ordinal);
         Assert.Equal("Copied issue details.", viewModel.ProgressText);
+    }
+
+    [Fact]
+    public async Task RevealFooterPathCommand_RevealsSuccessfulOutputPath()
+    {
+        var revealService = new RecordingPathRevealService();
+        var workflow = new RecordingWorkflowService
+        {
+            Result = new DecryptFileResult("/tmp/plain.txt"),
+        };
+        var viewModel = new DecryptViewModel(
+            workflow,
+            filePickerService: null,
+            clipboardService: null,
+            pathRevealService: revealService)
+        {
+            SourcePath = "/tmp/plain.txt.encrypted",
+            Password = "secret",
+        };
+
+        await viewModel.StartDecryptCommand.ExecuteAsync(null);
+        await viewModel.RevealFooterPathCommand.ExecuteAsync(null);
+
+        Assert.Equal("/tmp/plain.txt", revealService.LastPath);
     }
 
     [Fact]
@@ -219,6 +247,7 @@ public sealed class DecryptViewModelTests
             Assert.Equal(Path.GetFullPath(tempFilePath), viewModel.SourcePreview!.FullPath);
             Assert.Equal("10 B", viewModel.SourcePreview.SizeText);
             Assert.False(viewModel.ShowEmptySourceState);
+            Assert.Equal($"{Path.GetFileName(tempFilePath)} - 10 B", viewModel.ProgressText);
 
             viewModel.ClearSourceCommand.Execute(null);
 

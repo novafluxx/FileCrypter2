@@ -119,10 +119,25 @@
                 <TextBlock Text="{Binding StatusText}"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource MutedForegroundBrush}" />
-                <TextBlock Grid.Column="1"
-                           Text="{Binding FooterDetail}"
-                           VerticalAlignment="Center"
-                           Foreground="{DynamicResource MutedForegroundBrush}" />
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="6"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="{Binding FooterDetail}"
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="380" />
+                    <Button Classes="status-link"
+                            Command="{Binding FooterActionCommand}"
+                            IsVisible="{Binding HasFooterAction}"
+                            ToolTip.Tip="{Binding FooterActionText}">
+                        <TextBlock Text="{Binding FooterActionText}"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="420" />
+                    </Button>
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

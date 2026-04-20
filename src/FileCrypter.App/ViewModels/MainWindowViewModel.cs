@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
@@ -35,7 +36,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IAppMetadataService? appMetadataService = null,
         IAppUpdateService? appUpdateService = null,
         IAppThemeService? appThemeService = null,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        IPathRevealService? pathRevealService = null)
     {
         this.appMetadataService = appMetadataService ?? new AppMetadataService();
         this.appThemeService = appThemeService
@@ -44,15 +46,27 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 : new AvaloniaAppThemeService());
         appUpdateService ??= new DevelopmentAppUpdateService();
         settingsService ??= new FileCrypterSettingsService();
+        pathRevealService ??= new NoOpPathRevealService();
         FileCrypterSettings initialSettings = LoadInitialSettings(settingsService, out string settingsErrorMessage);
 
         encryptViewModel = new EncryptViewModel(
             workflowService,
             initialSettings,
             filePickerService,
-            clipboardService);
-        decryptViewModel = new DecryptViewModel(workflowService, initialSettings, filePickerService, clipboardService);
-        batchViewModel = new BatchViewModel(workflowService, initialSettings, filePickerService, clipboardService);
+            clipboardService,
+            pathRevealService);
+        decryptViewModel = new DecryptViewModel(
+            workflowService,
+            initialSettings,
+            filePickerService,
+            clipboardService,
+            pathRevealService);
+        batchViewModel = new BatchViewModel(
+            workflowService,
+            initialSettings,
+            filePickerService,
+            clipboardService,
+            pathRevealService);
         helpViewModel = new HelpViewModel(this.appMetadataService, appUpdateService);
         settingsViewModel = new SettingsViewModel(
             settingsService,
@@ -98,10 +112,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         ? workflowPage.ProgressText
         : string.Empty;
 
+    public string FooterActionText => CurrentPage is IWorkflowStatusViewModel workflowPage
+        ? workflowPage.FooterActionText
+        : string.Empty;
+
+    public ICommand? FooterActionCommand => CurrentPage is IWorkflowStatusViewModel workflowPage
+        ? workflowPage.FooterActionCommand
+        : null;
+
+    public bool HasFooterAction => CurrentPage is IWorkflowStatusViewModel workflowPage && workflowPage.HasFooterAction;
+
     partial void OnCurrentPageChanged(ViewModelBase value)
     {
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(FooterDetail));
+        OnPropertyChanged(nameof(FooterActionText));
+        OnPropertyChanged(nameof(FooterActionCommand));
+        OnPropertyChanged(nameof(HasFooterAction));
     }
 
     [RelayCommand]
@@ -152,6 +179,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         if (args.PropertyName == nameof(IWorkflowStatusViewModel.ProgressText))
         {
             OnPropertyChanged(nameof(FooterDetail));
+        }
+
+        if (args.PropertyName is nameof(IWorkflowStatusViewModel.FooterActionText) or
+            nameof(IWorkflowStatusViewModel.FooterActionCommand) or
+            nameof(IWorkflowStatusViewModel.HasFooterAction))
+        {
+            OnPropertyChanged(nameof(FooterActionText));
+            OnPropertyChanged(nameof(FooterActionCommand));
+            OnPropertyChanged(nameof(HasFooterAction));
         }
     }
 

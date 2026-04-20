@@ -29,7 +29,8 @@ public partial class App : Application
                 new AppMetadataService(),
                 new DevelopmentAppUpdateService(),
                 new AvaloniaAppThemeService(this),
-                new AvaloniaClipboardService(mainWindow));
+                new AvaloniaClipboardService(mainWindow),
+                new DesktopPathRevealService());
             desktop.MainWindow = mainWindow;
         }
 

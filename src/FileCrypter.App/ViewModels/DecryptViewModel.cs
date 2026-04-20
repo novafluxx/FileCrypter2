@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
+using System.Diagnostics;
 using System.Text;
 
 namespace FileCrypter.App.ViewModels;
@@ -12,9 +13,12 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private const string DefaultEncryptedSuffix = ".encrypted";
     private const string DefaultDecryptedSuffix = ".decrypted";
 
+    private int activeProgressRunId;
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
     private readonly IClipboardService? clipboardService;
+    private readonly IPathRevealService pathRevealService;
+    private readonly Stopwatch runStopwatch = new();
     private string defaultOutputDirectory = string.Empty;
     private OutputPathOrigin outputPathOrigin;
     private bool isUpdatingOutputPathInternally;
@@ -71,29 +75,41 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     [NotifyCanExecuteChangedFor(nameof(CopyResultCommand))]
     private string resultPath = string.Empty;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RevealFooterPathCommand))]
+    private string footerActionText = string.Empty;
+
     public DecryptViewModel(
         IFileCrypterWorkflowService workflowService,
         IFilePickerService? filePickerService = null,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        IPathRevealService? pathRevealService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
         this.clipboardService = clipboardService;
+        this.pathRevealService = pathRevealService ?? new NoOpPathRevealService();
     }
 
     public DecryptViewModel(
         IFileCrypterWorkflowService workflowService,
         FileCrypterSettings initialSettings,
         IFilePickerService? filePickerService = null,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        IPathRevealService? pathRevealService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
         this.clipboardService = clipboardService;
+        this.pathRevealService = pathRevealService ?? new NoOpPathRevealService();
         ApplySettings(initialSettings);
     }
 
     public string Title => "Decrypt a file";
+
+    public bool HasFooterAction => !string.IsNullOrWhiteSpace(FooterActionText);
+
+    public System.Windows.Input.ICommand FooterActionCommand => RevealFooterPathCommand;
 
     public bool HasError => !string.IsNullOrWhiteSpace(VisibleErrorMessage);
 
@@ -139,11 +155,11 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         NeverOverwriteExistingFiles = settings.NeverOverwriteExistingFilesByDefault;
         defaultOutputDirectory = GetUsableDefaultOutputDirectory(settings.DefaultOutputDirectory);
         RefreshSuggestedOutputPath();
+        ResetReadyFooter();
     }
 
     partial void OnSourcePathChanged(string value)
     {
-        ProgressText = string.IsNullOrWhiteSpace(value) ? "No encrypted file selected" : Path.GetFileName(value);
         SourcePreview = string.IsNullOrWhiteSpace(value)
             ? null
             : new FileSelectionPreviewViewModel(value);
@@ -151,6 +167,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         OnPropertyChanged(nameof(HasSelectedFile));
         OnPropertyChanged(nameof(ShowEmptySourceState));
         RefreshSuggestedOutputPath();
+        ResetReadyFooter();
     }
 
     partial void OnOutputPathChanged(string value)
@@ -164,11 +181,13 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
         ClearVisibleError();
         OnPropertyChanged(nameof(OutputDisplayText));
+        ResetReadyFooter();
     }
 
     partial void OnPasswordChanged(string value)
     {
         ClearVisibleError();
+        ResetReadyFooter();
     }
 
     partial void OnIsRunningChanged(bool value)
@@ -181,6 +200,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         ClearVisibleError();
         OnPropertyChanged(nameof(HasKeyFileChoice));
         OnPropertyChanged(nameof(KeyFileChoiceStatusText));
+        ResetReadyFooter();
     }
 
     partial void OnVisibleErrorMessageChanged(string value)
@@ -191,6 +211,16 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnResultPathChanged(string value)
     {
         OnPropertyChanged(nameof(HasResult));
+    }
+
+    partial void OnNeverOverwriteExistingFilesChanged(bool value)
+    {
+        ResetReadyFooter();
+    }
+
+    partial void OnFooterActionTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasFooterAction));
     }
 
     [RelayCommand(CanExecute = nameof(CanBrowse))]
@@ -260,11 +290,14 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     [RelayCommand(CanExecute = nameof(CanStartDecrypt))]
     private async Task StartDecryptAsync()
     {
+        int progressRunId = BeginProgressRun();
         IsRunning = true;
+        runStopwatch.Restart();
         ErrorMessage = string.Empty;
         ResultPath = string.Empty;
         ProgressPercent = 0;
-        ProgressText = "Starting decryption...";
+        FooterActionText = string.Empty;
+        ProgressText = "Preparing encrypted file...";
         StatusText = "Decrypting";
 
         try
@@ -276,24 +309,30 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
                 NeverOverwriteExistingFiles,
                 string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath);
 
-            Progress<FileCrypterProgress> progress = new(ReportProgress);
+            Progress<FileCrypterProgress> progress = new(value => ReportProgress(progressRunId, value));
             DecryptFileResult result = await workflowService.DecryptFileAsync(
                 request,
                 progress,
                 CancellationToken.None);
 
+            CompleteProgressRun(progressRunId);
+            runStopwatch.Stop();
             ResultPath = result.OutputPath;
             ProgressPercent = 100;
-            ProgressText = "Decryption complete.";
-            StatusText = "Ready";
+            ProgressText = "Saved to";
+            StatusText = $"Decrypted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}";
+            FooterActionText = result.OutputPath;
         }
         catch (Exception exception)
         {
+            CompleteProgressRun(progressRunId);
+            runStopwatch.Stop();
             string message = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
             ErrorMessage = message;
             VisibleErrorMessage = message;
-            ProgressText = "Decryption failed.";
-            StatusText = "Ready";
+            ProgressText = WorkflowStatusTextFormatter.SummarizeStatusDetail(message);
+            StatusText = "Decryption failed";
+            FooterActionText = string.Empty;
         }
         finally
         {
@@ -311,6 +350,12 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private Task CopyResultAsync()
     {
         return CopyTextAsync(BuildResultClipboardText(), "Copied result details.");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRevealFooterPath))]
+    private Task RevealFooterPathAsync()
+    {
+        return pathRevealService.TryRevealPathAsync(FooterActionText, CancellationToken.None);
     }
 
     private bool CanBrowse()
@@ -359,6 +404,11 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private bool CanCopyResult()
     {
         return clipboardService is not null && HasResult;
+    }
+
+    private bool CanRevealFooterPath()
+    {
+        return HasFooterAction;
     }
 
     private string? GetSuggestedOutputFileName()
@@ -438,20 +488,38 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
             : string.Empty;
     }
 
-    private void ReportProgress(FileCrypterProgress progress)
+    private void ReportProgress(int progressRunId, FileCrypterProgress progress)
     {
+        if (!IsActiveProgressRun(progressRunId))
+        {
+            return;
+        }
+
         if (progress.TotalInputBytes is > 0)
         {
             ProgressPercent = Math.Clamp(
                 progress.InputBytes * 100d / progress.TotalInputBytes.Value,
                 0,
                 100);
-            ProgressText = $"{progress.InputBytes}/{progress.TotalInputBytes.Value} bytes";
         }
-        else
-        {
-            ProgressText = $"{progress.InputBytes} bytes processed";
-        }
+
+        ProgressText = WorkflowStatusTextFormatter.FormatByteProgress(progress.InputBytes, progress.TotalInputBytes);
+        FooterActionText = string.Empty;
+    }
+
+    private int BeginProgressRun()
+    {
+        return Interlocked.Increment(ref activeProgressRunId);
+    }
+
+    private void CompleteProgressRun(int progressRunId)
+    {
+        Interlocked.CompareExchange(ref activeProgressRunId, 0, progressRunId);
+    }
+
+    private bool IsActiveProgressRun(int progressRunId)
+    {
+        return Volatile.Read(ref activeProgressRunId) == progressRunId;
     }
 
     private async Task CopyTextAsync(string text, string successProgressText)
@@ -478,6 +546,20 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         builder.AppendLine("Decryption complete.");
         builder.AppendLine($"Decrypted file: {ResultPath}");
         return builder.ToString().TrimEnd();
+    }
+
+    private void ResetReadyFooter()
+    {
+        if (IsRunning)
+        {
+            return;
+        }
+
+        StatusText = "Ready";
+        ProgressText = HasSelectedFile
+            ? $"{SourcePreview!.FileName} - {SourcePreview.SizeText}"
+            : "No encrypted file selected";
+        FooterActionText = string.Empty;
     }
 
     private enum OutputPathOrigin

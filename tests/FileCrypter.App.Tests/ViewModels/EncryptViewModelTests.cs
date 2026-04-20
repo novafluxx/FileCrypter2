@@ -38,7 +38,10 @@ public sealed class EncryptViewModelTests
         Assert.True(viewModel.HasResult);
         Assert.Empty(viewModel.ErrorMessage);
         Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
-        Assert.Equal("Ready", viewModel.StatusText);
+        Assert.StartsWith("Encrypted in ", viewModel.StatusText, StringComparison.Ordinal);
+        Assert.Equal("Saved to", viewModel.ProgressText);
+        Assert.Equal("/tmp/plain.txt.encrypted", viewModel.FooterActionText);
+        Assert.True(viewModel.HasFooterAction);
     }
 
     [Fact]
@@ -88,7 +91,8 @@ public sealed class EncryptViewModelTests
         Assert.True(viewModel.HasError);
         Assert.Contains("Path error:", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("output directory is missing", viewModel.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal("Ready", viewModel.StatusText);
+        Assert.Equal("Encryption failed", viewModel.StatusText);
+        Assert.Contains("Path error:", viewModel.ProgressText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -131,6 +135,30 @@ public sealed class EncryptViewModelTests
         Assert.Contains("Encrypted file: /tmp/plain.txt.encrypted", clipboard.LastText, StringComparison.Ordinal);
         Assert.Contains("Generated key file: /tmp/plain.key", clipboard.LastText, StringComparison.Ordinal);
         Assert.Equal("Copied result details.", viewModel.ProgressText);
+    }
+
+    [Fact]
+    public async Task RevealFooterPathCommand_RevealsSuccessfulOutputPath()
+    {
+        var revealService = new RecordingPathRevealService();
+        var workflow = new RecordingWorkflowService
+        {
+            Result = new EncryptFileResult("/tmp/plain.txt.encrypted", null),
+        };
+        var viewModel = new EncryptViewModel(
+            workflow,
+            filePickerService: null,
+            clipboardService: null,
+            pathRevealService: revealService)
+        {
+            SourcePath = "/tmp/plain.txt",
+            Password = "secret",
+        };
+
+        await viewModel.StartEncryptCommand.ExecuteAsync(null);
+        await viewModel.RevealFooterPathCommand.ExecuteAsync(null);
+
+        Assert.Equal("/tmp/plain.txt.encrypted", revealService.LastPath);
     }
 
     [Fact]
@@ -249,6 +277,7 @@ public sealed class EncryptViewModelTests
             Assert.Equal(Path.GetFullPath(tempFilePath), viewModel.SourcePreview!.FullPath);
             Assert.Equal("11 B", viewModel.SourcePreview.SizeText);
             Assert.False(viewModel.ShowEmptySourceState);
+            Assert.Equal($"{Path.GetFileName(tempFilePath)} - 11 B", viewModel.ProgressText);
 
             viewModel.ClearSourceCommand.Execute(null);
 

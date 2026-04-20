@@ -65,7 +65,7 @@ A set of discrete, independently shippable UI improvements. Slices are ordered b
 
 ## Slice 4 — File preview after selection
 
-`[ ] TODO:`
+`[x] DONE:`
 
 **Problem.** Once a file is selected there's no preview — just a path string in the input. The user can't quickly verify they picked the right thing.
 
@@ -88,7 +88,7 @@ A set of discrete, independently shippable UI improvements. Slices are ordered b
 
 ## Slice 5 — Enrich the status bar
 
-`[ ] TODO:`
+`[x] DONE:`
 
 **Problem.** "Ready" + "No file selected" is passive. The bar is prime ambient-state real estate that's currently underused.
 

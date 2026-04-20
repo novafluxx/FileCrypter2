@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
@@ -16,6 +17,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
     private readonly IClipboardService? clipboardService;
+    private readonly IPathRevealService pathRevealService;
+    private readonly Stopwatch runStopwatch = new();
     private readonly StringComparer pathComparer = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
@@ -82,14 +85,20 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     [NotifyCanExecuteChangedFor(nameof(CopyResultsCommand))]
     private string resultSummary = string.Empty;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RevealFooterPathCommand))]
+    private string footerActionText = string.Empty;
+
     public BatchViewModel(
         IFileCrypterWorkflowService workflowService,
         IFilePickerService? filePickerService = null,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        IPathRevealService? pathRevealService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
         this.clipboardService = clipboardService;
+        this.pathRevealService = pathRevealService ?? new NoOpPathRevealService();
 
         SourcePaths.CollectionChanged += OnSourcePathsChanged;
         Results.CollectionChanged += OnResultsChanged;
@@ -99,8 +108,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         IFileCrypterWorkflowService workflowService,
         FileCrypterSettings initialSettings,
         IFilePickerService? filePickerService = null,
-        IClipboardService? clipboardService = null)
-        : this(workflowService, filePickerService, clipboardService)
+        IClipboardService? clipboardService = null,
+        IPathRevealService? pathRevealService = null)
+        : this(workflowService, filePickerService, clipboardService, pathRevealService)
     {
         ApplySettings(initialSettings);
     }
@@ -150,6 +160,10 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     public bool HasFailures => Results.Any(item => !item.Succeeded);
 
     public bool HasKeyFileChoice => !string.IsNullOrWhiteSpace(KeyFilePath);
+
+    public bool HasFooterAction => !string.IsNullOrWhiteSpace(FooterActionText);
+
+    public System.Windows.Input.ICommand FooterActionCommand => RevealFooterPathCommand;
 
     public bool ShowArchiveNameEditor => ArchiveMode && EncryptMode;
 
@@ -356,6 +370,16 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         OnPropertyChanged(nameof(HasResultSummary));
     }
 
+    partial void OnNeverOverwriteExistingFilesChanged(bool value)
+    {
+        RefreshIdleValidationState();
+    }
+
+    partial void OnFooterActionTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasFooterAction));
+    }
+
     [RelayCommand(CanExecute = nameof(CanBrowseFiles))]
     private async Task BrowseFilesAsync()
     {
@@ -459,8 +483,10 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         int progressRunId = BeginProgressRun();
         IsRunning = true;
+        runStopwatch.Restart();
         ErrorMessage = string.Empty;
         ProgressPercent = 0;
+        FooterActionText = string.Empty;
         StatusText = GetRunningStatusText();
         ProgressText = GetStartingProgressText();
         ClearResults();
@@ -485,11 +511,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         }
         catch (Exception exception)
         {
+            runStopwatch.Stop();
             string message = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
             ErrorMessage = message;
             VisibleErrorMessage = message;
-            ProgressText = GetFailureProgressText();
-            StatusText = "Ready";
+            ProgressText = WorkflowStatusTextFormatter.SummarizeStatusDetail(message);
+            StatusText = GetFailureStatusText();
+            FooterActionText = string.Empty;
         }
         finally
         {
@@ -507,6 +535,12 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private Task CopyResultsAsync()
     {
         return CopyTextAsync(BuildResultsClipboardText(), "Copied batch results.");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRevealFooterPath))]
+    private Task RevealFooterPathAsync()
+    {
+        return pathRevealService.TryRevealPathAsync(FooterActionText, CancellationToken.None);
     }
 
     private bool CanBrowseFiles()
@@ -556,6 +590,11 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private bool CanCopyResults()
     {
         return clipboardService is not null && HasResults;
+    }
+
+    private bool CanRevealFooterPath()
+    {
+        return HasFooterAction;
     }
 
     private void OnSourcePathsChanged(object? sender, NotifyCollectionChangedEventArgs args)
@@ -623,14 +662,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             {
                 SetOutputDirectory(string.Empty, OutputDirectoryOrigin.None);
             }
-
-            return;
         }
-
-        if (outputDirectoryOrigin is OutputDirectoryOrigin.None or OutputDirectoryOrigin.SettingsDefault)
+        else if (outputDirectoryOrigin is OutputDirectoryOrigin.None or OutputDirectoryOrigin.SettingsDefault)
         {
             SetOutputDirectory(defaultDirectory, OutputDirectoryOrigin.SettingsDefault);
         }
+
+        RefreshIdleValidationState();
     }
 
     private async Task RunIndividualBatchAsync(int progressRunId)
@@ -648,12 +686,20 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             : await workflowService.DecryptFilesAsync(request, progress, CancellationToken.None);
 
         CompleteProgressRun(progressRunId);
+        runStopwatch.Stop();
         ApplyBatchResults(result);
         ProgressPercent = 100;
-        StatusText = "Ready";
+        StatusText = result.Succeeded
+            ? EncryptMode
+                ? $"Batch encrypted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}"
+                : $"Batch decrypted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}"
+            : EncryptMode
+                ? "Batch encryption completed with failures"
+                : "Batch decryption completed with failures";
         ProgressText = result.Succeeded
-            ? EncryptMode ? "Batch encryption complete." : "Batch decryption complete."
-            : $"{result.SucceededCount} succeeded, {result.FailedCount} failed.";
+            ? "Saved in"
+            : $"{result.SucceededCount} succeeded, {result.FailedCount} failed - Output folder";
+        FooterActionText = OutputDirectory;
         ResultSummary = result.Succeeded
             ? EncryptMode
                 ? $"Batch encryption complete. {result.SucceededCount} file(s) succeeded."
@@ -680,6 +726,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             CancellationToken.None);
 
         CompleteProgressRun(progressRunId);
+        runStopwatch.Stop();
         Results.Add(new BatchResultItemViewModel(
             succeeded: true,
             statusLabel: "Created",
@@ -691,8 +738,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             detailBrush: "#4f9a61",
             secondaryText: string.Empty));
         ProgressPercent = 100;
-        StatusText = "Ready";
-        ProgressText = "Archive encryption complete.";
+        StatusText = $"Archive created in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}";
+        ProgressText = "Saved to";
+        FooterActionText = result.OutputPath;
         ResultSummary = $"Archive encryption complete. {SourcePaths.Count} file(s) bundled into one encrypted archive.";
     }
 
@@ -712,6 +760,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             CancellationToken.None);
 
         CompleteProgressRun(progressRunId);
+        runStopwatch.Stop();
         foreach (string outputPath in result.OutputPaths)
         {
             Results.Add(new BatchResultItemViewModel(
@@ -727,8 +776,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         }
 
         ProgressPercent = 100;
-        StatusText = "Ready";
-        ProgressText = "Archive extraction complete.";
+        StatusText = $"Archive extracted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}";
+        ProgressText = $"Extracted {result.OutputPaths.Count} file(s) to";
+        FooterActionText = OutputDirectory;
         ResultSummary = $"Archive extraction complete. {result.OutputPaths.Count} file(s) extracted.";
     }
 
@@ -848,8 +898,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         int currentFileNumber = Math.Min(progress.CompletedFiles + 1, progress.TotalFiles);
 
         ProgressText = progress.CurrentTotalInputBytes is > 0
-            ? $"{(EncryptMode ? "Encrypting" : "Decrypting")} file {currentFileNumber} of {progress.TotalFiles}: {currentFileName} ({progress.CurrentInputBytes}/{progress.CurrentTotalInputBytes.Value} bytes)"
-            : $"{(EncryptMode ? "Encrypting" : "Decrypting")} file {currentFileNumber} of {progress.TotalFiles}: {currentFileName}";
+            ? $"File {currentFileNumber}/{progress.TotalFiles} - {currentFileName} - {WorkflowStatusTextFormatter.FormatByteProgress(progress.CurrentInputBytes, progress.CurrentTotalInputBytes)}"
+            : $"File {currentFileNumber}/{progress.TotalFiles} - {currentFileName}";
+        FooterActionText = string.Empty;
     }
 
     private void ReportArchiveProgress(int progressRunId, FileCrypterProgress progress)
@@ -874,8 +925,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         };
 
         ProgressText = progress.TotalInputBytes is > 0
-            ? $"{phaseText}: {progress.InputBytes}/{progress.TotalInputBytes.Value} bytes"
+            ? $"{phaseText} - {WorkflowStatusTextFormatter.FormatByteProgress(progress.InputBytes, progress.TotalInputBytes)}"
             : phaseText;
+        FooterActionText = string.Empty;
     }
 
     private int BeginProgressRun()
@@ -902,7 +954,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
         VisibleErrorMessage = string.Empty;
         ErrorMessage = GetBlockingValidationMessage();
+        StatusText = "Ready";
         ProgressText = GetIdleProgressText();
+        FooterActionText = string.Empty;
     }
 
     private bool HasValidSourceSelection()
@@ -980,14 +1034,30 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     private string GetIdleProgressText()
     {
-        if (HasSelectedFiles)
+        if (!HasSelectedFiles)
+        {
+            return ArchiveMode && !EncryptMode
+                ? "No archive selected"
+                : "No batch files selected";
+        }
+
+        FileSelectionPreviewViewModel? firstPreview = SourceFilePreviews.FirstOrDefault();
+        if (firstPreview is null)
         {
             return FilesSummaryText;
         }
 
-        return ArchiveMode && !EncryptMode
-            ? "No archive selected"
-            : "No batch files selected";
+        if (ArchiveMode && !EncryptMode && SourcePaths.Count == 1)
+        {
+            return $"{firstPreview.FileName} - {firstPreview.SizeText}";
+        }
+
+        if (SourcePaths.Count == 1)
+        {
+            return $"1 file selected - {firstPreview.FileName}";
+        }
+
+        return $"{SourcePaths.Count} files selected - {firstPreview.FileName} + {SourcePaths.Count - 1} more";
     }
 
     private string GetRunningStatusText()
@@ -1020,6 +1090,17 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             (false, false) => "Batch decryption failed.",
             (true, true) => "Archive encryption failed.",
             _ => "Archive extraction failed.",
+        };
+    }
+
+    private string GetFailureStatusText()
+    {
+        return (ArchiveMode, EncryptMode) switch
+        {
+            (false, true) => "Batch encryption failed",
+            (false, false) => "Batch decryption failed",
+            (true, true) => "Archive encryption failed",
+            _ => "Archive extraction failed",
         };
     }
 

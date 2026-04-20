@@ -3,15 +3,19 @@ using CommunityToolkit.Mvvm.Input;
 using FileCrypter.App.Services;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
+using System.Diagnostics;
 using System.Text;
 
 namespace FileCrypter.App.ViewModels;
 
 public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusViewModel
 {
+    private int activeProgressRunId;
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
     private readonly IClipboardService? clipboardService;
+    private readonly IPathRevealService pathRevealService;
+    private readonly Stopwatch runStopwatch = new();
     private string defaultOutputDirectory = string.Empty;
     private OutputPathOrigin outputPathOrigin;
     private bool isUpdatingOutputPathInternally;
@@ -81,11 +85,16 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     [ObservableProperty]
     private string generatedKeyFileResultPath = string.Empty;
 
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RevealFooterPathCommand))]
+    private string footerActionText = string.Empty;
+
     public EncryptViewModel(
         IFileCrypterWorkflowService workflowService,
         IFilePickerService? filePickerService = null,
-        IClipboardService? clipboardService = null)
-        : this(workflowService, enableCompressionByDefault: false, filePickerService, clipboardService)
+        IClipboardService? clipboardService = null,
+        IPathRevealService? pathRevealService = null)
+        : this(workflowService, enableCompressionByDefault: false, filePickerService, clipboardService, pathRevealService)
     {
     }
 
@@ -93,11 +102,13 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         IFileCrypterWorkflowService workflowService,
         bool enableCompressionByDefault,
         IFilePickerService? filePickerService = null,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        IPathRevealService? pathRevealService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
         this.clipboardService = clipboardService;
+        this.pathRevealService = pathRevealService ?? new NoOpPathRevealService();
         EnableCompression = enableCompressionByDefault;
     }
 
@@ -105,15 +116,21 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         IFileCrypterWorkflowService workflowService,
         FileCrypterSettings initialSettings,
         IFilePickerService? filePickerService = null,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        IPathRevealService? pathRevealService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
         this.clipboardService = clipboardService;
+        this.pathRevealService = pathRevealService ?? new NoOpPathRevealService();
         ApplySettings(initialSettings);
     }
 
     public string Title => "Encrypt a file";
+
+    public bool HasFooterAction => !string.IsNullOrWhiteSpace(FooterActionText);
+
+    public System.Windows.Input.ICommand FooterActionCommand => RevealFooterPathCommand;
 
     public bool HasError => !string.IsNullOrWhiteSpace(VisibleErrorMessage);
 
@@ -172,11 +189,11 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         NeverOverwriteExistingFiles = settings.NeverOverwriteExistingFilesByDefault;
         defaultOutputDirectory = GetUsableDefaultOutputDirectory(settings.DefaultOutputDirectory);
         RefreshSuggestedOutputPath();
+        ResetReadyFooter();
     }
 
     partial void OnSourcePathChanged(string value)
     {
-        ProgressText = string.IsNullOrWhiteSpace(value) ? "No file selected" : Path.GetFileName(value);
         SourcePreview = string.IsNullOrWhiteSpace(value)
             ? null
             : new FileSelectionPreviewViewModel(value);
@@ -184,6 +201,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         OnPropertyChanged(nameof(HasSelectedFile));
         OnPropertyChanged(nameof(ShowEmptySourceState));
         RefreshSuggestedOutputPath();
+        ResetReadyFooter();
     }
 
     partial void OnOutputPathChanged(string value)
@@ -197,11 +215,13 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
         ClearVisibleError();
         OnPropertyChanged(nameof(OutputDisplayText));
+        ResetReadyFooter();
     }
 
     partial void OnPasswordChanged(string value)
     {
         ClearVisibleError();
+        ResetReadyFooter();
     }
 
     partial void OnIsRunningChanged(bool value)
@@ -220,6 +240,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
         ClearVisibleError();
         OnKeyFileChoiceStateChanged();
+        ResetReadyFooter();
     }
 
     partial void OnGenerateKeyFilePathChanged(string value)
@@ -231,6 +252,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
         ClearVisibleError();
         OnKeyFileChoiceStateChanged();
+        ResetReadyFooter();
     }
 
     partial void OnVisibleErrorMessageChanged(string value)
@@ -246,6 +268,21 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnGeneratedKeyFileResultPathChanged(string value)
     {
         OnPropertyChanged(nameof(HasGeneratedKeyFileResult));
+    }
+
+    partial void OnEnableCompressionChanged(bool value)
+    {
+        ResetReadyFooter();
+    }
+
+    partial void OnNeverOverwriteExistingFilesChanged(bool value)
+    {
+        ResetReadyFooter();
+    }
+
+    partial void OnFooterActionTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasFooterAction));
     }
 
     [RelayCommand(CanExecute = nameof(CanBrowse))]
@@ -339,12 +376,15 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     [RelayCommand(CanExecute = nameof(CanStartEncrypt))]
     private async Task StartEncryptAsync()
     {
+        int progressRunId = BeginProgressRun();
         IsRunning = true;
+        runStopwatch.Restart();
         ErrorMessage = string.Empty;
         ResultPath = string.Empty;
         GeneratedKeyFileResultPath = string.Empty;
         ProgressPercent = 0;
-        ProgressText = "Starting encryption...";
+        FooterActionText = string.Empty;
+        ProgressText = "Preparing source file...";
         StatusText = "Encrypting";
 
         try
@@ -358,25 +398,31 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
                 string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath,
                 string.IsNullOrWhiteSpace(GenerateKeyFilePath) ? null : GenerateKeyFilePath);
 
-            Progress<FileCrypterProgress> progress = new(ReportProgress);
+            Progress<FileCrypterProgress> progress = new(value => ReportProgress(progressRunId, value));
             EncryptFileResult result = await workflowService.EncryptFileAsync(
                 request,
                 progress,
                 CancellationToken.None);
 
+            CompleteProgressRun(progressRunId);
+            runStopwatch.Stop();
             ResultPath = result.OutputPath;
             GeneratedKeyFileResultPath = result.GeneratedKeyFilePath ?? string.Empty;
             ProgressPercent = 100;
-            ProgressText = "Encryption complete.";
-            StatusText = "Ready";
+            ProgressText = "Saved to";
+            StatusText = $"Encrypted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}";
+            FooterActionText = result.OutputPath;
         }
         catch (Exception exception)
         {
+            CompleteProgressRun(progressRunId);
+            runStopwatch.Stop();
             string message = GetTroubleshootingMessage(exception);
             ErrorMessage = message;
             VisibleErrorMessage = message;
-            ProgressText = "Encryption failed.";
-            StatusText = "Ready";
+            ProgressText = WorkflowStatusTextFormatter.SummarizeStatusDetail(message);
+            StatusText = "Encryption failed";
+            FooterActionText = string.Empty;
         }
         finally
         {
@@ -394,6 +440,12 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private Task CopyResultAsync()
     {
         return CopyTextAsync(BuildResultClipboardText(), "Copied result details.");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRevealFooterPath))]
+    private Task RevealFooterPathAsync()
+    {
+        return pathRevealService.TryRevealPathAsync(FooterActionText, CancellationToken.None);
     }
 
     private bool CanBrowse()
@@ -452,6 +504,11 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private bool CanCopyResult()
     {
         return clipboardService is not null && HasResult;
+    }
+
+    private bool CanRevealFooterPath()
+    {
+        return HasFooterAction;
     }
 
     private string? GetSuggestedOutputFileName()
@@ -525,20 +582,38 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             : string.Empty;
     }
 
-    private void ReportProgress(FileCrypterProgress progress)
+    private void ReportProgress(int progressRunId, FileCrypterProgress progress)
     {
+        if (!IsActiveProgressRun(progressRunId))
+        {
+            return;
+        }
+
         if (progress.TotalInputBytes is > 0)
         {
             ProgressPercent = Math.Clamp(
                 progress.InputBytes * 100d / progress.TotalInputBytes.Value,
                 0,
                 100);
-            ProgressText = $"{progress.InputBytes}/{progress.TotalInputBytes.Value} bytes";
         }
-        else
-        {
-            ProgressText = $"{progress.InputBytes} bytes processed";
-        }
+
+        ProgressText = WorkflowStatusTextFormatter.FormatByteProgress(progress.InputBytes, progress.TotalInputBytes);
+        FooterActionText = string.Empty;
+    }
+
+    private int BeginProgressRun()
+    {
+        return Interlocked.Increment(ref activeProgressRunId);
+    }
+
+    private void CompleteProgressRun(int progressRunId)
+    {
+        Interlocked.CompareExchange(ref activeProgressRunId, 0, progressRunId);
+    }
+
+    private bool IsActiveProgressRun(int progressRunId)
+    {
+        return Volatile.Read(ref activeProgressRunId) == progressRunId;
     }
 
     private async Task CopyTextAsync(string text, string successProgressText)
@@ -581,6 +656,20 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         OnPropertyChanged(nameof(CanEditExistingKeyFileChoice));
         OnPropertyChanged(nameof(CanEditGeneratedKeyFileChoice));
         OnPropertyChanged(nameof(KeyFileChoiceStatusText));
+    }
+
+    private void ResetReadyFooter()
+    {
+        if (IsRunning)
+        {
+            return;
+        }
+
+        StatusText = "Ready";
+        ProgressText = HasSelectedFile
+            ? $"{SourcePreview!.FileName} - {SourcePreview.SizeText}"
+            : "No file selected";
+        FooterActionText = string.Empty;
     }
 
     private static string GetTroubleshootingMessage(Exception exception)

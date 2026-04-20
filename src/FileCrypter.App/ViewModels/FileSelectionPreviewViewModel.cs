@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Input;
+using FileCrypter.App.Services;
 
 namespace FileCrypter.App.ViewModels;
 
@@ -54,37 +55,7 @@ public sealed class FileSelectionPreviewViewModel
 
     private static string GetFileSizeText(string path)
     {
-        try
-        {
-            FileInfo fileInfo = new(path);
-            if (!fileInfo.Exists)
-            {
-                return "Size unavailable";
-            }
-
-            return FormatFileSize(fileInfo.Length);
-        }
-        catch
-        {
-            return "Size unavailable";
-        }
-    }
-
-    private static string FormatFileSize(long size)
-    {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        double value = size;
-        int unitIndex = 0;
-
-        while (value >= 1024 && unitIndex < units.Length - 1)
-        {
-            value /= 1024;
-            unitIndex++;
-        }
-
-        return unitIndex == 0
-            ? $"{value:0} {units[unitIndex]}"
-            : $"{value:0.#} {units[unitIndex]}";
+        return WorkflowStatusTextFormatter.GetFileSizeText(path);
     }
 
     private static string GetIconPathData(string fileName)
