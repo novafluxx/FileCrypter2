@@ -174,7 +174,7 @@ Alternative if recents feel too heavy: a sidebar-wide drop target ("Drop files h
 
 ## Slice 10 — Sidebar nav hover state
 
-`[ ] TODO:`
+`[x] DONE:`
 
 **Problem.** Only the active nav item has visual distinction. Hover produces no feedback, which feels inert.
 
