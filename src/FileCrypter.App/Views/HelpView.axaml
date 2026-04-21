@@ -13,12 +13,12 @@
                 <StackPanel Spacing="8">
                     <TextBlock Text="RECOVERY WARNING"
                                Foreground="{DynamicResource WarningAccentForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="Keep the password and any key file together in a way you trust. FileCrypter cannot recover forgotten passwords or lost or changed key files."
                                Foreground="{DynamicResource WarningForegroundBrush}"
-                               FontSize="18"
+                               FontSize="{StaticResource FontSizeTitle}"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
@@ -31,7 +31,7 @@
                 <StackPanel Spacing="16">
                     <TextBlock Text="WORKFLOW GUIDES"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <ItemsControl ItemsSource="{Binding WorkflowTopics}">
@@ -45,7 +45,7 @@
                                         Margin="0,0,0,12">
                                     <StackPanel Spacing="6">
                                         <TextBlock Text="{Binding Title}"
-                                                   FontSize="18"
+                                                   FontSize="{StaticResource FontSizeTitle}"
                                                    FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding Description}"
                                                    Foreground="{DynamicResource MutedForegroundBrush}"
@@ -66,7 +66,7 @@
                 <StackPanel Spacing="16">
                     <TextBlock Text="TROUBLESHOOTING"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <ItemsControl ItemsSource="{Binding TroubleshootingTopics}">
@@ -80,7 +80,7 @@
                                         Margin="0,0,0,12">
                                     <StackPanel Spacing="6">
                                         <TextBlock Text="{Binding Title}"
-                                                   FontSize="18"
+                                                   FontSize="{StaticResource FontSizeTitle}"
                                                    FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding Description}"
                                                    Foreground="{DynamicResource MutedForegroundBrush}"
@@ -101,18 +101,18 @@
                 <StackPanel Spacing="16">
                     <TextBlock Text="UPDATES AND COMPATIBILITY"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="{Binding CurrentVersion}"
-                               FontSize="24"
+                               FontSize="{StaticResource FontSizePanelTitle}"
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding FormatVersionText}"
                                Foreground="{DynamicResource AccentForegroundBrush}"
                                TextWrapping="Wrap" />
                     <TextBlock Text="{Binding UpdateSummaryText}"
                                Foreground="{Binding UpdateSummaryBrush}"
-                               FontSize="18"
+                               FontSize="{StaticResource FontSizeTitle}"
                                TextWrapping="Wrap" />
                     <TextBlock Text="{Binding UpdateDetailText}"
                                Foreground="{DynamicResource MutedForegroundBrush}"
@@ -125,7 +125,7 @@
                             Command="{Binding CheckForUpdatesCommand}"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
-                            FontSize="18"
+                            FontSize="{StaticResource FontSizeTitle}"
                             FontWeight="SemiBold" />
                     <TextBlock Text="Automatic install and relaunch are still pending. This help page keeps the user-facing update state visible while the fuller desktop update flow is still on the roadmap."
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
@@ -141,7 +141,7 @@
                 <StackPanel Spacing="16">
                     <TextBlock Text="SAFETY AND PRIVACY"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <ItemsControl ItemsSource="{Binding SafetyTopics}">
@@ -155,7 +155,7 @@
                                         Margin="0,0,0,12">
                                     <StackPanel Spacing="6">
                                         <TextBlock Text="{Binding Title}"
-                                                   FontSize="18"
+                                                   FontSize="{StaticResource FontSizeTitle}"
                                                    FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding Description}"
                                                    Foreground="{DynamicResource MutedForegroundBrush}"

@@ -12,11 +12,11 @@
             HorizontalAlignment="Stretch">
         <StackPanel Spacing="12">
             <TextBlock Text="{Binding Title}"
-                       FontSize="26"
+                       FontSize="{StaticResource FontSizePageTitle}"
                        FontWeight="SemiBold" />
             <TextBlock Text="{Binding Description}"
                        Foreground="{DynamicResource MutedForegroundBrush}"
-                       FontSize="17"
+                       FontSize="{StaticResource FontSizeBodyStrong}"
                        TextWrapping="Wrap" />
         </StackPanel>
     </Border>

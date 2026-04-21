@@ -14,7 +14,7 @@
                 <StackPanel Spacing="12">
                     <TextBlock Text="{Binding VisibleErrorMessage}"
                                Foreground="{DynamicResource ErrorForegroundBrush}"
-                               FontSize="18"
+                               FontSize="{StaticResource FontSizeTitle}"
                                TextWrapping="Wrap" />
                     <Button Content="Copy issue"
                             Command="{Binding CopyErrorCommand}"
@@ -30,11 +30,11 @@
                 <StackPanel Spacing="18">
                     <TextBlock Text="WORKFLOW"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="{Binding ModeTitle}"
-                               FontSize="24"
+                               FontSize="{StaticResource FontSizePanelTitle}"
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding ModeDescription}"
                                Foreground="{DynamicResource MutedForegroundBrush}"
@@ -47,7 +47,7 @@
                         <StackPanel Spacing="12">
                             <TextBlock Text="1. WHAT ARE YOU WORKING WITH?"
                                        Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="14"
+                                       FontSize="{StaticResource FontSizeCaption}"
                                        FontWeight="Bold"
                                        LetterSpacing="1.5" />
                             <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
@@ -92,7 +92,7 @@
                         <StackPanel Grid.Column="2" Spacing="12">
                             <TextBlock Text="2. WHAT SHOULD FILECRYPTER DO?"
                                        Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="14"
+                                       FontSize="{StaticResource FontSizeCaption}"
                                        FontWeight="Bold"
                                        LetterSpacing="1.5" />
                             <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
@@ -145,7 +145,7 @@
                 <StackPanel Spacing="14">
                     <TextBlock Text="{Binding SourceHeading}"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="{Binding FilesSummaryText}"
@@ -169,7 +169,7 @@
                                               Data="M6 2 H14 L20 8 V22 H6 Z M14 2 V8 H20 M12 10 V18 M9 13 L12 10 L15 13 M9 18 H15" />
                                     </Viewbox>
                                     <TextBlock Text="Drop files here to build the batch"
-                                               FontSize="17"
+                                               FontSize="{StaticResource FontSizeTitle}"
                                                FontWeight="SemiBold"
                                                HorizontalAlignment="Center" />
                                     <TextBlock Text="Click or drag files here. Each selected file gets its own remove action."
@@ -198,7 +198,7 @@
                                                         <TextBlock Grid.Column="1"
                                                                    Text="{Binding DisplayName}"
                                                                    ToolTip.Tip="{Binding FullPath}"
-                                                                   FontSize="16"
+                                                                   FontSize="{StaticResource FontSizeTitle}"
                                                                    FontWeight="SemiBold"
                                                                    VerticalAlignment="Center"
                                                                    TextWrapping="NoWrap"
@@ -235,13 +235,13 @@
                 <StackPanel Spacing="14">
                     <TextBlock Text="{Binding OutputHeading}"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
                         <TextBox Text="{Binding OutputDirectory}"
                                  PlaceholderText="Choose an existing output folder..."
-                                 FontSize="20" />
+                                 FontSize="{StaticResource FontSizeInput}" />
                         <Button Grid.Column="1"
                                 Content="Browse"
                                 Command="{Binding BrowseOutputDirectoryCommand}" />
@@ -255,12 +255,12 @@
                                 Spacing="10">
                         <TextBlock Text="ARCHIVE NAME"
                                    Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                   FontSize="15"
+                                   FontSize="{StaticResource FontSizeBody}"
                                    FontWeight="Bold"
                                    LetterSpacing="2" />
                         <TextBox Text="{Binding ArchiveName}"
                                  PlaceholderText="Optional archive name, like project-docs"
-                                 FontSize="18" />
+                                 FontSize="{StaticResource FontSizeInput}" />
                         <TextBlock Text="{Binding ArchiveNameStatusText}"
                                    Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                    Margin="32,0,0,0"
@@ -284,13 +284,13 @@
                 <StackPanel Spacing="14">
                     <TextBlock Text="PASSWORD AND OPTIONAL KEY FILE"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBox Text="{Binding Password}"
                              PasswordChar="*"
                              PlaceholderText="Password"
-                             FontSize="20" />
+                             FontSize="{StaticResource FontSizeInput}" />
 
                     <TextBlock Text="{Binding KeyFileChoiceStatusText}"
                                Foreground="{DynamicResource AccentForegroundBrush}"
@@ -299,7 +299,7 @@
                     <Grid ColumnDefinitions="*,140,96" ColumnSpacing="16">
                         <TextBox Text="{Binding KeyFilePath}"
                                  PlaceholderText="Optional batch key file..."
-                                 FontSize="18" />
+                                 FontSize="{StaticResource FontSizeInput}" />
                         <Button Grid.Column="1"
                                 Content="Browse"
                                 Command="{Binding BrowseKeyFileCommand}" />
@@ -331,7 +331,7 @@
                             Command="{Binding StartBatchCommand}"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
-                            FontSize="18"
+                            FontSize="{StaticResource FontSizeTitle}"
                             FontWeight="SemiBold" />
                 </StackPanel>
             </Border>
@@ -365,14 +365,14 @@
                                                    Foreground="{Binding StatusBrush}"
                                                    FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding TitleText}"
-                                                   FontSize="17"
+                                                   FontSize="{StaticResource FontSizeTitle}"
                                                    FontWeight="SemiBold" />
                                         <TextBlock Text="{Binding PrimaryText}"
                                                    Foreground="{DynamicResource MutedForegroundBrush}"
                                                    TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding DetailLabel}"
                                                    Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                                   FontSize="13"
+                                                   FontSize="{StaticResource FontSizeCaption}"
                                                    FontWeight="Bold"
                                                    LetterSpacing="1.5" />
                                         <TextBlock Text="{Binding DetailText}"

@@ -42,7 +42,7 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid Background="{DynamicResource WindowBackgroundBrush}" ColumnDefinitions="288,*" RowDefinitions="*,56">
+    <Grid Background="{DynamicResource WindowBackgroundBrush}" ColumnDefinitions="200,*" RowDefinitions="*,56">
         <Border Grid.RowSpan="2"
                 BorderBrush="{DynamicResource SidebarBorderBrush}"
                 BorderThickness="0,0,1,0"
@@ -50,10 +50,10 @@
             <Grid RowDefinitions="136,*,Auto">
                 <StackPanel Margin="28,30,28,0">
                     <TextBlock Text="FileCrypter"
-                               FontSize="24"
+                               FontSize="{StaticResource FontSizeAppTitle}"
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding AppVersion}"
-                               FontSize="17"
+                               FontSize="{StaticResource FontSizeAppMeta}"
                                Foreground="{DynamicResource SidebarDetailForegroundBrush}"
                                Margin="0,8,0,0" />
                 </StackPanel>
@@ -95,7 +95,7 @@
                 <Grid Margin="32,0">
                     <TextBlock Text="{Binding CurrentPageTitle}"
                                VerticalAlignment="Center"
-                               FontSize="26"
+                               FontSize="{StaticResource FontSizePageTitle}"
                                FontWeight="SemiBold" />
                 </Grid>
             </Border>

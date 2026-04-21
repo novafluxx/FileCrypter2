@@ -14,7 +14,7 @@
                 <StackPanel Spacing="12">
                     <TextBlock Text="{Binding VisibleErrorMessage}"
                                Foreground="{DynamicResource ErrorForegroundBrush}"
-                               FontSize="18"
+                               FontSize="{StaticResource FontSizeTitle}"
                                TextWrapping="Wrap" />
                     <Button Content="Copy issue"
                             Command="{Binding CopyErrorCommand}"
@@ -31,7 +31,7 @@
                 <StackPanel Spacing="14">
                     <TextBlock Text="SOURCE FILE"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <Grid ColumnDefinitions="*">
@@ -48,7 +48,7 @@
                                               Data="M6 2 H14 L20 8 V22 H6 Z M14 2 V8 H20 M12 10 V18 M9 13 L12 10 L15 13 M9 18 H15" />
                                     </Viewbox>
                                     <TextBlock Text="Select or drag a file here"
-                                               FontSize="17"
+                                               FontSize="{StaticResource FontSizeTitle}"
                                                FontWeight="SemiBold"
                                                HorizontalAlignment="Center" />
                                     <TextBlock Text="Click or drag a local file here."
@@ -71,7 +71,7 @@
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding SourcePreview.DisplayName}"
                                                    ToolTip.Tip="{Binding SourcePreview.FullPath}"
-                                                   FontSize="17"
+                                                   FontSize="{StaticResource FontSizeTitle}"
                                                    FontWeight="SemiBold"
                                                    VerticalAlignment="Center"
                                                    TextWrapping="NoWrap"
@@ -101,13 +101,13 @@
                 <StackPanel Spacing="14">
                     <TextBlock Text="OUTPUT FILE"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
                         <TextBox Text="{Binding OutputPath}"
                                  PlaceholderText="Auto-generated from input filename..."
-                                 FontSize="20" />
+                                 FontSize="{StaticResource FontSizeInput}" />
                         <Button Grid.Column="1"
                                 Content="Browse"
                                 Command="{Binding BrowseOutputCommand}" />
@@ -135,13 +135,13 @@
                 <StackPanel Spacing="14">
                     <TextBlock Text="PASSWORD AND KEY FILE"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBox Text="{Binding Password}"
                              PasswordChar="*"
                              PlaceholderText="Password"
-                             FontSize="20" />
+                             FontSize="{StaticResource FontSizeInput}" />
 
                     <TextBlock Text="Choose one optional key-file mode: reuse an existing key file or generate a new one for this file."
                                Foreground="{DynamicResource MutedForegroundBrush}"
@@ -154,7 +154,7 @@
                         <TextBox Text="{Binding KeyFilePath}"
                                  IsEnabled="{Binding CanEditExistingKeyFileChoice}"
                                  PlaceholderText="Optional existing key file..."
-                                 FontSize="18" />
+                                 FontSize="{StaticResource FontSizeInput}" />
                         <Button Grid.Column="1"
                                 Content="Browse"
                                 Command="{Binding BrowseKeyFileCommand}" />
@@ -171,7 +171,7 @@
                         <TextBox Text="{Binding GenerateKeyFilePath}"
                                  IsEnabled="{Binding CanEditGeneratedKeyFileChoice}"
                                  PlaceholderText="Optional new key file path..."
-                                 FontSize="18" />
+                                 FontSize="{StaticResource FontSizeInput}" />
                         <Button Grid.Column="1"
                                 Content="Browse"
                                 Command="{Binding BrowseGeneratedKeyFileCommand}" />
@@ -205,7 +205,7 @@
                             Command="{Binding StartEncryptCommand}"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
-                            FontSize="18"
+                            FontSize="{StaticResource FontSizeTitle}"
                             FontWeight="SemiBold" />
                 </StackPanel>
             </Border>

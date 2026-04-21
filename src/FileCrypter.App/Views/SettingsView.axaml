@@ -13,7 +13,7 @@
                     Padding="24,18">
                 <TextBlock Text="{Binding ErrorMessage}"
                            Foreground="{DynamicResource ErrorForegroundBrush}"
-                           FontSize="18"
+                           FontSize="{StaticResource FontSizeTitle}"
                            TextWrapping="Wrap" />
             </Border>
 
@@ -25,7 +25,7 @@
                     Padding="24,18">
                 <TextBlock Text="{Binding SuccessMessage}"
                            Foreground="{DynamicResource SuccessForegroundBrush}"
-                           FontSize="18"
+                           FontSize="{StaticResource FontSizeTitle}"
                            TextWrapping="Wrap" />
             </Border>
 
@@ -37,7 +37,7 @@
                 <StackPanel Spacing="16">
                     <TextBlock Text="APPEARANCE"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="Choose whether FileCrypter stays light, stays dark, or follows the platform default."
@@ -54,7 +54,7 @@
 
                     <TextBlock Text="ENCRYPTION DEFAULTS"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="Choose how the Encrypt page behaves before you touch anything. These settings are stored locally and shared with the CLI host."
@@ -81,14 +81,14 @@
 
                     <TextBlock Text="DEFAULT OUTPUT DIRECTORY"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2"
                                Margin="0,12,0,0" />
                     <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
                         <TextBox Text="{Binding DefaultOutputDirectory}"
                                  PlaceholderText="Leave blank to use the source file's folder..."
-                                 FontSize="18" />
+                                 FontSize="{StaticResource FontSizeInput}" />
                         <Button Grid.Column="1"
                                 Content="Browse"
                                 Command="{Binding BrowseDefaultOutputDirectoryCommand}" />
@@ -108,11 +108,11 @@
                 <StackPanel Spacing="16">
                     <TextBlock Text="ABOUT AND VERSION"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="{Binding CurrentVersion}"
-                               FontSize="24"
+                               FontSize="{StaticResource FontSizePanelTitle}"
                                FontWeight="SemiBold" />
                     <TextBlock Text="Open the changelog here when you want a quick recap of the desktop polish that shipped into this preview."
                                Foreground="{DynamicResource MutedForegroundBrush}"
@@ -125,7 +125,7 @@
                                 Spacing="12">
                         <TextBlock Text="{Binding ChangelogHeading}"
                                    Foreground="{DynamicResource AccentForegroundBrush}"
-                                   FontSize="18"
+                                   FontSize="{StaticResource FontSizeTitle}"
                                    FontWeight="SemiBold" />
                         <ItemsControl ItemsSource="{Binding ChangelogEntries}">
                             <ItemsControl.ItemTemplate>
@@ -138,7 +138,7 @@
                                             Margin="0,0,0,12">
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="{Binding Title}"
-                                                       FontSize="18"
+                                                       FontSize="{StaticResource FontSizeTitle}"
                                                        FontWeight="SemiBold" />
                                             <TextBlock Text="{Binding Description}"
                                                        Foreground="{DynamicResource MutedForegroundBrush}"
@@ -160,7 +160,7 @@
                 <StackPanel Spacing="16">
                     <TextBlock Text="LOCAL SETTINGS FILE"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="15"
+                               FontSize="{StaticResource FontSizeBody}"
                                FontWeight="Bold"
                                LetterSpacing="2" />
                     <TextBlock Text="{Binding SettingsPath}"
