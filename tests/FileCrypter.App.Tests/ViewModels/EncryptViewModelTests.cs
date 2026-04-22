@@ -256,7 +256,7 @@ public sealed class EncryptViewModelTests
         bool applied = viewModel.ApplyDroppedSourcePaths(["/tmp/dropped.txt", "/tmp/other.txt"]);
 
         Assert.True(applied);
-        Assert.Equal("/tmp/dropped.txt", viewModel.SourcePath);
+        Assert.Equal(Path.GetFullPath("/tmp/dropped.txt"), viewModel.SourcePath);
         Assert.Equal(Path.Combine(outputDirectory.Path, "dropped.txt.encrypted"), viewModel.OutputPath);
     }
 
@@ -292,6 +292,35 @@ public sealed class EncryptViewModelTests
                 File.Delete(tempFilePath);
             }
         }
+    }
+
+    [Fact]
+    public void TogglePasswordVisibilityCommand_TogglesVisiblePasswordState()
+    {
+        var viewModel = new EncryptViewModel(new RecordingWorkflowService());
+
+        Assert.True(viewModel.ShowMaskedPasswordInput);
+        Assert.Equal("Show", viewModel.PasswordVisibilityActionText);
+
+        viewModel.TogglePasswordVisibilityCommand.Execute(null);
+
+        Assert.False(viewModel.ShowMaskedPasswordInput);
+        Assert.True(viewModel.ShowPassword);
+        Assert.Equal("Hide", viewModel.PasswordVisibilityActionText);
+    }
+
+    [Fact]
+    public void PasswordStrengthProperties_FollowPasswordComplexity()
+    {
+        var viewModel = new EncryptViewModel(new RecordingWorkflowService())
+        {
+            Password = "Strong!Pass123",
+        };
+
+        Assert.Equal(4, viewModel.PasswordStrengthScore);
+        Assert.Equal(100d, viewModel.PasswordStrengthPercent);
+        Assert.Equal("Excellent", viewModel.PasswordStrengthLabel);
+        Assert.Contains("bits of estimated entropy", viewModel.PasswordStrengthDetail, StringComparison.Ordinal);
     }
 
     private static EncryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)

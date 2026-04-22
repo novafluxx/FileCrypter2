@@ -8,10 +8,10 @@
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="FileCrypter"
-        Width="1180"
-        Height="760"
-        MinWidth="860"
-        MinHeight="600">
+        Width="1280"
+        Height="820"
+        MinWidth="980"
+        MinHeight="680">
 
     <Window.Resources>
         <DataTemplate x:Key="NavigationItemContentTemplate" x:DataType="vm:NavigationItemViewModel">
@@ -22,12 +22,12 @@
                          Height="18"
                          Stretch="Uniform">
                     <Path Classes="nav-item-icon"
-      Data="{Binding IconPathData}"
-      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
-      StrokeThickness="1.5"
-      StrokeLineCap="Round"
-      StrokeJoin="Round"
-      Fill="Transparent" />
+                          Data="{Binding IconPathData}"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                          StrokeThickness="1.5"
+                          StrokeLineCap="Round"
+                          StrokeJoin="Round"
+                          Fill="Transparent" />
                 </Viewbox>
                 <TextBlock Text="{Binding Title}"
                            VerticalAlignment="Center"
@@ -37,28 +37,77 @@
     </Window.Resources>
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid Background="{DynamicResource WindowBackgroundBrush}" ColumnDefinitions="200,*" RowDefinitions="*,56">
-        <Border Grid.RowSpan="2"
+    <Grid ClipToBounds="True"
+          Background="{DynamicResource WindowBackgroundBrush}"
+          ColumnDefinitions="248,*"
+          RowDefinitions="72,*,58">
+        <Canvas Grid.ColumnSpan="2"
+                Grid.RowSpan="3"
+                IsHitTestVisible="False">
+            <Ellipse Width="680"
+                     Height="680"
+                     Fill="{DynamicResource AmbientVioletBrush}"
+                     Opacity="0.10"
+                     Canvas.Left="-180"
+                     Canvas.Top="-220" />
+            <Ellipse Width="760"
+                     Height="760"
+                     Fill="{DynamicResource AmbientCyanBrush}"
+                     Opacity="0.08"
+                     Canvas.Left="860"
+                     Canvas.Top="340" />
+            <Ellipse Width="420"
+                     Height="420"
+                     Fill="{DynamicResource PinkAccentBrush}"
+                     Opacity="0.06"
+                     Canvas.Left="560"
+                     Canvas.Top="120" />
+        </Canvas>
+
+        <Border Grid.RowSpan="3"
+                Background="{DynamicResource SidebarBackgroundBrush}"
                 BorderBrush="{DynamicResource SidebarBorderBrush}"
                 BorderThickness="0,0,1,0"
-                Background="{DynamicResource SidebarBackgroundBrush}">
-            <Grid RowDefinitions="136,*,Auto">
-                <StackPanel Margin="28,30,28,0">
-                    <TextBlock Text="FileCrypter"
-                               FontSize="{StaticResource FontSizeAppTitle}"
-                               FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding AppVersion}"
-                               FontSize="{StaticResource FontSizeAppMeta}"
-                               Foreground="{DynamicResource SidebarDetailForegroundBrush}"
-                               Margin="0,8,0,0" />
-                </StackPanel>
+                Padding="18,18,18,20">
+            <Grid RowDefinitions="Auto,Auto,*,Auto">
+                <Border Classes="aurora-card"
+                        Padding="16"
+                        CornerRadius="18">
+                    <Grid ColumnDefinitions="Auto,*"
+                          ColumnSpacing="12">
+                        <Border Width="42"
+                                Height="42"
+                                CornerRadius="14"
+                                Background="{DynamicResource AccentGradientBrush}">
+                            <TextBlock Text="FC"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryButtonForegroundBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Spacing="2">
+                            <TextBlock Text="FileCrypter"
+                                       FontSize="{StaticResource FontSizeAppTitle}"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding AppVersion}"
+                                       FontSize="{StaticResource FontSizeAppMeta}"
+                                       Foreground="{DynamicResource SidebarDetailForegroundBrush}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-                <StackPanel Grid.Row="1">
+                <StackPanel Grid.Row="1"
+                            Margin="6,26,6,0"
+                            Spacing="8">
+                    <TextBlock Text="WORKFLOWS"
+                               FontSize="{StaticResource FontSizeCaption}"
+                               LetterSpacing="2"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}" />
                     <ItemsControl ItemsSource="{Binding PrimaryNavigationItems}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:NavigationItemViewModel">
@@ -72,7 +121,20 @@
                     </ItemsControl>
                 </StackPanel>
 
-                <StackPanel Grid.Row="2" Margin="0,0,0,28">
+                <Border Grid.Row="2"
+                        Margin="10,26,10,18"
+                        Background="#0DFFFFFF"
+                        CornerRadius="1"
+                        Height="1"
+                        VerticalAlignment="Top" />
+
+                <StackPanel Grid.Row="3"
+                            Margin="6,0,6,0"
+                            Spacing="8">
+                    <TextBlock Text="SYSTEM"
+                               FontSize="{StaticResource FontSizeCaption}"
+                               LetterSpacing="2"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}" />
                     <ItemsControl ItemsSource="{Binding SecondaryNavigationItems}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:NavigationItemViewModel">
@@ -88,42 +150,59 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Column="1" RowDefinitions="88,*">
-            <Border BorderBrush="{DynamicResource SidebarBorderBrush}"
-                    BorderThickness="0,0,0,1"
-                    Background="{DynamicResource SurfaceBackgroundBrush}">
-                <Grid Margin="32,0">
+        <Border Grid.Column="1"
+                Background="{DynamicResource WindowTopChromeBrush}"
+                BorderBrush="{DynamicResource SidebarBorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="28,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel VerticalAlignment="Center"
+                            Spacing="2">
+                    <TextBlock Text="LOCAL-FIRST DESKTOP ENCRYPTION"
+                               FontSize="{StaticResource FontSizeCaption}"
+                               LetterSpacing="2"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}" />
+                    <TextBlock Text="Seal, open, and batch-process files without leaving your machine."
+                               Foreground="{DynamicResource MutedForegroundBrush}" />
+                </StackPanel>
+                <Border Grid.Column="1"
+                        Classes="aurora-panel"
+                        Padding="12,8"
+                        VerticalAlignment="Center">
                     <TextBlock Text="{Binding CurrentPageTitle}"
-                               VerticalAlignment="Center"
-                               FontSize="{StaticResource FontSizePageTitle}"
-                               FontWeight="SemiBold" />
-                </Grid>
-            </Border>
+                               Foreground="{DynamicResource AccentSecondaryForegroundBrush}"
+                               FontSize="{StaticResource FontSizeCaption}"
+                               LetterSpacing="1.5" />
+                </Border>
+            </Grid>
+        </Border>
 
-            <ContentControl Grid.Row="1"
-                            Content="{Binding CurrentPage}"
-                            Margin="32" />
-        </Grid>
+        <ContentControl Grid.Column="1"
+                        Grid.Row="1"
+                        Content="{Binding CurrentPage}"
+                        Margin="0" />
 
         <Border Grid.Column="1"
-                Grid.Row="1"
+                Grid.Row="2"
+                Background="{DynamicResource WindowTopChromeBrush}"
                 BorderBrush="{DynamicResource SidebarBorderBrush}"
                 BorderThickness="0,1,0,0"
-                Background="{DynamicResource SurfaceBackgroundBrush}">
-            <Grid ColumnDefinitions="*,Auto" Margin="32,0">
+                Padding="28,0">
+            <Grid ColumnDefinitions="*,Auto"
+                  VerticalAlignment="Center">
                 <TextBlock Text="{Binding StatusText}"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource MutedForegroundBrush}" />
                 <StackPanel Grid.Column="1"
                             Orientation="Horizontal"
-                            Spacing="6"
+                            Spacing="8"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center">
                     <TextBlock Text="{Binding FooterDetail}"
                                VerticalAlignment="Center"
-                               Foreground="{DynamicResource MutedForegroundBrush}"
+                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                TextTrimming="CharacterEllipsis"
-                               MaxWidth="380" />
+                               MaxWidth="360" />
                     <Button Classes="status-link"
                             Command="{Binding FooterActionCommand}"
                             IsVisible="{Binding HasFooterAction}"

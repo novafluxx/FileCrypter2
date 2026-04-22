@@ -4,13 +4,33 @@
              x:Class="FileCrypter.App.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
     <ScrollViewer>
-        <StackPanel Spacing="24" MaxWidth="1000">
+        <StackPanel Margin="36,30,36,36"
+                    Spacing="24"
+                    MaxWidth="1120">
+            <StackPanel Spacing="10">
+                <Border Classes="aurora-panel"
+                        Padding="10,6"
+                        HorizontalAlignment="Left">
+                    <TextBlock Text="SETTINGS"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
+                               FontSize="{StaticResource FontSizeCaption}"
+                               LetterSpacing="2" />
+                </Border>
+                <TextBlock Text="Tune how FileCrypter feels before you start a workflow."
+                           FontSize="{StaticResource FontSizePageTitle}"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="These preferences are local to this device and shared with the CLI host where applicable."
+                           Foreground="{DynamicResource MutedForegroundBrush}"
+                           MaxWidth="620"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
             <Border IsVisible="{Binding HasError}"
                     Background="{DynamicResource ErrorBackgroundBrush}"
                     BorderBrush="{DynamicResource ErrorBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="24,18">
+                    CornerRadius="18"
+                    Padding="18,16">
                 <TextBlock Text="{Binding ErrorMessage}"
                            Foreground="{DynamicResource ErrorForegroundBrush}"
                            FontSize="{StaticResource FontSizeTitle}"
@@ -21,178 +41,171 @@
                     Background="{DynamicResource SuccessBackgroundBrush}"
                     BorderBrush="{DynamicResource SuccessBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="24,18">
+                    CornerRadius="18"
+                    Padding="18,16">
                 <TextBlock Text="{Binding SuccessMessage}"
                            Foreground="{DynamicResource SuccessForegroundBrush}"
                            FontSize="{StaticResource FontSizeTitle}"
                            TextWrapping="Wrap" />
             </Border>
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="APPEARANCE"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <TextBlock Text="Choose whether FileCrypter stays light, stays dark, or follows the platform default."
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <ComboBox ItemsSource="{Binding ThemeOptions}"
-                              SelectedItem="{Binding ThemePreference}"
-                              HorizontalAlignment="Left"
-                              MinWidth="220" />
-                    <TextBlock Text="{Binding ThemePreferenceDescription}"
-                               Foreground="{DynamicResource AccentForegroundBrush}"
-                               Margin="32,0,0,0"
-                               TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="*,340"
+                  ColumnSpacing="20">
+                <StackPanel Spacing="18">
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="18">
+                            <TextBlock Text="APPEARANCE"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="Choose whether FileCrypter stays light, stays dark, or follows the platform default."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <ComboBox ItemsSource="{Binding ThemeOptions}"
+                                      SelectedItem="{Binding ThemePreference}"
+                                      HorizontalAlignment="Left"
+                                      MinWidth="220" />
+                            <TextBlock Text="{Binding ThemePreferenceDescription}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
 
-                    <TextBlock Text="ENCRYPTION DEFAULTS"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <TextBlock Text="Choose how the Encrypt page behaves before you touch anything. These settings are stored locally and shared with the CLI host."
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               TextWrapping="Wrap" />
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="18">
+                            <TextBlock Text="WORKFLOW DEFAULTS"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <CheckBox IsChecked="{Binding EnableCompressionByDefault}"
+                                      Content="Enable compression by default for single-file encryption" />
+                            <TextBlock Text="{Binding CompressionDefaultDescription}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       Margin="30,0,0,0"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="Compression helps most with text and documents. Photos, videos, ZIP files, and other already-compressed files usually see little benefit."
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       Margin="30,0,0,0"
+                                       TextWrapping="Wrap" />
 
-                    <CheckBox IsChecked="{Binding EnableCompressionByDefault}"
-                              Content="Enable compression by default for single-file encryption" />
-                    <TextBlock Text="{Binding CompressionDefaultDescription}"
-                               Foreground="{DynamicResource AccentForegroundBrush}"
-                               Margin="32,0,0,0"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="Compression helps most with text and documents. Photos, videos, ZIP files, and other already-compressed files usually see little benefit."
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               Margin="32,0,0,0"
-                               TextWrapping="Wrap" />
+                            <CheckBox IsChecked="{Binding NeverOverwriteExistingFilesByDefault}"
+                                      Content="Protect existing files by default" />
+                            <TextBlock Text="{Binding OverwriteProtectionDescription}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       Margin="30,0,0,0"
+                                       TextWrapping="Wrap" />
 
-                    <CheckBox IsChecked="{Binding NeverOverwriteExistingFilesByDefault}"
-                              Content="Protect existing files by default" />
-                    <TextBlock Text="{Binding OverwriteProtectionDescription}"
-                               Foreground="{DynamicResource AccentForegroundBrush}"
-                               Margin="32,0,0,0"
-                               TextWrapping="Wrap" />
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="DEFAULT OUTPUT DIRECTORY"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <Grid ColumnDefinitions="*,150"
+                                      ColumnSpacing="12">
+                                    <TextBox Text="{Binding DefaultOutputDirectory}"
+                                             PlaceholderText="Leave blank to use the source file's folder..." />
+                                    <Button Grid.Column="1"
+                                            Classes="aurora-secondary"
+                                            Content="Browse"
+                                            Command="{Binding BrowseDefaultOutputDirectoryCommand}" />
+                                </Grid>
+                                <TextBlock Text="{Binding DefaultOutputDirectoryDescription}"
+                                           Foreground="{DynamicResource AccentForegroundBrush}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
 
-                    <TextBlock Text="DEFAULT OUTPUT DIRECTORY"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2"
-                               Margin="0,12,0,0" />
-                    <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
-                        <TextBox Text="{Binding DefaultOutputDirectory}"
-                                 PlaceholderText="Leave blank to use the source file's folder..."
-                                 FontSize="{StaticResource FontSizeInput}" />
-                        <Button Grid.Column="1"
-                                Content="Browse"
-                                Command="{Binding BrowseDefaultOutputDirectoryCommand}" />
-                    </Grid>
-                    <TextBlock Text="{Binding DefaultOutputDirectoryDescription}"
-                               Foreground="{DynamicResource AccentForegroundBrush}"
-                               Margin="32,0,0,0"
-                               TextWrapping="Wrap" />
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="LOCAL SETTINGS FILE"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding SettingsPath}"
+                                       FontFamily="Cascadia Mono, Consolas, monospace"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="FileCrypter keeps this file on your device only. The app does not store passwords or key files in settings."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-            </Border>
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="ABOUT AND VERSION"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <TextBlock Text="{Binding CurrentVersion}"
-                               FontSize="{StaticResource FontSizePanelTitle}"
-                               FontWeight="SemiBold" />
-                    <TextBlock Text="Open the changelog here when you want a quick recap of the desktop polish that shipped into this preview."
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <Button Content="{Binding ChangelogButtonText}"
-                            Command="{Binding ToggleChangelogCommand}"
-                            HorizontalAlignment="Left"
-                            Padding="16,10" />
-                    <StackPanel IsVisible="{Binding IsChangelogExpanded}"
-                                Spacing="12">
-                        <TextBlock Text="{Binding ChangelogHeading}"
-                                   Foreground="{DynamicResource AccentForegroundBrush}"
-                                   FontSize="{StaticResource FontSizeTitle}"
-                                   FontWeight="SemiBold" />
-                        <ItemsControl ItemsSource="{Binding ChangelogEntries}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:HelpTopicViewModel">
-                                    <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                            BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="8"
-                                            Padding="18"
-                                            Margin="0,0,0,12">
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="{Binding Title}"
-                                                       FontSize="{StaticResource FontSizeTitle}"
-                                                       FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding Description}"
-                                                       Foreground="{DynamicResource MutedForegroundBrush}"
-                                                       TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+                <StackPanel Grid.Column="1"
+                            Spacing="16">
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="ABOUT"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding CurrentVersion}"
+                                       FontSize="{StaticResource FontSizePanelTitle}"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="Open the changelog when you want a quick recap of the latest desktop polish."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <Button Classes="aurora-secondary"
+                                    Content="{Binding ChangelogButtonText}"
+                                    Command="{Binding ToggleChangelogCommand}"
+                                    HorizontalAlignment="Left" />
+                        </StackPanel>
+                    </Border>
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="LOCAL SETTINGS FILE"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <TextBlock Text="{Binding SettingsPath}"
-                               Foreground="{DynamicResource ResultHeadingForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="FileCrypter keeps this file on your device only. The app does not store passwords or key files in settings."
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
+                    <Border Classes="aurora-card"
+                            IsVisible="{Binding IsChangelogExpanded}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="{Binding ChangelogHeading}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeTitle}"
+                                       FontWeight="SemiBold" />
+                            <ItemsControl ItemsSource="{Binding ChangelogEntries}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:HelpTopicViewModel">
+                                        <Border Classes="aurora-panel"
+                                                Margin="0,0,0,10">
+                                            <StackPanel Spacing="6">
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Description}"
+                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="{Binding ProgressText}"
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="Reload re-reads the local settings file. Reset restores FileCrypter's default behavior and saves it immediately."
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-                        <Button Content="Reload"
-                                Command="{Binding ReloadSettingsCommand}" />
-                        <Button Grid.Column="1"
-                                Content="Reset to defaults"
-                                Command="{Binding ResetToDefaultsCommand}" />
-                    </Grid>
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="MAINTENANCE"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding ProgressText}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="Reload re-reads the local settings file. Reset restores FileCrypter's default behavior and saves it immediately."
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="12">
+                                <Button Classes="aurora-secondary"
+                                        Content="Reload"
+                                        Command="{Binding ReloadSettingsCommand}" />
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Reset to defaults"
+                                        Command="{Binding ResetToDefaultsCommand}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-            </Border>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

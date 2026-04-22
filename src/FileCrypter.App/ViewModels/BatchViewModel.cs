@@ -54,6 +54,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private string password = string.Empty;
 
     [ObservableProperty]
+    private bool showPassword;
+
+    [ObservableProperty]
     private bool neverOverwriteExistingFiles = true;
 
     [ObservableProperty]
@@ -86,6 +89,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private string resultSummary = string.Empty;
 
     [ObservableProperty]
+    private bool isAdvancedOptionsExpanded;
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RevealFooterPathCommand))]
     private string footerActionText = string.Empty;
 
@@ -116,6 +122,14 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     }
 
     public string Title => "Batch workflows";
+
+    public string HeroBadgeText => ArchiveMode
+        ? EncryptMode
+            ? "ARCHIVE MODE"
+            : "EXTRACT MODE"
+        : EncryptMode
+            ? "BATCH ENCRYPT"
+            : "BATCH DECRYPT";
 
     public ObservableCollection<string> SourcePaths { get; } = [];
 
@@ -165,7 +179,23 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     public System.Windows.Input.ICommand FooterActionCommand => RevealFooterPathCommand;
 
+    public bool ShowMaskedPasswordInput => !ShowPassword;
+
+    public string PasswordVisibilityActionText => ShowPassword ? "Hide" : "Show";
+
     public bool ShowArchiveNameEditor => ArchiveMode && EncryptMode;
+
+    public string QueueInspectorTitle => HasResults
+        ? "Last run"
+        : HasSelectedFiles
+            ? "Queued items"
+            : "Queue preview";
+
+    public string QueueInspectorBody => HasResults
+        ? ResultSummary
+        : HasSelectedFiles
+            ? FilesSummaryText
+            : "Build a batch, choose an output folder, then run the queue when everything looks right.";
 
     public string ModeTitle => (ArchiveMode, EncryptMode) switch
     {
@@ -331,11 +361,14 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     partial void OnEncryptModeChanged(bool value)
     {
         OnPropertyChanged(nameof(IsDecryptMode));
+        OnPropertyChanged(nameof(HeroBadgeText));
         OnWorkflowModeChanged();
     }
 
     partial void OnIsRunningChanged(bool value)
     {
+        OnPropertyChanged(nameof(QueueInspectorTitle));
+        OnPropertyChanged(nameof(QueueInspectorBody));
         foreach (FileSelectionPreviewViewModel preview in SourceFilePreviews)
         {
             preview.NotifyRemoveCommandChanged();
@@ -345,6 +378,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     partial void OnArchiveModeChanged(bool value)
     {
         OnPropertyChanged(nameof(IndividualFilesMode));
+        OnPropertyChanged(nameof(HeroBadgeText));
         OnWorkflowModeChanged();
     }
 
@@ -372,6 +406,12 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         RefreshIdleValidationState();
     }
 
+    partial void OnShowPasswordChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowMaskedPasswordInput));
+        OnPropertyChanged(nameof(PasswordVisibilityActionText));
+    }
+
     partial void OnArchiveNameChanged(string value)
     {
         OnPropertyChanged(nameof(ArchiveNameStatusText));
@@ -386,6 +426,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     partial void OnResultSummaryChanged(string value)
     {
         OnPropertyChanged(nameof(HasResultSummary));
+        OnPropertyChanged(nameof(QueueInspectorTitle));
+        OnPropertyChanged(nameof(QueueInspectorBody));
     }
 
     partial void OnNeverOverwriteExistingFilesChanged(bool value)
@@ -396,6 +438,18 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     partial void OnFooterActionTextChanged(string value)
     {
         OnPropertyChanged(nameof(HasFooterAction));
+    }
+
+    [RelayCommand]
+    private void TogglePasswordVisibility()
+    {
+        ShowPassword = !ShowPassword;
+    }
+
+    [RelayCommand]
+    private void ToggleAdvancedOptions()
+    {
+        IsAdvancedOptionsExpanded = !IsAdvancedOptionsExpanded;
     }
 
     [RelayCommand(CanExecute = nameof(CanBrowseFiles))]
@@ -632,6 +686,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         OnPropertyChanged(nameof(HasSelectedFiles));
         OnPropertyChanged(nameof(ShowEmptySourceState));
         OnPropertyChanged(nameof(FilesSummaryText));
+        OnPropertyChanged(nameof(QueueInspectorTitle));
+        OnPropertyChanged(nameof(QueueInspectorBody));
         StartBatchCommand.NotifyCanExecuteChanged();
         RemoveSelectedFileCommand.NotifyCanExecuteChanged();
         ClearFilesCommand.NotifyCanExecuteChanged();
@@ -643,6 +699,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         OnPropertyChanged(nameof(HasResults));
         OnPropertyChanged(nameof(HasFailures));
+        OnPropertyChanged(nameof(QueueInspectorTitle));
+        OnPropertyChanged(nameof(QueueInspectorBody));
         CopyResultsCommand.NotifyCanExecuteChanged();
     }
 
@@ -666,6 +724,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         OnPropertyChanged(nameof(ActionButtonText));
         OnPropertyChanged(nameof(BrowseFilesButtonText));
         OnPropertyChanged(nameof(OutputFolderPickerTitle));
+        OnPropertyChanged(nameof(QueueInspectorTitle));
+        OnPropertyChanged(nameof(QueueInspectorBody));
 
         StartBatchCommand.NotifyCanExecuteChanged();
         ClearResults();

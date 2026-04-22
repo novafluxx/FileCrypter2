@@ -4,391 +4,477 @@
              x:Class="FileCrypter.App.Views.BatchView"
              x:DataType="vm:BatchViewModel">
     <ScrollViewer>
-        <StackPanel Spacing="24" MaxWidth="1000">
+        <StackPanel Margin="36,30,36,36"
+                    Spacing="24"
+                    MaxWidth="1240">
             <Border IsVisible="{Binding HasError}"
                     Background="{DynamicResource ErrorBackgroundBrush}"
                     BorderBrush="{DynamicResource ErrorBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="24,18">
-                <StackPanel Spacing="12">
+                    CornerRadius="18"
+                    Padding="18,16">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="16">
                     <TextBlock Text="{Binding VisibleErrorMessage}"
                                Foreground="{DynamicResource ErrorForegroundBrush}"
                                FontSize="{StaticResource FontSizeTitle}"
                                TextWrapping="Wrap" />
-                    <Button Content="Copy issue"
+                    <Button Grid.Column="1"
+                            Classes="aurora-secondary"
+                            Content="Copy issue"
                             Command="{Binding CopyErrorCommand}"
-                            HorizontalAlignment="Left" />
-                </StackPanel>
+                            VerticalAlignment="Center" />
+                </Grid>
             </Border>
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="18">
-                    <TextBlock Text="WORKFLOW"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <TextBlock Text="{Binding ModeTitle}"
-                               FontSize="{StaticResource FontSizePanelTitle}"
-                               FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding ModeDescription}"
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding WorkflowChooserDescription}"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               TextWrapping="Wrap" />
-
-                    <Grid ColumnDefinitions="*,1,*" ColumnSpacing="18">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="1. WHAT ARE YOU WORKING WITH?"
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+            <Grid ColumnDefinitions="*,360"
+                  ColumnSpacing="20"
+                  RowDefinitions="Auto,*">
+                <Grid Grid.ColumnSpan="2"
+                      ColumnDefinitions="*,Auto"
+                      ColumnSpacing="16">
+                    <StackPanel Spacing="10">
+                        <Border Classes="aurora-panel"
+                                Padding="10,6"
+                                HorizontalAlignment="Left">
+                            <TextBlock Text="{Binding HeroBadgeText}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
                                        FontSize="{StaticResource FontSizeCaption}"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1.5" />
-                            <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                    BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8"
-                                    Padding="18">
-                                <StackPanel Spacing="8">
-                                    <RadioButton Content="Individual files"
-                                                 GroupName="BatchWorkflowType"
-                                                 IsChecked="{Binding IndividualFilesMode}"
-                                                 ToolTip.Tip="{Binding IndividualFilesOptionDescription}" />
-                                    <TextBlock Text="{Binding IndividualFilesOptionDescription}"
-                                               Foreground="{DynamicResource MutedForegroundBrush}"
-                                               Margin="30,0,0,0"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                            <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                    BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8"
-                                    Padding="18">
-                                <StackPanel Spacing="8">
-                                    <RadioButton Content="Encrypted archive"
-                                                 GroupName="BatchWorkflowType"
-                                                 IsChecked="{Binding ArchiveMode}"
-                                                 ToolTip.Tip="{Binding ArchiveModeOptionDescription}" />
-                                    <TextBlock Text="{Binding ArchiveModeOptionDescription}"
-                                               Foreground="{DynamicResource MutedForegroundBrush}"
-                                               Margin="30,0,0,0"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
-                        <Border Grid.Column="1"
-                                Background="{DynamicResource SurfaceAltBorderBrush}"
-                                CornerRadius="1"
-                                Margin="0,6" />
-
-                        <StackPanel Grid.Column="2" Spacing="12">
-                            <TextBlock Text="2. WHAT SHOULD FILECRYPTER DO?"
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1.5" />
-                            <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                    BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8"
-                                    Padding="18">
-                                <StackPanel Spacing="8">
-                                    <RadioButton Content="Encrypt"
-                                                 GroupName="BatchWorkflowDirection"
-                                                 IsChecked="{Binding EncryptMode}"
-                                                 ToolTip.Tip="{Binding EncryptActionDescription}" />
-                                    <TextBlock Text="{Binding EncryptActionDescription}"
-                                               Foreground="{DynamicResource MutedForegroundBrush}"
-                                               Margin="30,0,0,0"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                            <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                    BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8"
-                                    Padding="18">
-                                <StackPanel Spacing="8">
-                                    <RadioButton Content="Decrypt"
-                                                 GroupName="BatchWorkflowDirection"
-                                                 IsChecked="{Binding IsDecryptMode}"
-                                                 ToolTip.Tip="{Binding DecryptActionDescription}" />
-                                    <TextBlock Text="{Binding DecryptActionDescription}"
-                                               Foreground="{DynamicResource MutedForegroundBrush}"
-                                               Margin="30,0,0,0"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-
-                    <TextBlock Text="{Binding WorkflowKindDescription}"
-                               Foreground="{DynamicResource AccentForegroundBrush}"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
-
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28"
-                    x:Name="SourceDropZone">
-                <StackPanel Spacing="14">
-                    <TextBlock Text="{Binding SourceHeading}"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <TextBlock Text="{Binding FilesSummaryText}"
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="Click the drop zone or drag local files here."
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               TextWrapping="Wrap" />
-
-                    <Grid ColumnDefinitions="*">
-                        <Border Classes="file-drop-zone">
-                            <Grid>
-                                <StackPanel IsVisible="{Binding ShowEmptySourceState}"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"
-                                            Spacing="6">
-                                    <Viewbox Width="28"
-                                             Height="28"
-                                             HorizontalAlignment="Center">
-                                        <Path Classes="file-preview-icon"
-                                              Data="M6 2 H14 L20 8 V22 H6 Z M14 2 V8 H20 M12 10 V18 M9 13 L12 10 L15 13 M9 18 H15" />
-                                    </Viewbox>
-                                    <TextBlock Text="Drop files here to build the batch"
-                                               FontSize="{StaticResource FontSizeTitle}"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Center" />
-                                    <TextBlock Text="Click or drag files here. Each selected file gets its own remove action."
-                                               Foreground="{DynamicResource MutedForegroundBrush}"
-                                               HorizontalAlignment="Center"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-
-                                <ScrollViewer IsVisible="{Binding HasSelectedFiles}"
-                                              MaxHeight="240"
-                                              VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding SourceFilePreviews}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:FileSelectionPreviewViewModel">
-                                                <Border Classes="file-preview-row"
-                                                        Margin="0,0,0,10">
-                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto"
-                                                          ColumnSpacing="14"
-                                                          VerticalAlignment="Center">
-                                                        <Viewbox Width="22"
-                                                                 Height="22"
-                                                                 VerticalAlignment="Center">
-                                                            <Path Classes="file-preview-icon"
-                                                                  Data="{Binding IconPathData}" />
-                                                        </Viewbox>
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text="{Binding DisplayName}"
-                                                                   ToolTip.Tip="{Binding FullPath}"
-                                                                   FontSize="{StaticResource FontSizeTitle}"
-                                                                   FontWeight="SemiBold"
-                                                                   VerticalAlignment="Center"
-                                                                   TextWrapping="NoWrap"
-                                                                   TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Grid.Column="2"
-                                                                   Text="{Binding SizeText}"
-                                                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                                                   VerticalAlignment="Center" />
-                                                        <Button Grid.Column="3"
-                                                                Classes="file-preview-remove"
-                                                                Content="x"
-                                                                Command="{Binding RemoveCommand}"
-                                                                ToolTip.Tip="Remove file from batch" />
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Grid>
+                                       LetterSpacing="2" />
                         </Border>
-                    </Grid>
-                    <Button Content="Clear list"
-                            Command="{Binding ClearFilesCommand}"
-                            HorizontalAlignment="Left" />
-                </StackPanel>
-            </Border>
-
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="14">
-                    <TextBlock Text="{Binding OutputHeading}"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <Grid ColumnDefinitions="*,160" ColumnSpacing="16">
-                        <TextBox Text="{Binding OutputDirectory}"
-                                 PlaceholderText="Choose an existing output folder..."
-                                 FontSize="{StaticResource FontSizeInput}" />
-                        <Button Grid.Column="1"
-                                Content="Browse"
-                                Command="{Binding BrowseOutputDirectoryCommand}" />
-                    </Grid>
-
-                    <TextBlock Text="{Binding OutputDescription}"
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               TextWrapping="Wrap" />
-
-                    <StackPanel IsVisible="{Binding ShowArchiveNameEditor}"
-                                Spacing="10">
-                        <TextBlock Text="ARCHIVE NAME"
-                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                   FontSize="{StaticResource FontSizeBody}"
-                                   FontWeight="Bold"
-                                   LetterSpacing="2" />
-                        <TextBox Text="{Binding ArchiveName}"
-                                 PlaceholderText="Optional archive name, like project-docs"
-                                 FontSize="{StaticResource FontSizeInput}" />
-                        <TextBlock Text="{Binding ArchiveNameStatusText}"
-                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                   Margin="32,0,0,0"
+                        <TextBlock Text="{Binding ModeTitle}"
+                                   FontSize="{StaticResource FontSizePageTitle}"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ModeDescription}"
+                                   Foreground="{DynamicResource MutedForegroundBrush}"
+                                   MaxWidth="640"
                                    TextWrapping="Wrap" />
                     </StackPanel>
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                Spacing="10"
+                                VerticalAlignment="Top">
+                        <Button Classes="aurora-secondary"
+                                Content="{Binding BrowseFilesButtonText}"
+                                Command="{Binding BrowseFilesCommand}" />
+                        <Button Classes="aurora-primary"
+                                Content="{Binding ActionButtonText}"
+                                Command="{Binding StartBatchCommand}" />
+                    </StackPanel>
+                </Grid>
 
-                    <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
-                              Content="Never overwrite existing files" />
-                    <TextBlock Text="FileCrypter auto-renames each destination when that folder already contains a matching name."
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               Margin="32,0,0,0"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
+                <StackPanel Grid.Row="1"
+                            Spacing="18">
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="WORKFLOW"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding WorkflowChooserDescription}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="14">
-                    <TextBlock Text="PASSWORD AND OPTIONAL KEY FILE"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <TextBox Text="{Binding Password}"
-                             PasswordChar="*"
-                             PlaceholderText="Password"
-                             FontSize="{StaticResource FontSizeInput}" />
-
-                    <TextBlock Text="{Binding KeyFileChoiceStatusText}"
-                               Foreground="{DynamicResource AccentForegroundBrush}"
-                               TextWrapping="Wrap" />
-
-                    <Grid ColumnDefinitions="*,140,96" ColumnSpacing="16">
-                        <TextBox Text="{Binding KeyFilePath}"
-                                 PlaceholderText="Optional batch key file..."
-                                 FontSize="{StaticResource FontSizeInput}" />
-                        <Button Grid.Column="1"
-                                Content="Browse"
-                                Command="{Binding BrowseKeyFileCommand}" />
-                        <Button Grid.Column="2"
-                                Content="Clear"
-                                Command="{Binding ClearKeyFileCommand}" />
-                    </Grid>
-
-                    <TextBlock Text="If you use a key file here, keep the original file unchanged because FileCrypter will require that same key file later."
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               Margin="32,0,0,0"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
-
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="16">
-                    <ProgressBar Minimum="0"
-                                 Maximum="100"
-                                 Value="{Binding ProgressPercent}" />
-                    <TextBlock Text="{Binding ProgressText}"
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <Button Content="{Binding ActionButtonText}"
-                            Command="{Binding StartBatchCommand}"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            FontSize="{StaticResource FontSizeTitle}"
-                            FontWeight="SemiBold" />
-                </StackPanel>
-            </Border>
-
-            <Border IsVisible="{Binding HasResults}"
-                    Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="24,18">
-                <StackPanel Spacing="14">
-                    <TextBlock Text="{Binding ResultSummary}"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource ResultHeadingForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <Button Content="Copy results"
-                            Command="{Binding CopyResultsCommand}"
-                            HorizontalAlignment="Left" />
-
-                    <ItemsControl ItemsSource="{Binding Results}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:BatchResultItemViewModel">
-                                <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                                        BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="18"
-                                        Margin="0,0,0,12">
-                                    <StackPanel Spacing="6">
-                                        <TextBlock Text="{Binding StatusLabel}"
-                                                   Foreground="{Binding StatusBrush}"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding TitleText}"
-                                                   FontSize="{StaticResource FontSizeTitle}"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding PrimaryText}"
-                                                   Foreground="{DynamicResource MutedForegroundBrush}"
-                                                   TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding DetailLabel}"
+                            <Grid ColumnDefinitions="*,*"
+                                  ColumnSpacing="14">
+                                <Border Classes="aurora-panel">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="WHAT ARE YOU WORKING WITH?"
                                                    Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                                    FontSize="{StaticResource FontSizeCaption}"
-                                                   FontWeight="Bold"
                                                    LetterSpacing="1.5" />
-                                        <TextBlock Text="{Binding DetailText}"
-                                                   Foreground="{Binding DetailBrush}"
+                                        <RadioButton Content="Individual files"
+                                                     GroupName="BatchWorkflowType"
+                                                     IsChecked="{Binding IndividualFilesMode}" />
+                                        <TextBlock Text="{Binding IndividualFilesOptionDescription}"
+                                                   Foreground="{DynamicResource MutedForegroundBrush}"
+                                                   Margin="28,0,0,0"
                                                    TextWrapping="Wrap" />
-                                        <TextBlock IsVisible="{Binding HasSecondaryText}"
-                                                   Text="{Binding SecondaryText}"
-                                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                        <RadioButton Content="Encrypted archive"
+                                                     GroupName="BatchWorkflowType"
+                                                     IsChecked="{Binding ArchiveMode}" />
+                                        <TextBlock Text="{Binding ArchiveModeOptionDescription}"
+                                                   Foreground="{DynamicResource MutedForegroundBrush}"
+                                                   Margin="28,0,0,0"
                                                    TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+
+                                <Border Grid.Column="1"
+                                        Classes="aurora-panel">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="WHAT SHOULD FILECRYPTER DO?"
+                                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                                   FontSize="{StaticResource FontSizeCaption}"
+                                                   LetterSpacing="1.5" />
+                                        <RadioButton Content="Encrypt"
+                                                     GroupName="BatchWorkflowDirection"
+                                                     IsChecked="{Binding EncryptMode}" />
+                                        <TextBlock Text="{Binding EncryptActionDescription}"
+                                                   Foreground="{DynamicResource MutedForegroundBrush}"
+                                                   Margin="28,0,0,0"
+                                                   TextWrapping="Wrap" />
+                                        <RadioButton Content="Decrypt"
+                                                     GroupName="BatchWorkflowDirection"
+                                                     IsChecked="{Binding IsDecryptMode}" />
+                                        <TextBlock Text="{Binding DecryptActionDescription}"
+                                                   Foreground="{DynamicResource MutedForegroundBrush}"
+                                                   Margin="28,0,0,0"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <TextBlock Text="{Binding WorkflowKindDescription}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card"
+                            x:Name="SourceDropZone">
+                        <StackPanel Spacing="14">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding SourceHeading}"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               LetterSpacing="2" />
+                                    <TextBlock Text="{Binding FilesSummaryText}"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Clear list"
+                                        Command="{Binding ClearFilesCommand}"
+                                        VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Border Classes="file-drop-zone">
+                                <Grid>
+                                    <StackPanel IsVisible="{Binding ShowEmptySourceState}"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Spacing="10">
+                                        <Border Width="82"
+                                                Height="82"
+                                                CornerRadius="24"
+                                                Background="{DynamicResource NavigationSelectedBackgroundBrush}"
+                                                BorderBrush="{DynamicResource SurfaceBorderBrush}"
+                                                BorderThickness="1">
+                                            <Viewbox Width="30"
+                                                     Height="30"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center">
+                                                <Path Classes="file-preview-icon"
+                                                      Data="M6 2 H14 L20 8 V22 H6 Z M14 2 V8 H20 M12 10 V18 M9 13 L12 10 L15 13 M9 18 H15" />
+                                            </Viewbox>
+                                        </Border>
+                                        <TextBlock Text="Drop files here to build the queue"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock Text="Click to add files or drag them directly into the queue."
+                                                   Foreground="{DynamicResource MutedForegroundBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+
+                                    <ScrollViewer IsVisible="{Binding HasSelectedFiles}"
+                                                  MaxHeight="360"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding SourceFilePreviews}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:FileSelectionPreviewViewModel">
+                                                    <Border Classes="file-preview-row"
+                                                            Margin="0,0,0,10">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+                                                              ColumnSpacing="14"
+                                                              VerticalAlignment="Center">
+                                                            <Border Width="38"
+                                                                    Height="38"
+                                                                    CornerRadius="12"
+                                                                    Background="{DynamicResource NavigationSelectedBackgroundBrush}"
+                                                                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
+                                                                    BorderThickness="1">
+                                                                <Viewbox Width="18"
+                                                                         Height="18"
+                                                                         HorizontalAlignment="Center"
+                                                                         VerticalAlignment="Center">
+                                                                    <Path Classes="file-preview-icon"
+                                                                          Data="{Binding IconPathData}" />
+                                                                </Viewbox>
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1"
+                                                                        Spacing="3"
+                                                                        VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding DisplayName}"
+                                                                           ToolTip.Tip="{Binding FullPath}"
+                                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                                           FontWeight="SemiBold"
+                                                                           TextWrapping="NoWrap"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding FullPath}"
+                                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                                           FontSize="{StaticResource FontSizeCaption}"
+                                                                           TextWrapping="NoWrap"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2"
+                                                                       Text="{Binding SizeText}"
+                                                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                                                       VerticalAlignment="Center" />
+                                                            <TextBlock Grid.Column="3"
+                                                                       Text="Queued"
+                                                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                                                       VerticalAlignment="Center"
+                                                                       FontSize="{StaticResource FontSizeCaption}"
+                                                                       LetterSpacing="1.5" />
+                                                            <Button Grid.Column="4"
+                                                                    Classes="file-preview-remove"
+                                                                    Content="x"
+                                                                    Command="{Binding RemoveCommand}"
+                                                                    ToolTip.Tip="Remove file from queue" />
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card"
+                            IsVisible="{Binding HasResults}">
+                        <StackPanel Spacing="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding ResultSummary}"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Copy results"
+                                        Command="{Binding CopyResultsCommand}"
+                                        VerticalAlignment="Center" />
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding Results}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BatchResultItemViewModel">
+                                        <Border Classes="aurora-panel"
+                                                Margin="0,0,0,10">
+                                            <StackPanel Spacing="6">
+                                                <TextBlock Text="{Binding StatusLabel}"
+                                                           Foreground="{Binding StatusBrush}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding TitleText}"
+                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding PrimaryText}"
+                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding DetailLabel}"
+                                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                                           FontSize="{StaticResource FontSizeCaption}"
+                                                           LetterSpacing="1.5" />
+                                                <TextBlock Text="{Binding DetailText}"
+                                                           Foreground="{Binding DetailBrush}"
+                                                           TextWrapping="Wrap" />
+                                                <TextBlock IsVisible="{Binding HasSecondaryText}"
+                                                           Text="{Binding SecondaryText}"
+                                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-            </Border>
+
+                <StackPanel Grid.Column="1"
+                            Grid.Row="1"
+                            Spacing="16">
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{Binding QueueInspectorTitle}"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding QueueInspectorBody}"
+                                       FontFamily="Cascadia Mono, Consolas, monospace"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding ProgressText}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="{Binding OutputHeading}"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <Grid ColumnDefinitions="*,150"
+                                  ColumnSpacing="12">
+                                <TextBox Text="{Binding OutputDirectory}"
+                                         PlaceholderText="Choose an existing output folder..." />
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Browse"
+                                        Command="{Binding BrowseOutputDirectoryCommand}" />
+                            </Grid>
+                            <TextBlock Text="{Binding OutputDescription}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="PASSWORD AND OPTIONAL KEY FILE"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               LetterSpacing="2" />
+                                    <TextBlock Text="{Binding KeyFileChoiceStatusText}"
+                                               Foreground="{DynamicResource AccentForegroundBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Classes="aurora-inline"
+                                        Content="{Binding PasswordVisibilityActionText}"
+                                        Command="{Binding TogglePasswordVisibilityCommand}"
+                                        VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="10">
+                                <TextBox Text="{Binding Password}"
+                                         PasswordChar="*"
+                                         PlaceholderText="Enter the batch password"
+                                         IsVisible="{Binding ShowMaskedPasswordInput}" />
+                                <TextBox Text="{Binding Password}"
+                                         PlaceholderText="Enter the batch password"
+                                         IsVisible="{Binding ShowPassword}" />
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="{Binding PasswordVisibilityActionText}"
+                                        Command="{Binding TogglePasswordVisibilityCommand}" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,120,92"
+                                  ColumnSpacing="10">
+                                <TextBox Text="{Binding KeyFilePath}"
+                                         PlaceholderText="Optional batch key file..." />
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Browse"
+                                        Command="{Binding BrowseKeyFileCommand}" />
+                                <Button Grid.Column="2"
+                                        Classes="aurora-secondary"
+                                        Content="Clear"
+                                        Command="{Binding ClearKeyFileCommand}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card"
+                            Padding="0">
+                        <StackPanel>
+                            <Grid Margin="24,18,24,18"
+                                  ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="3">
+                                    <TextBlock Text="Advanced options"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="Archive naming, overwrite handling, and queue safety details."
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Classes="aurora-inline"
+                                        Content="Toggle"
+                                        Command="{Binding ToggleAdvancedOptionsCommand}"
+                                        VerticalAlignment="Center" />
+                            </Grid>
+                            <Border IsVisible="{Binding IsAdvancedOptionsExpanded}"
+                                    Background="{DynamicResource SurfaceAltBorderBrush}"
+                                    Height="1"
+                                    Margin="24,0,24,0" />
+                            <StackPanel IsVisible="{Binding IsAdvancedOptionsExpanded}"
+                                        Margin="24,18,24,24"
+                                        Spacing="16">
+                                <StackPanel IsVisible="{Binding ShowArchiveNameEditor}"
+                                            Spacing="8">
+                                    <TextBlock Text="ARCHIVE NAME"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               LetterSpacing="2" />
+                                    <TextBox Text="{Binding ArchiveName}"
+                                             PlaceholderText="Optional archive name, like project-docs" />
+                                    <TextBlock Text="{Binding ArchiveNameStatusText}"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               Margin="30,0,0,0"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
+                                          Content="Never overwrite existing files" />
+                                <TextBlock Text="FileCrypter auto-renames each destination when that folder already contains a matching name."
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           Margin="30,0,0,0"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card"
+                            IsVisible="{Binding IsRunning}">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Running queue"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding ProgressPercent, StringFormat={}{0:0}%}"
+                                           Foreground="{DynamicResource AccentSecondaryForegroundBrush}"
+                                           FontFamily="Cascadia Mono, Consolas, monospace" />
+                            </Grid>
+                            <ProgressBar Minimum="0"
+                                         Maximum="100"
+                                         Value="{Binding ProgressPercent}" />
+                            <TextBlock Text="{Binding ProgressText}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card"
+                            Background="{DynamicResource GlassPanelBackgroundBrush}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Run queue"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="The selected workflow, output folder, and password apply to the whole queue."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <Button Classes="aurora-primary"
+                                    Content="{Binding ActionButtonText}"
+                                    Command="{Binding StartBatchCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

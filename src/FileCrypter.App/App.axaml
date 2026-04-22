@@ -11,121 +11,185 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Default">
-                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#101111" />
-                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#202222" />
-                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#242626" />
-                    <SolidColorBrush x:Key="SurfaceAltBackgroundBrush" Color="#1e2626" />
-                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#363838" />
-                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#4a4d4b" />
-                    <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#3e4240" />
-                    <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#aaaaaa" />
-                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#b8b9b5" />
-                    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#9cc4ff" />
-                    <SolidColorBrush x:Key="SidebarDetailForegroundBrush" Color="#a9aaa7" />
-                    <SolidColorBrush x:Key="ResultHeadingForegroundBrush" Color="#d7e7e3" />
-                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#552222" />
-                    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#d35d64" />
-                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#f0a0a4" />
-                    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#1f3927" />
-                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#5fa272" />
-                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#d8f1de" />
-                    <SolidColorBrush x:Key="SuccessAccentForegroundBrush" Color="#b8e6c2" />
-                    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#3a2915" />
-                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#d2a45c" />
-                    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#fff2dc" />
-                    <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#f1d7a8" />
-                    <SolidColorBrush x:Key="NavigationHoverBackgroundBrush" Color="#30353a" />
-                    <SolidColorBrush x:Key="NavigationHoverBorderBrush" Color="#454d54" />
-                    <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#2d3440" />
-                    <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#9cc4ff" />
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#efe6d7" />
-                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#e7dccb" />
-                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#f7f0e4" />
-                    <SolidColorBrush x:Key="SurfaceAltBackgroundBrush" Color="#efe5d6" />
-                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#cfbea8" />
-                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#d8cab7" />
-                    <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#dccfbd" />
-                    <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#6c6257" />
-                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#5e554c" />
-                    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#2a69c0" />
-                    <SolidColorBrush x:Key="SidebarDetailForegroundBrush" Color="#7c6f61" />
-                    <SolidColorBrush x:Key="ResultHeadingForegroundBrush" Color="#4f5d46" />
-                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#f5dfdf" />
-                    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#cc5a66" />
-                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#962936" />
-                    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#e6eedf" />
-                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#5f9f72" />
-                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#215d36" />
-                    <SolidColorBrush x:Key="SuccessAccentForegroundBrush" Color="#2a7343" />
-                    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#f7e8cf" />
-                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#d2a45c" />
-                    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#855707" />
-                    <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#9a670f" />
-                    <SolidColorBrush x:Key="NavigationHoverBackgroundBrush" Color="#e4d9c8" />
-                    <SolidColorBrush x:Key="NavigationHoverBorderBrush" Color="#cdbda7" />
-                    <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#d8e0e8" />
-                    <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#1f5db4" />
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#05050A" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#12111D" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#161622" />
+                    <SolidColorBrush x:Key="SurfaceAltBackgroundBrush" Color="#10111A" />
+                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#2A2838" />
+                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#313045" />
+                    <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#252435" />
+                    <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#8F92AF" />
+                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#B5B8D2" />
+                    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#A78BFA" />
+                    <SolidColorBrush x:Key="SidebarDetailForegroundBrush" Color="#7E82A2" />
+                    <SolidColorBrush x:Key="ResultHeadingForegroundBrush" Color="#EEF1FF" />
+                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#25131A" />
+                    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#C85F68" />
+                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#F1B8BE" />
+                    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#13201E" />
+                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#59B59A" />
+                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#D9FFF2" />
+                    <SolidColorBrush x:Key="SuccessAccentForegroundBrush" Color="#8DF3CF" />
+                    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#251D10" />
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#D4A95E" />
+                    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#FFF0D4" />
+                    <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#FFD48C" />
+                    <SolidColorBrush x:Key="NavigationHoverBackgroundBrush" Color="#1D1B2A" />
+                    <SolidColorBrush x:Key="NavigationHoverBorderBrush" Color="#3A3750" />
+                    <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#232235" />
+                    <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#F4F5F9" />
+                    <SolidColorBrush x:Key="WindowTopChromeBrush" Color="#0B0B12" />
+                    <SolidColorBrush x:Key="GlassBackgroundBrush" Color="#1A171F2C" />
+                    <SolidColorBrush x:Key="GlassPanelBackgroundBrush" Color="#18141D2A" />
+                    <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#09070D" />
+                    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#0C0D14" />
+                    <SolidColorBrush x:Key="InputBorderBrush" Color="#36354B" />
+                    <SolidColorBrush x:Key="InputForegroundBrush" Color="#F4F5F9" />
+                    <SolidColorBrush x:Key="AccentSecondaryForegroundBrush" Color="#7DD3FC" />
+                    <SolidColorBrush x:Key="PinkAccentBrush" Color="#F0ABFC" />
+                    <SolidColorBrush x:Key="AmbientVioletBrush" Color="#B08AF7" />
+                    <SolidColorBrush x:Key="AmbientCyanBrush" Color="#7DD3FC" />
+                    <LinearGradientBrush x:Key="AccentGradientBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Offset="0" Color="#A78BFA" />
+                        <GradientStop Offset="1" Color="#7DD3FC" />
+                    </LinearGradientBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#101111" />
-                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#202222" />
-                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#242626" />
-                    <SolidColorBrush x:Key="SurfaceAltBackgroundBrush" Color="#1e2626" />
-                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#363838" />
-                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#4a4d4b" />
-                    <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#3e4240" />
-                    <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#aaaaaa" />
-                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#b8b9b5" />
-                    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#9cc4ff" />
-                    <SolidColorBrush x:Key="SidebarDetailForegroundBrush" Color="#a9aaa7" />
-                    <SolidColorBrush x:Key="ResultHeadingForegroundBrush" Color="#d7e7e3" />
-                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#552222" />
-                    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#d35d64" />
-                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#f0a0a4" />
-                    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#1f3927" />
-                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#5fa272" />
-                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#d8f1de" />
-                    <SolidColorBrush x:Key="SuccessAccentForegroundBrush" Color="#b8e6c2" />
-                    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#3a2915" />
-                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#d2a45c" />
-                    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#fff2dc" />
-                    <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#f1d7a8" />
-                    <SolidColorBrush x:Key="NavigationHoverBackgroundBrush" Color="#30353a" />
-                    <SolidColorBrush x:Key="NavigationHoverBorderBrush" Color="#454d54" />
-                    <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#2d3440" />
-                    <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#9cc4ff" />
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#05050A" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#12111D" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#161622" />
+                    <SolidColorBrush x:Key="SurfaceAltBackgroundBrush" Color="#10111A" />
+                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#2A2838" />
+                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#313045" />
+                    <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#252435" />
+                    <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#8F92AF" />
+                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#B5B8D2" />
+                    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#A78BFA" />
+                    <SolidColorBrush x:Key="SidebarDetailForegroundBrush" Color="#7E82A2" />
+                    <SolidColorBrush x:Key="ResultHeadingForegroundBrush" Color="#EEF1FF" />
+                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#25131A" />
+                    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#C85F68" />
+                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#F1B8BE" />
+                    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#13201E" />
+                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#59B59A" />
+                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#D9FFF2" />
+                    <SolidColorBrush x:Key="SuccessAccentForegroundBrush" Color="#8DF3CF" />
+                    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#251D10" />
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#D4A95E" />
+                    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#FFF0D4" />
+                    <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#FFD48C" />
+                    <SolidColorBrush x:Key="NavigationHoverBackgroundBrush" Color="#1D1B2A" />
+                    <SolidColorBrush x:Key="NavigationHoverBorderBrush" Color="#3A3750" />
+                    <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#232235" />
+                    <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#F4F5F9" />
+                    <SolidColorBrush x:Key="WindowTopChromeBrush" Color="#0B0B12" />
+                    <SolidColorBrush x:Key="GlassBackgroundBrush" Color="#1A171F2C" />
+                    <SolidColorBrush x:Key="GlassPanelBackgroundBrush" Color="#18141D2A" />
+                    <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#09070D" />
+                    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#0C0D14" />
+                    <SolidColorBrush x:Key="InputBorderBrush" Color="#36354B" />
+                    <SolidColorBrush x:Key="InputForegroundBrush" Color="#F4F5F9" />
+                    <SolidColorBrush x:Key="AccentSecondaryForegroundBrush" Color="#7DD3FC" />
+                    <SolidColorBrush x:Key="PinkAccentBrush" Color="#F0ABFC" />
+                    <SolidColorBrush x:Key="AmbientVioletBrush" Color="#B08AF7" />
+                    <SolidColorBrush x:Key="AmbientCyanBrush" Color="#7DD3FC" />
+                    <LinearGradientBrush x:Key="AccentGradientBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Offset="0" Color="#A78BFA" />
+                        <GradientStop Offset="1" Color="#7DD3FC" />
+                    </LinearGradientBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F3F5FC" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#E8ECFA" />
+                    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="SurfaceAltBackgroundBrush" Color="#F5F7FF" />
+                    <SolidColorBrush x:Key="SidebarBorderBrush" Color="#D2D8F0" />
+                    <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#DCE0F5" />
+                    <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#D9DFF3" />
+                    <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#67708F" />
+                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#4E5876" />
+                    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#6D5EEA" />
+                    <SolidColorBrush x:Key="SidebarDetailForegroundBrush" Color="#7B86A9" />
+                    <SolidColorBrush x:Key="ResultHeadingForegroundBrush" Color="#1B2340" />
+                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#FBEAEC" />
+                    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#C85F68" />
+                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#8F2A36" />
+                    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="#E7FBF5" />
+                    <SolidColorBrush x:Key="SuccessBorderBrush" Color="#4FA38A" />
+                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#1B5D4B" />
+                    <SolidColorBrush x:Key="SuccessAccentForegroundBrush" Color="#1F7D64" />
+                    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FFF4E2" />
+                    <SolidColorBrush x:Key="WarningBorderBrush" Color="#D4A95E" />
+                    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#825C16" />
+                    <SolidColorBrush x:Key="WarningAccentForegroundBrush" Color="#9A7226" />
+                    <SolidColorBrush x:Key="NavigationHoverBackgroundBrush" Color="#F0F3FD" />
+                    <SolidColorBrush x:Key="NavigationHoverBorderBrush" Color="#D8DEFA" />
+                    <SolidColorBrush x:Key="NavigationSelectedBackgroundBrush" Color="#E3E8FC" />
+                    <SolidColorBrush x:Key="NavigationSelectedForegroundBrush" Color="#242D4C" />
+                    <SolidColorBrush x:Key="WindowTopChromeBrush" Color="#EDF1FD" />
+                    <SolidColorBrush x:Key="GlassBackgroundBrush" Color="#F7F8FE" />
+                    <SolidColorBrush x:Key="GlassPanelBackgroundBrush" Color="#FDFDFF" />
+                    <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#09070D" />
+                    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="InputBorderBrush" Color="#D2D8F0" />
+                    <SolidColorBrush x:Key="InputForegroundBrush" Color="#1F2947" />
+                    <SolidColorBrush x:Key="AccentSecondaryForegroundBrush" Color="#2C99D3" />
+                    <SolidColorBrush x:Key="PinkAccentBrush" Color="#E281D6" />
+                    <SolidColorBrush x:Key="AmbientVioletBrush" Color="#B08AF7" />
+                    <SolidColorBrush x:Key="AmbientCyanBrush" Color="#7DD3FC" />
+                    <LinearGradientBrush x:Key="AccentGradientBrush" StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Offset="0" Color="#8C75F4" />
+                        <GradientStop Offset="1" Color="#4FC3F7" />
+                    </LinearGradientBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
-            <x:Double x:Key="FontSizeCaption">12</x:Double>
+            <x:Double x:Key="FontSizeCaption">11</x:Double>
             <x:Double x:Key="FontSizeBody">13</x:Double>
             <x:Double x:Key="FontSizeBodyStrong">14</x:Double>
-            <x:Double x:Key="FontSizeTitle">16</x:Double>
-            <x:Double x:Key="FontSizeInput">16</x:Double>
-            <x:Double x:Key="FontSizePanelTitle">20</x:Double>
-            <x:Double x:Key="FontSizePageTitle">22</x:Double>
-            <x:Double x:Key="FontSizeAppTitle">20</x:Double>
-            <x:Double x:Key="FontSizeAppMeta">14</x:Double>
+            <x:Double x:Key="FontSizeTitle">17</x:Double>
+            <x:Double x:Key="FontSizeInput">15</x:Double>
+            <x:Double x:Key="FontSizePanelTitle">21</x:Double>
+            <x:Double x:Key="FontSizePageTitle">34</x:Double>
+            <x:Double x:Key="FontSizeAppTitle">18</x:Double>
+            <x:Double x:Key="FontSizeAppMeta">12</x:Double>
         </ResourceDictionary>
     </Application.Resources>
-  
+
     <Application.Styles>
         <FluentTheme />
 
         <Style Selector="Window">
+            <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}" />
             <Setter Property="TextElement.FontSize" Value="{StaticResource FontSizeBody}" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource ResultHeadingForegroundBrush}" />
+            <Setter Property="TextElement.FontFamily" Value="Segoe UI Variable Text, Segoe UI, Calibri, sans-serif" />
         </Style>
 
         <Style Selector="UserControl">
             <Setter Property="TextElement.FontSize" Value="{StaticResource FontSizeBody}" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource ResultHeadingForegroundBrush}" />
+            <Setter Property="TextElement.FontFamily" Value="Segoe UI Variable Text, Segoe UI, Calibri, sans-serif" />
         </Style>
 
         <Style Selector="Button, ToggleButton">
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="Padding" Value="16,10" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceAltBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceAltBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource ResultHeadingForegroundBrush}" />
+        </Style>
+
+        <Style Selector="Button:pointerover, ToggleButton:pointerover">
+            <Setter Property="Background" Value="{DynamicResource NavigationHoverBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource NavigationHoverBorderBrush}" />
+        </Style>
+
+        <Style Selector="Button:disabled, ToggleButton:disabled">
+            <Setter Property="Opacity" Value="0.55" />
         </Style>
 
         <Style Selector="Button.status-link">
@@ -133,29 +197,89 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentSecondaryForegroundBrush}" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
 
+        <Style Selector="Button.aurora-primary">
+            <Setter Property="Background" Value="{DynamicResource AccentGradientBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForegroundBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="MinHeight" Value="48" />
+        </Style>
+
+        <Style Selector="Button.aurora-secondary">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+        </Style>
+
+        <Style Selector="Button.aurora-inline, ToggleButton.aurora-inline">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}" />
+        </Style>
+
+        <Style Selector="Button.aurora-ghost, ToggleButton.aurora-ghost">
+            <Setter Property="Background" Value="#14000000" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+        </Style>
+
         <Style Selector="TextBox">
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="MinHeight" Value="46" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeInput}" />
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource InputForegroundBrush}" />
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource InputForegroundBrush}" />
+            <Setter Property="MinHeight" Value="42" />
+        </Style>
+
+        <Style Selector="CheckBox, RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource ResultHeadingForegroundBrush}" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
         </Style>
 
-        <Style Selector="CheckBox, RadioButton, ComboBox">
-            <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+        <Style Selector="ProgressBar">
+            <Setter Property="MinHeight" Value="6" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentGradientBrush}" />
+            <Setter Property="Background" Value="#16FFFFFF" />
+        </Style>
+
+        <Style Selector="Border.aurora-card">
+            <Setter Property="Background" Value="{DynamicResource GlassBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="24" />
+        </Style>
+
+        <Style Selector="Border.aurora-panel">
+            <Setter Property="Background" Value="{DynamicResource GlassPanelBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceAltBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Padding" Value="20" />
         </Style>
 
         <Style Selector="Border.file-drop-zone">
             <Setter Property="Background" Value="{DynamicResource SurfaceAltBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceAltBorderBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="18,16" />
-            <Setter Property="MinHeight" Value="92" />
+            <Setter Property="CornerRadius" Value="22" />
+            <Setter Property="Padding" Value="26" />
+            <Setter Property="MinHeight" Value="200" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
 
@@ -163,8 +287,8 @@
             <Setter Property="Background" Value="{DynamicResource SurfaceBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="16,14" />
         </Style>
 
         <Style Selector="Path.file-preview-icon">
@@ -177,21 +301,23 @@
         </Style>
 
         <Style Selector="Button.file-preview-remove">
-            <Setter Property="MinWidth" Value="30" />
-            <Setter Property="MinHeight" Value="30" />
-            <Setter Property="Width" Value="30" />
-            <Setter Property="Height" Value="30" />
+            <Setter Property="MinWidth" Value="32" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
-            <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceAltBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
         </Style>
 
         <Style Selector="ToggleButton.nav-item">
             <Setter Property="HorizontalContentAlignment" Value="Left" />
-            <Setter Property="Padding" Value="20,10" />
+            <Setter Property="Padding" Value="14,12" />
             <Setter Property="Margin" Value="0,2" />
+            <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
@@ -211,7 +337,7 @@
 
         <Style Selector="ToggleButton.nav-item:checked">
             <Setter Property="Background" Value="{DynamicResource NavigationSelectedBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource NavigationSelectedBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource NavigationSelectedForegroundBrush}" />
         </Style>
     </Application.Styles>

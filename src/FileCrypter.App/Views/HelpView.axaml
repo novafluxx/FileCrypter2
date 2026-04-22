@@ -4,17 +4,34 @@
              x:Class="FileCrypter.App.Views.HelpView"
              x:DataType="vm:HelpViewModel">
     <ScrollViewer>
-        <StackPanel Spacing="24" MaxWidth="1000">
+        <StackPanel Margin="36,30,36,36"
+                    Spacing="24"
+                    MaxWidth="1140">
+            <StackPanel Spacing="10">
+                <Border Classes="aurora-panel"
+                        Padding="10,6"
+                        HorizontalAlignment="Left">
+                    <TextBlock Text="HELP AND RECOVERY"
+                               Foreground="{DynamicResource AccentForegroundBrush}"
+                               FontSize="{StaticResource FontSizeCaption}"
+                               LetterSpacing="2" />
+                </Border>
+                <TextBlock Text="Guidance, update status, and the recovery limits you should know before you encrypt."
+                           FontSize="{StaticResource FontSizePageTitle}"
+                           FontWeight="SemiBold"
+                           MaxWidth="760"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
             <Border Background="{DynamicResource WarningBackgroundBrush}"
                     BorderBrush="{DynamicResource WarningBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="24,18">
+                    CornerRadius="18"
+                    Padding="20,18">
                 <StackPanel Spacing="8">
                     <TextBlock Text="RECOVERY WARNING"
                                Foreground="{DynamicResource WarningAccentForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
+                               FontSize="{StaticResource FontSizeCaption}"
                                LetterSpacing="2" />
                     <TextBlock Text="Keep the password and any key file together in a way you trust. FileCrypter cannot recover forgotten passwords or lost or changed key files."
                                Foreground="{DynamicResource WarningForegroundBrush}"
@@ -23,150 +40,140 @@
                 </StackPanel>
             </Border>
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="WORKFLOW GUIDES"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <ItemsControl ItemsSource="{Binding WorkflowTopics}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:HelpTopicViewModel">
-                                <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                        BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="18"
-                                        Margin="0,0,0,12">
-                                    <StackPanel Spacing="6">
-                                        <TextBlock Text="{Binding Title}"
-                                                   FontSize="{StaticResource FontSizeTitle}"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Description}"
-                                                   Foreground="{DynamicResource MutedForegroundBrush}"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
+            <Grid ColumnDefinitions="*,340"
+                  ColumnSpacing="20">
+                <StackPanel Spacing="18">
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="WORKFLOW GUIDES"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <ItemsControl ItemsSource="{Binding WorkflowTopics}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:HelpTopicViewModel">
+                                        <Border Classes="aurora-panel"
+                                                Margin="0,0,0,10">
+                                            <StackPanel Spacing="6">
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Description}"
+                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="TROUBLESHOOTING"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <ItemsControl ItemsSource="{Binding TroubleshootingTopics}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:HelpTopicViewModel">
-                                <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                        BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="18"
-                                        Margin="0,0,0,12">
-                                    <StackPanel Spacing="6">
-                                        <TextBlock Text="{Binding Title}"
-                                                   FontSize="{StaticResource FontSizeTitle}"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Description}"
-                                                   Foreground="{DynamicResource MutedForegroundBrush}"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="TROUBLESHOOTING"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <ItemsControl ItemsSource="{Binding TroubleshootingTopics}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:HelpTopicViewModel">
+                                        <Border Classes="aurora-panel"
+                                                Margin="0,0,0,10">
+                                            <StackPanel Spacing="6">
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Description}"
+                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="UPDATES AND COMPATIBILITY"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <TextBlock Text="{Binding CurrentVersion}"
-                               FontSize="{StaticResource FontSizePanelTitle}"
-                               FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding FormatVersionText}"
-                               Foreground="{DynamicResource AccentForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding UpdateSummaryText}"
-                               Foreground="{Binding UpdateSummaryBrush}"
-                               FontSize="{StaticResource FontSizeTitle}"
-                               TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding UpdateDetailText}"
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <TextBlock IsVisible="{Binding HasLastCheckedText}"
-                               Text="{Binding LastCheckedText}"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               TextWrapping="Wrap" />
-                    <Button Content="Check for updates"
-                            Command="{Binding CheckForUpdatesCommand}"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Center"
-                            FontSize="{StaticResource FontSizeTitle}"
-                            FontWeight="SemiBold" />
-                    <TextBlock Text="Automatic install and relaunch are still pending. This help page keeps the user-facing update state visible while the fuller desktop update flow is still on the roadmap."
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               TextWrapping="Wrap" />
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="SAFETY AND PRIVACY"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <ItemsControl ItemsSource="{Binding SafetyTopics}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:HelpTopicViewModel">
+                                        <Border Classes="aurora-panel"
+                                                Margin="0,0,0,10">
+                                            <StackPanel Spacing="6">
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                           FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Description}"
+                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-            </Border>
 
-            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
-                    BorderBrush="{DynamicResource SurfaceBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="28">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="SAFETY AND PRIVACY"
-                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                               FontSize="{StaticResource FontSizeBody}"
-                               FontWeight="Bold"
-                               LetterSpacing="2" />
-                    <ItemsControl ItemsSource="{Binding SafetyTopics}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:HelpTopicViewModel">
-                                <Border Background="{DynamicResource SurfaceAltBackgroundBrush}"
-                                        BorderBrush="{DynamicResource SurfaceAltBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="18"
-                                        Margin="0,0,0,12">
-                                    <StackPanel Spacing="6">
-                                        <TextBlock Text="{Binding Title}"
-                                                   FontSize="{StaticResource FontSizeTitle}"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Description}"
-                                                   Foreground="{DynamicResource MutedForegroundBrush}"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                <StackPanel Grid.Column="1"
+                            Spacing="16">
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="UPDATES"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding CurrentVersion}"
+                                       FontSize="{StaticResource FontSizePanelTitle}"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding FormatVersionText}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding UpdateSummaryText}"
+                                       Foreground="{Binding UpdateSummaryBrush}"
+                                       FontSize="{StaticResource FontSizeTitle}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding UpdateDetailText}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock IsVisible="{Binding HasLastCheckedText}"
+                                       Text="{Binding LastCheckedText}"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <Button Classes="aurora-primary"
+                                    Content="Check for updates"
+                                    Command="{Binding CheckForUpdatesCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" />
+                            <TextBlock Text="Automatic install and relaunch are still pending. This page keeps the user-facing update state visible while that fuller flow is still on the roadmap."
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="CURRENT STATUS"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding StatusText}"
+                                       FontSize="{StaticResource FontSizeTitle}"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding ProgressText}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-            </Border>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

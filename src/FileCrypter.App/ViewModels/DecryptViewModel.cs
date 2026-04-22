@@ -48,6 +48,9 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private string password = string.Empty;
 
     [ObservableProperty]
+    private bool showPassword;
+
+    [ObservableProperty]
     private bool neverOverwriteExistingFiles = true;
 
     [ObservableProperty]
@@ -74,6 +77,9 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CopyResultCommand))]
     private string resultPath = string.Empty;
+
+    [ObservableProperty]
+    private bool isAdvancedOptionsExpanded;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RevealFooterPathCommand))]
@@ -107,6 +113,12 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public string Title => "Decrypt a file";
 
+    public string HeroBadgeText => "DECRYPT MODE";
+
+    public string HeroTitle => "Open a sealed file";
+
+    public string HeroDescription => "Decrypt local .encrypted payloads with the original password and matching key file when required.";
+
     public bool HasFooterAction => !string.IsNullOrWhiteSpace(FooterActionText);
 
     public System.Windows.Input.ICommand FooterActionCommand => RevealFooterPathCommand;
@@ -115,15 +127,37 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public bool HasResult => !string.IsNullOrWhiteSpace(ResultPath);
 
+    public bool ShowReadyAction => !IsRunning && !HasResult;
+
     public bool HasSelectedFile => !string.IsNullOrWhiteSpace(SourcePath);
 
     public bool ShowEmptySourceState => !HasSelectedFile;
 
     public bool HasKeyFileChoice => !string.IsNullOrWhiteSpace(KeyFilePath);
 
+    public bool ShowMaskedPasswordInput => !ShowPassword;
+
+    public string PasswordVisibilityActionText => ShowPassword ? "Hide" : "Show";
+
     public string KeyFileChoiceStatusText => HasKeyFileChoice
         ? "Using the selected key file as the optional second factor."
         : "No key file selected. Decryption will use only the password unless the file requires one.";
+
+    public string DetailsPanelTitle => HasResult
+        ? "Restored"
+        : IsRunning
+            ? "Decrypting"
+            : HasSelectedFile
+                ? "File details"
+                : "Ready";
+
+    public string DetailsPanelBody => HasResult
+        ? ResultPath
+        : HasSelectedFile && SourcePreview is not null
+            ? $"{SourcePreview.DisplayName} is staged for local decryption and safe output naming."
+            : "Drop an encrypted file to inspect its filename, output target, and key-file requirements.";
+
+    public string ParametersSummary => "AES-256-GCM · Argon2id · Automatic decompression when flagged";
 
     public string OutputDisplayText => string.IsNullOrWhiteSpace(OutputPath)
         ? "Auto-generated from input filename..."
@@ -166,6 +200,8 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         ClearVisibleError();
         OnPropertyChanged(nameof(HasSelectedFile));
         OnPropertyChanged(nameof(ShowEmptySourceState));
+        OnPropertyChanged(nameof(DetailsPanelTitle));
+        OnPropertyChanged(nameof(DetailsPanelBody));
         RefreshSuggestedOutputPath();
         ResetReadyFooter();
     }
@@ -190,8 +226,17 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         ResetReadyFooter();
     }
 
+    partial void OnShowPasswordChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowMaskedPasswordInput));
+        OnPropertyChanged(nameof(PasswordVisibilityActionText));
+    }
+
     partial void OnIsRunningChanged(bool value)
     {
+        OnPropertyChanged(nameof(DetailsPanelTitle));
+        OnPropertyChanged(nameof(DetailsPanelBody));
+        OnPropertyChanged(nameof(ShowReadyAction));
         ClearSourceCommand.NotifyCanExecuteChanged();
     }
 
@@ -211,6 +256,9 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnResultPathChanged(string value)
     {
         OnPropertyChanged(nameof(HasResult));
+        OnPropertyChanged(nameof(DetailsPanelTitle));
+        OnPropertyChanged(nameof(DetailsPanelBody));
+        OnPropertyChanged(nameof(ShowReadyAction));
     }
 
     partial void OnNeverOverwriteExistingFilesChanged(bool value)
@@ -221,6 +269,18 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnFooterActionTextChanged(string value)
     {
         OnPropertyChanged(nameof(HasFooterAction));
+    }
+
+    [RelayCommand]
+    private void TogglePasswordVisibility()
+    {
+        ShowPassword = !ShowPassword;
+    }
+
+    [RelayCommand]
+    private void ToggleAdvancedOptions()
+    {
+        IsAdvancedOptionsExpanded = !IsAdvancedOptionsExpanded;
     }
 
     [RelayCommand(CanExecute = nameof(CanBrowse))]

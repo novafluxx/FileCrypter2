@@ -45,6 +45,9 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private string password = string.Empty;
 
     [ObservableProperty]
+    private bool showPassword;
+
+    [ObservableProperty]
     private bool enableCompression;
 
     [ObservableProperty]
@@ -84,6 +87,9 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     [ObservableProperty]
     private string generatedKeyFileResultPath = string.Empty;
+
+    [ObservableProperty]
+    private bool isAdvancedOptionsExpanded;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RevealFooterPathCommand))]
@@ -128,6 +134,12 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public string Title => "Encrypt a file";
 
+    public string HeroBadgeText => "ENCRYPT MODE";
+
+    public string HeroTitle => "Seal a file";
+
+    public string HeroDescription => "Authenticated AES-256-GCM with Argon2id derivation. Nothing leaves this device.";
+
     public bool HasFooterAction => !string.IsNullOrWhiteSpace(FooterActionText);
 
     public System.Windows.Input.ICommand FooterActionCommand => RevealFooterPathCommand;
@@ -137,6 +149,8 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     public bool HasResult => !string.IsNullOrWhiteSpace(ResultPath);
 
     public bool HasGeneratedKeyFileResult => !string.IsNullOrWhiteSpace(GeneratedKeyFileResultPath);
+
+    public bool ShowReadyAction => !IsRunning && !HasResult;
 
     public bool HasSelectedFile => !string.IsNullOrWhiteSpace(SourcePath);
 
@@ -152,11 +166,50 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public bool CanEditGeneratedKeyFileChoice => !IsRunning && !HasExistingKeyFileChoice;
 
+    public bool ShowMaskedPasswordInput => !ShowPassword;
+
+    public string PasswordVisibilityActionText => ShowPassword ? "Hide" : "Show";
+
     public string KeyFileChoiceStatusText => HasExistingKeyFileChoice
         ? "Using an existing key file as the optional second factor."
         : HasGeneratedKeyFileChoice
             ? "A new key file will be generated for this encryption run."
             : "No key file selected. Encryption will use only the password.";
+
+    public int PasswordStrengthScore => GetPasswordStrengthScore(Password);
+
+    public double PasswordStrengthPercent => PasswordStrengthScore / 4d * 100d;
+
+    public string PasswordStrengthLabel => PasswordStrengthScore switch
+    {
+        <= 0 => "Enter a passphrase",
+        1 => "Weak",
+        2 => "Fair",
+        3 => "Strong",
+        _ => "Excellent",
+    };
+
+    public string PasswordStrengthDetail => string.IsNullOrWhiteSpace(Password)
+        ? "Choose something memorable but uncommon."
+        : $"{EstimateEntropyBits(Password)} bits of estimated entropy";
+
+    public string FilePreviewPanelTitle => HasResult
+        ? "Encrypted"
+        : IsRunning
+            ? "Cipher stream"
+            : HasSelectedFile
+                ? "File preview"
+                : "Preview";
+
+    public string FilePreviewPanelBody => HasResult
+        ? ResultPath
+        : HasSelectedFile && SourcePreview is not null
+            ? $"{SourcePreview.DisplayName} will be sealed locally with the configured output path and protection settings."
+            : "Select a file to preview the local output path and sealing parameters.";
+
+    public string ParametersSummary => EnableCompression
+        ? "AES-256-GCM · Argon2id · Compression on"
+        : "AES-256-GCM · Argon2id · Compression off";
 
     public string OutputDisplayText => string.IsNullOrWhiteSpace(OutputPath)
         ? "Auto-generated from input filename..."
@@ -200,6 +253,8 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         ClearVisibleError();
         OnPropertyChanged(nameof(HasSelectedFile));
         OnPropertyChanged(nameof(ShowEmptySourceState));
+        OnPropertyChanged(nameof(FilePreviewPanelTitle));
+        OnPropertyChanged(nameof(FilePreviewPanelBody));
         RefreshSuggestedOutputPath();
         ResetReadyFooter();
     }
@@ -221,13 +276,26 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnPasswordChanged(string value)
     {
         ClearVisibleError();
+        OnPropertyChanged(nameof(PasswordStrengthScore));
+        OnPropertyChanged(nameof(PasswordStrengthPercent));
+        OnPropertyChanged(nameof(PasswordStrengthLabel));
+        OnPropertyChanged(nameof(PasswordStrengthDetail));
         ResetReadyFooter();
+    }
+
+    partial void OnShowPasswordChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowMaskedPasswordInput));
+        OnPropertyChanged(nameof(PasswordVisibilityActionText));
     }
 
     partial void OnIsRunningChanged(bool value)
     {
         OnPropertyChanged(nameof(CanEditExistingKeyFileChoice));
         OnPropertyChanged(nameof(CanEditGeneratedKeyFileChoice));
+        OnPropertyChanged(nameof(FilePreviewPanelTitle));
+        OnPropertyChanged(nameof(FilePreviewPanelBody));
+        OnPropertyChanged(nameof(ShowReadyAction));
         ClearSourceCommand.NotifyCanExecuteChanged();
     }
 
@@ -263,6 +331,9 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnResultPathChanged(string value)
     {
         OnPropertyChanged(nameof(HasResult));
+        OnPropertyChanged(nameof(FilePreviewPanelTitle));
+        OnPropertyChanged(nameof(FilePreviewPanelBody));
+        OnPropertyChanged(nameof(ShowReadyAction));
     }
 
     partial void OnGeneratedKeyFileResultPathChanged(string value)
@@ -272,6 +343,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     partial void OnEnableCompressionChanged(bool value)
     {
+        OnPropertyChanged(nameof(ParametersSummary));
         ResetReadyFooter();
     }
 
@@ -283,6 +355,18 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnFooterActionTextChanged(string value)
     {
         OnPropertyChanged(nameof(HasFooterAction));
+    }
+
+    [RelayCommand]
+    private void TogglePasswordVisibility()
+    {
+        ShowPassword = !ShowPassword;
+    }
+
+    [RelayCommand]
+    private void ToggleAdvancedOptions()
+    {
+        IsAdvancedOptionsExpanded = !IsAdvancedOptionsExpanded;
     }
 
     [RelayCommand(CanExecute = nameof(CanBrowse))]
@@ -675,6 +759,63 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private static string GetTroubleshootingMessage(Exception exception)
     {
         return WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
+    }
+
+    private static int GetPasswordStrengthScore(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return 0;
+        }
+
+        int score = 0;
+        if (password.Length >= 8)
+        {
+            score++;
+        }
+
+        if (password.Length >= 12)
+        {
+            score++;
+        }
+
+        if (password.Any(char.IsUpper))
+        {
+            score++;
+        }
+
+        if (password.Any(static character => !char.IsLetterOrDigit(character)))
+        {
+            score++;
+        }
+
+        return Math.Clamp(score, 0, 4);
+    }
+
+    private static int EstimateEntropyBits(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return 0;
+        }
+
+        int estimate = password.Length * 4;
+        if (password.Length >= 12)
+        {
+            estimate += 10;
+        }
+
+        if (password.Any(char.IsUpper))
+        {
+            estimate += 6;
+        }
+
+        if (password.Any(static character => !char.IsLetterOrDigit(character)))
+        {
+            estimate += 6;
+        }
+
+        return estimate;
     }
 
     private enum OutputPathOrigin

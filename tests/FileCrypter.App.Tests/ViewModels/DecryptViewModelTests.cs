@@ -226,7 +226,7 @@ public sealed class DecryptViewModelTests
         bool applied = viewModel.ApplyDroppedSourcePaths(["/tmp/dropped.txt.encrypted", "/tmp/other.txt.encrypted"]);
 
         Assert.True(applied);
-        Assert.Equal("/tmp/dropped.txt.encrypted", viewModel.SourcePath);
+        Assert.Equal(Path.GetFullPath("/tmp/dropped.txt.encrypted"), viewModel.SourcePath);
         Assert.Equal(Path.Combine(outputDirectory.Path, "dropped.txt"), viewModel.OutputPath);
     }
 
@@ -262,6 +262,21 @@ public sealed class DecryptViewModelTests
                 File.Delete(tempFilePath);
             }
         }
+    }
+
+    [Fact]
+    public void TogglePasswordVisibilityCommand_TogglesVisiblePasswordState()
+    {
+        var viewModel = new DecryptViewModel(new RecordingWorkflowService());
+
+        Assert.True(viewModel.ShowMaskedPasswordInput);
+        Assert.Equal("Show", viewModel.PasswordVisibilityActionText);
+
+        viewModel.TogglePasswordVisibilityCommand.Execute(null);
+
+        Assert.False(viewModel.ShowMaskedPasswordInput);
+        Assert.True(viewModel.ShowPassword);
+        Assert.Equal("Hide", viewModel.PasswordVisibilityActionText);
     }
 
     private static DecryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)
