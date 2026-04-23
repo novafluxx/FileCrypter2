@@ -16,15 +16,24 @@ public sealed class PasswordGeneratorServiceTests
     }
 
     [Fact]
-    public void GenerateMemorablePassphrase_ReturnsFiveHyphenSeparatedWords()
+    public void GenerateMemorablePassphrase_ReturnsExpectedNumberOfHyphenSeparatedWords()
     {
         var generator = new PasswordGeneratorService();
 
         string passphrase = generator.GenerateMemorablePassphrase();
 
         string[] words = passphrase.Split('-');
-        Assert.Equal(5, words.Length);
+        Assert.Equal(PasswordGeneratorService.MemorablePassphraseWordCount, words.Length);
         Assert.All(words, word => Assert.Contains(word, PasswordGeneratorService.MemorablePassphraseWords));
+    }
+
+    [Fact]
+    public void GenerateMemorablePassphrase_ProvidesAtLeastSixtyBitsOfSearchSpace()
+    {
+        double searchSpaceBits = Math.Log2(PasswordGeneratorService.MemorablePassphraseWords.Count)
+            * PasswordGeneratorService.MemorablePassphraseWordCount;
+
+        Assert.True(searchSpaceBits >= 60);
     }
 
     [Fact]
