@@ -140,7 +140,7 @@
                                            Foreground="{DynamicResource MutedForegroundBrush}" />
                             </StackPanel>
 
-                            <Grid ColumnDefinitions="*,Auto"
+                            <Grid ColumnDefinitions="*,Auto,Auto"
                                   ColumnSpacing="10">
                                 <TextBox Text="{Binding Password}"
                                          PasswordChar="*"
@@ -150,6 +150,18 @@
                                          PlaceholderText="Enter a passphrase"
                                          IsVisible="{Binding ShowPassword}" />
                                 <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Generate">
+                                    <Button.Flyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="Random password"
+                                                      Command="{Binding GenerateRandomPasswordCommand}" />
+                                            <MenuItem Header="Memorable passphrase"
+                                                      Command="{Binding GenerateMemorablePassphraseCommand}" />
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                                <Button Grid.Column="2"
                                         Classes="aurora-secondary"
                                         Content="{Binding PasswordVisibilityActionText}"
                                         Command="{Binding TogglePasswordVisibilityCommand}" />
