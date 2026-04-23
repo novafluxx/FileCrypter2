@@ -127,7 +127,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public bool HasResult => !string.IsNullOrWhiteSpace(ResultPath);
 
-    public bool ShowReadyAction => !IsRunning && !HasResult;
+    public bool ShowReadyAction => !IsRunning;
 
     public bool HasSelectedFile => !string.IsNullOrWhiteSpace(SourcePath);
 

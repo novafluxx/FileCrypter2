@@ -150,7 +150,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public bool HasGeneratedKeyFileResult => !string.IsNullOrWhiteSpace(GeneratedKeyFileResultPath);
 
-    public bool ShowReadyAction => !IsRunning && !HasResult;
+    public bool ShowReadyAction => !IsRunning;
 
     public bool HasSelectedFile => !string.IsNullOrWhiteSpace(SourcePath);
 

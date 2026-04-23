@@ -38,6 +38,7 @@ public sealed class EncryptViewModelTests
         Assert.True(viewModel.HasResult);
         Assert.Empty(viewModel.ErrorMessage);
         Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.True(viewModel.ShowReadyAction);
         Assert.StartsWith("Encrypted in ", viewModel.StatusText, StringComparison.Ordinal);
         Assert.Equal("Saved to", viewModel.ProgressText);
         Assert.Equal("/tmp/plain.txt.encrypted", viewModel.FooterActionText);
@@ -68,12 +69,14 @@ public sealed class EncryptViewModelTests
 
         Assert.True(viewModel.IsRunning);
         Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.False(viewModel.ShowReadyAction);
 
         workflow.Finish(new EncryptFileResult("/tmp/out.encrypted", null));
         await runTask;
 
         Assert.False(viewModel.IsRunning);
         Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.True(viewModel.ShowReadyAction);
     }
 
     [Fact]

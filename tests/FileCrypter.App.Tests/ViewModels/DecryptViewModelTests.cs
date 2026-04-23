@@ -40,6 +40,7 @@ public sealed class DecryptViewModelTests
         Assert.True(viewModel.HasResult);
         Assert.Empty(viewModel.ErrorMessage);
         Assert.True(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.True(viewModel.ShowReadyAction);
         Assert.StartsWith("Decrypted in ", viewModel.StatusText, StringComparison.Ordinal);
         Assert.Equal("Saved to", viewModel.ProgressText);
         Assert.Equal("/tmp/plain.txt", viewModel.FooterActionText);
@@ -57,12 +58,14 @@ public sealed class DecryptViewModelTests
 
         Assert.True(viewModel.IsRunning);
         Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.False(viewModel.ShowReadyAction);
 
         workflow.Finish(new DecryptFileResult("/tmp/out.txt"));
         await runTask;
 
         Assert.False(viewModel.IsRunning);
         Assert.True(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.True(viewModel.ShowReadyAction);
     }
 
     [Fact]
