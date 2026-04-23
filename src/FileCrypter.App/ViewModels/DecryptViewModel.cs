@@ -153,8 +153,6 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
             ? $"{SourcePreview.DisplayName} is staged for local decryption and safe output naming."
             : "Drop an encrypted file to inspect its filename, output target, and key-file requirements.";
 
-    public string ParametersSummary => "AES-256-GCM · Argon2id · Automatic decompression when flagged";
-
     public string OutputDisplayText => string.IsNullOrWhiteSpace(OutputPath)
         ? "Auto-generated from input filename..."
         : OutputPath;

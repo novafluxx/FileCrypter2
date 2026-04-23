@@ -292,39 +292,6 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Classes="aurora-card">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="Parameters"
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       LetterSpacing="2" />
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="Cipher"
-                                           Foreground="{DynamicResource MutedForegroundBrush}" />
-                                <TextBlock Grid.Column="1"
-                                           Text="AES-256-GCM"
-                                           FontFamily="Cascadia Mono, Consolas, monospace" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="KDF"
-                                           Foreground="{DynamicResource MutedForegroundBrush}" />
-                                <TextBlock Grid.Column="1"
-                                           Text="Argon2id"
-                                           FontFamily="Cascadia Mono, Consolas, monospace" />
-                            </Grid>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="Summary"
-                                           Foreground="{DynamicResource MutedForegroundBrush}" />
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding ParametersSummary}"
-                                           FontFamily="Cascadia Mono, Consolas, monospace"
-                                           TextAlignment="Right"
-                                           MaxWidth="190"
-                                           TextWrapping="Wrap" />
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
                     <Border Classes="aurora-card"
                             IsVisible="{Binding IsRunning}">
                         <StackPanel Spacing="12">

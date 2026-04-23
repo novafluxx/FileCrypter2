@@ -203,10 +203,6 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             ? $"{SourcePreview.DisplayName} will be sealed locally with the configured output path and protection settings."
             : "Select a file to preview the local output path and sealing parameters.";
 
-    public string ParametersSummary => EnableCompression
-        ? "AES-256-GCM · Argon2id · Compression on"
-        : "AES-256-GCM · Argon2id · Compression off";
-
     public string OutputDisplayText => string.IsNullOrWhiteSpace(OutputPath)
         ? "Auto-generated from input filename..."
         : OutputPath;
@@ -339,7 +335,6 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     partial void OnEnableCompressionChanged(bool value)
     {
-        OnPropertyChanged(nameof(ParametersSummary));
         ResetReadyFooter();
     }
 
