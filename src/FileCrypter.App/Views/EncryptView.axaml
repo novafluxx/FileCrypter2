@@ -173,6 +173,27 @@
                         </StackPanel>
                     </Border>
 
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            Grid.Row="1"
+                            Spacing="16">
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{Binding FilePreviewPanelTitle}"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding FilePreviewPanelBody}"
+                                       FontFamily="Cascadia Mono, Consolas, monospace"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="Passwords, key files, and plaintext stay on this device."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
                     <Border Classes="aurora-card"
                             Padding="0">
                         <StackPanel>
@@ -180,7 +201,7 @@
                                   ColumnDefinitions="*,Auto"
                                   ColumnSpacing="12">
                                 <StackPanel Spacing="3">
-                                    <TextBlock Text="Advanced options"
+                                    <TextBlock Text="Advanced Options"
                                                FontWeight="SemiBold" />
                                     <TextBlock Text="Output path, overwrite protection, compression, and optional key-file modes."
                                                Foreground="{DynamicResource MutedForegroundBrush}"
@@ -269,26 +290,6 @@
                                            Margin="30,0,0,0"
                                            TextWrapping="Wrap" />
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1"
-                            Grid.Row="1"
-                            Spacing="16">
-                    <Border Classes="aurora-card">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="{Binding FilePreviewPanelTitle}"
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       LetterSpacing="2" />
-                            <TextBlock Text="{Binding FilePreviewPanelBody}"
-                                       FontFamily="Cascadia Mono, Consolas, monospace"
-                                       Foreground="{DynamicResource AccentForegroundBrush}"
-                                       TextWrapping="Wrap" />
-                            <TextBlock Text="Passwords, key files, and plaintext stay on this device."
-                                       Foreground="{DynamicResource MutedForegroundBrush}"
-                                       TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
 

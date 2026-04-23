@@ -178,13 +178,34 @@
                         </StackPanel>
                     </Border>
 
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            Grid.Row="1"
+                            Spacing="16">
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="{Binding DetailsPanelTitle}"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding DetailsPanelBody}"
+                                       FontFamily="Cascadia Mono, Consolas, monospace"
+                                       Foreground="{DynamicResource AccentSecondaryForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="If a key file was used during encryption, the original unchanged file is required here too."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
                     <Border Classes="aurora-card"
                             Padding="0">
                         <StackPanel>
                             <Grid Margin="24,18,24,18"
                                   ColumnDefinitions="*,Auto">
                                 <StackPanel Spacing="3">
-                                    <TextBlock Text="Advanced options"
+                                    <TextBlock Text="Advanced Options"
                                                FontWeight="SemiBold" />
                                     <TextBlock Text="Output naming and overwrite protection for the restored file."
                                                Foreground="{DynamicResource MutedForegroundBrush}"
@@ -225,26 +246,6 @@
                                            Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                            Margin="30,0,0,0" />
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1"
-                            Grid.Row="1"
-                            Spacing="16">
-                    <Border Classes="aurora-card">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="{Binding DetailsPanelTitle}"
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       LetterSpacing="2" />
-                            <TextBlock Text="{Binding DetailsPanelBody}"
-                                       FontFamily="Cascadia Mono, Consolas, monospace"
-                                       Foreground="{DynamicResource AccentSecondaryForegroundBrush}"
-                                       TextWrapping="Wrap" />
-                            <TextBlock Text="If a key file was used during encryption, the original unchanged file is required here too."
-                                       Foreground="{DynamicResource MutedForegroundBrush}"
-                                       TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
 
