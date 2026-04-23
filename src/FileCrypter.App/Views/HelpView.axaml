@@ -8,19 +8,14 @@
                     Spacing="24"
                     MaxWidth="1140">
             <StackPanel Spacing="10">
-                <Border Classes="aurora-panel"
-                        Padding="10,6"
-                        HorizontalAlignment="Left">
-                    <TextBlock Text="HELP AND RECOVERY"
+                <Border Classes="aurora-panel hero-badge"
+                        HorizontalAlignment="Left"
+                        Margin="0,0,0,14">
+                    <TextBlock Classes="hero-badge-text"
+                               Text="{Binding Title}"
                                Foreground="{DynamicResource AccentForegroundBrush}"
-                               FontSize="{StaticResource FontSizeCaption}"
-                               LetterSpacing="2" />
+                               TextWrapping="Wrap" />
                 </Border>
-                <TextBlock Text="Guidance, update status, and the recovery limits you should know before you encrypt."
-                           FontSize="{StaticResource FontSizePageTitle}"
-                           FontWeight="SemiBold"
-                           MaxWidth="760"
-                           TextWrapping="Wrap" />
             </StackPanel>
 
             <Border Background="{DynamicResource WarningBackgroundBrush}"

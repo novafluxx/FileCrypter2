@@ -134,11 +134,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public string Title => "Encrypt a file";
 
-    public string HeroBadgeText => "ENCRYPT MODE";
-
-    public string HeroTitle => "Seal a file";
-
-    public string HeroDescription => "Authenticated AES-256-GCM with Argon2id derivation. Nothing leaves this device.";
+    public string HeroTitle => "Encrypt a file";
 
     public bool HasFooterAction => !string.IsNullOrWhiteSpace(FooterActionText);
 

@@ -32,21 +32,14 @@
                   RowDefinitions="Auto,*">
                 <StackPanel Grid.ColumnSpan="2"
                             Spacing="10">
-                    <Border Classes="aurora-panel"
-                            Padding="10,6"
-                            HorizontalAlignment="Left">
-                        <TextBlock Text="{Binding HeroBadgeText}"
+                    <Border Classes="aurora-panel hero-badge"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,14">
+                        <TextBlock Classes="hero-badge-text"
+                                   Text="{Binding HeroTitle}"
                                    Foreground="{DynamicResource AccentSecondaryForegroundBrush}"
-                                   FontSize="{StaticResource FontSizeCaption}"
-                                   LetterSpacing="2" />
+                                   TextWrapping="Wrap" />
                     </Border>
-                    <TextBlock Text="{Binding HeroTitle}"
-                               FontSize="{StaticResource FontSizePageTitle}"
-                               FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding HeroDescription}"
-                               Foreground="{DynamicResource MutedForegroundBrush}"
-                               MaxWidth="580"
-                               TextWrapping="Wrap" />
                 </StackPanel>
 
                 <StackPanel Grid.Row="1"
@@ -137,23 +130,15 @@
 
                     <Border Classes="aurora-card">
                         <StackPanel Spacing="14">
-                            <Grid ColumnDefinitions="*,Auto"
-                                  ColumnSpacing="12">
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="PASSWORD AND KEY FILE"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontSize="{StaticResource FontSizeCaption}"
-                                               LetterSpacing="2" />
-                                    <TextBlock Text="Enter the original password and supply the matching key file when the payload requires one."
-                                               Foreground="{DynamicResource MutedForegroundBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <Button Grid.Column="1"
-                                        Classes="aurora-inline"
-                                        Content="{Binding PasswordVisibilityActionText}"
-                                        Command="{Binding TogglePasswordVisibilityCommand}"
-                                        VerticalAlignment="Center" />
-                            </Grid>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="PASSWORD AND KEY FILE"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <TextBlock Text="Enter the original password and supply the matching key file when the payload requires one."
+                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
 
                             <Grid ColumnDefinitions="*,Auto"
                                   ColumnSpacing="10">
@@ -206,7 +191,7 @@
                                                TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Button Grid.Column="1"
-                                        Classes="aurora-inline"
+                                        Classes="aurora-secondary"
                                         Content="Toggle"
                                         Command="{Binding ToggleAdvancedOptionsCommand}"
                                         VerticalAlignment="Center" />

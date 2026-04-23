@@ -176,6 +176,8 @@
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="MinHeight" Value="42" />
             <Setter Property="Padding" Value="16,10" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
             <Setter Property="Background" Value="{DynamicResource SurfaceAltBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SurfaceAltBorderBrush}" />
@@ -271,6 +273,16 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="18" />
             <Setter Property="Padding" Value="20" />
+        </Style>
+
+        <Style Selector="Border.hero-badge">
+            <Setter Property="CornerRadius" Value="24" />
+            <Setter Property="Padding" Value="18,12" />
+        </Style>
+
+        <Style Selector="TextBlock.hero-badge-text">
+            <Setter Property="FontSize" Value="{StaticResource FontSizePanelTitle}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
         <Style Selector="Border.file-drop-zone">

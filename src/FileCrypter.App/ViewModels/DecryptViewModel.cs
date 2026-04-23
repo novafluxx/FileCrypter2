@@ -113,11 +113,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public string Title => "Decrypt a file";
 
-    public string HeroBadgeText => "DECRYPT MODE";
-
-    public string HeroTitle => "Open a sealed file";
-
-    public string HeroDescription => "Decrypt local .encrypted payloads with the original password and matching key file when required.";
+    public string HeroTitle => "Decrypt a file";
 
     public bool HasFooterAction => !string.IsNullOrWhiteSpace(FooterActionText);
 

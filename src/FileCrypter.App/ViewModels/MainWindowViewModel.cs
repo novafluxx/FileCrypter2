@@ -21,9 +21,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private ViewModelBase currentPage;
 
-    [ObservableProperty]
-    private string currentPageTitle;
-
     public MainWindowViewModel()
         : this(new FileCrypterWorkflowService(), new FileCrypterSettingsService())
     {
@@ -78,7 +75,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         settingsViewModel.SettingsSaved += ApplySettings;
         ApplySettings(initialSettings);
         currentPage = encryptViewModel;
-        currentPageTitle = encryptViewModel.Title;
 
         PrimaryNavigationItems =
         [
@@ -149,15 +145,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             "settings" => settingsViewModel,
             _ => encryptViewModel,
         };
-        CurrentPageTitle = item.Key == "encrypt"
-            ? encryptViewModel.Title
-            : item.Key == "decrypt"
-                ? decryptViewModel.Title
-            : item.Key == "batch"
-                ? batchViewModel.Title
-            : item.Key == "help"
-                ? helpViewModel.Title
-            : item.Title;
     }
 
     private void SubscribeToWorkflowStatus(ViewModelBase workflowPage)

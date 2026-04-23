@@ -30,38 +30,17 @@
             <Grid ColumnDefinitions="*,360"
                   ColumnSpacing="20"
                   RowDefinitions="Auto,*">
-                <Grid Grid.ColumnSpan="2"
-                      ColumnDefinitions="*,Auto"
-                      ColumnSpacing="16">
-                    <StackPanel Spacing="10">
-                        <Border Classes="aurora-panel"
-                                Padding="10,6"
-                                HorizontalAlignment="Left">
-                            <TextBlock Text="{Binding HeroBadgeText}"
-                                       Foreground="{DynamicResource AccentForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       LetterSpacing="2" />
-                        </Border>
-                        <TextBlock Text="{Binding ModeTitle}"
-                                   FontSize="{StaticResource FontSizePageTitle}"
-                                   FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding ModeDescription}"
-                                   Foreground="{DynamicResource MutedForegroundBrush}"
-                                   MaxWidth="640"
+                <StackPanel Grid.ColumnSpan="2"
+                            Spacing="10">
+                    <Border Classes="aurora-panel hero-badge"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,14">
+                        <TextBlock Classes="hero-badge-text"
+                                   Text="{Binding ModeTitle}"
+                                   Foreground="{DynamicResource AccentForegroundBrush}"
                                    TextWrapping="Wrap" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1"
-                                Orientation="Horizontal"
-                                Spacing="10"
-                                VerticalAlignment="Top">
-                        <Button Classes="aurora-secondary"
-                                Content="{Binding BrowseFilesButtonText}"
-                                Command="{Binding BrowseFilesCommand}" />
-                        <Button Classes="aurora-primary"
-                                Content="{Binding ActionButtonText}"
-                                Command="{Binding StartBatchCommand}" />
-                    </StackPanel>
-                </Grid>
+                    </Border>
+                </StackPanel>
 
                 <StackPanel Grid.Row="1"
                             Spacing="18">
@@ -339,22 +318,15 @@
 
                     <Border Classes="aurora-card">
                         <StackPanel Spacing="14">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="PASSWORD AND OPTIONAL KEY FILE"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontSize="{StaticResource FontSizeCaption}"
-                                               LetterSpacing="2" />
-                                    <TextBlock Text="{Binding KeyFileChoiceStatusText}"
-                                               Foreground="{DynamicResource AccentForegroundBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <Button Grid.Column="1"
-                                        Classes="aurora-inline"
-                                        Content="{Binding PasswordVisibilityActionText}"
-                                        Command="{Binding TogglePasswordVisibilityCommand}"
-                                        VerticalAlignment="Center" />
-                            </Grid>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="PASSWORD AND OPTIONAL KEY FILE"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <TextBlock Text="{Binding KeyFileChoiceStatusText}"
+                                           Foreground="{DynamicResource AccentForegroundBrush}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
 
                             <Grid ColumnDefinitions="*,Auto"
                                   ColumnSpacing="10">
@@ -400,7 +372,7 @@
                                                TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Button Grid.Column="1"
-                                        Classes="aurora-inline"
+                                        Classes="aurora-secondary"
                                         Content="Toggle"
                                         Command="{Binding ToggleAdvancedOptionsCommand}"
                                         VerticalAlignment="Center" />

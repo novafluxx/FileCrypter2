@@ -123,14 +123,6 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     public string Title => "Batch workflows";
 
-    public string HeroBadgeText => ArchiveMode
-        ? EncryptMode
-            ? "ARCHIVE MODE"
-            : "EXTRACT MODE"
-        : EncryptMode
-            ? "BATCH ENCRYPT"
-            : "BATCH DECRYPT";
-
     public ObservableCollection<string> SourcePaths { get; } = [];
 
     public ObservableCollection<FileSelectionPreviewViewModel> SourceFilePreviews { get; } = [];
@@ -203,18 +195,6 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         (false, false) => "Decrypt many files at once",
         (true, true) => "Create one encrypted archive",
         _ => "Decrypt and extract one encrypted archive",
-    };
-
-    public string ModeDescription => (ArchiveMode, EncryptMode) switch
-    {
-        (false, true) =>
-            "Each selected file becomes its own encrypted output, and batch encryption turns compression on automatically.",
-        (false, false) =>
-            "Each selected file is decrypted separately, removing the .encrypted suffix when it can and using a safe fallback when it cannot.",
-        (true, true) =>
-            "Bundle multiple files into one compressed .tar.zst.encrypted archive with an optional custom archive name.",
-        _ =>
-            "Decrypt one encrypted archive and extract every file into the chosen output folder while preserving overwrite protection.",
     };
 
     public string WorkflowChooserDescription => "Pick what you have first, then choose what FileCrypter should do with it. All four combinations stay available, including archive extraction.";
@@ -319,8 +299,6 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         _ => "Decrypt and extract archive",
     };
 
-    public string BrowseFilesButtonText => ArchiveMode && !EncryptMode ? "Choose archive" : "Add files";
-
     public string OutputFolderPickerTitle => ArchiveMode && EncryptMode
         ? "Choose archive output directory"
         : ArchiveMode
@@ -361,7 +339,6 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     partial void OnEncryptModeChanged(bool value)
     {
         OnPropertyChanged(nameof(IsDecryptMode));
-        OnPropertyChanged(nameof(HeroBadgeText));
         OnWorkflowModeChanged();
     }
 
@@ -378,7 +355,6 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     partial void OnArchiveModeChanged(bool value)
     {
         OnPropertyChanged(nameof(IndividualFilesMode));
-        OnPropertyChanged(nameof(HeroBadgeText));
         OnWorkflowModeChanged();
     }
 
@@ -707,7 +683,6 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private void OnWorkflowModeChanged()
     {
         OnPropertyChanged(nameof(ModeTitle));
-        OnPropertyChanged(nameof(ModeDescription));
         OnPropertyChanged(nameof(WorkflowChooserDescription));
         OnPropertyChanged(nameof(IndividualFilesOptionDescription));
         OnPropertyChanged(nameof(ArchiveModeOptionDescription));
@@ -722,7 +697,6 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         OnPropertyChanged(nameof(FilesSummaryText));
         OnPropertyChanged(nameof(KeyFileChoiceStatusText));
         OnPropertyChanged(nameof(ActionButtonText));
-        OnPropertyChanged(nameof(BrowseFilesButtonText));
         OnPropertyChanged(nameof(OutputFolderPickerTitle));
         OnPropertyChanged(nameof(QueueInspectorTitle));
         OnPropertyChanged(nameof(QueueInspectorBody));

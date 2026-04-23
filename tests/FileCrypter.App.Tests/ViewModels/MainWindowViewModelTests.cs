@@ -16,7 +16,6 @@ public sealed class MainWindowViewModelTests
             new StubAppMetadataService());
 
         Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
-        Assert.Equal("Encrypt a file", viewModel.CurrentPageTitle);
         Assert.Equal("Encrypt", viewModel.PrimaryNavigationItems.Single(item => item.IsSelected).Title);
     }
 
@@ -78,7 +77,6 @@ public sealed class MainWindowViewModelTests
         viewModel.SelectNavigationItemCommand.Execute(helpItem);
 
         Assert.IsType<HelpViewModel>(viewModel.CurrentPage);
-        Assert.Equal("Help and recovery", viewModel.CurrentPageTitle);
         Assert.Equal("Help and recovery", viewModel.StatusText);
         Assert.Equal("Update checks are not configured for this development build yet.", viewModel.FooterDetail);
         Assert.True(helpItem.IsSelected);
@@ -100,7 +98,6 @@ public sealed class MainWindowViewModelTests
         viewModel.SelectNavigationItemCommand.Execute(decryptItem);
 
         Assert.IsType<DecryptViewModel>(viewModel.CurrentPage);
-        Assert.Equal("Decrypt a file", viewModel.CurrentPageTitle);
         Assert.Equal("Ready", viewModel.StatusText);
         Assert.Equal("No encrypted file selected", viewModel.FooterDetail);
     }
@@ -118,7 +115,6 @@ public sealed class MainWindowViewModelTests
         viewModel.SelectNavigationItemCommand.Execute(batchItem);
 
         Assert.IsType<BatchViewModel>(viewModel.CurrentPage);
-        Assert.Equal("Batch workflows", viewModel.CurrentPageTitle);
         Assert.Equal("Ready", viewModel.StatusText);
         Assert.Equal("No batch files selected", viewModel.FooterDetail);
     }
