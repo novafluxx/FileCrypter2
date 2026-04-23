@@ -18,6 +18,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private readonly IFilePickerService? filePickerService;
     private readonly IClipboardService? clipboardService;
     private readonly IPathRevealService pathRevealService;
+    private readonly object progressGate = new();
     private readonly Stopwatch runStopwatch = new();
     private string defaultOutputDirectory = string.Empty;
     private OutputPathOrigin outputPathOrigin;
@@ -369,24 +370,30 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
                 progress,
                 CancellationToken.None);
 
-            CompleteProgressRun(progressRunId);
-            runStopwatch.Stop();
-            ResultPath = result.OutputPath;
-            ProgressPercent = 100;
-            ProgressText = "Saved to";
-            StatusText = $"Decrypted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}";
-            FooterActionText = result.OutputPath;
+            lock (progressGate)
+            {
+                CompleteProgressRun(progressRunId);
+                runStopwatch.Stop();
+                ResultPath = result.OutputPath;
+                ProgressPercent = 100;
+                ProgressText = "Saved to";
+                StatusText = $"Decrypted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}";
+                FooterActionText = result.OutputPath;
+            }
         }
         catch (Exception exception)
         {
-            CompleteProgressRun(progressRunId);
-            runStopwatch.Stop();
-            string message = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
-            ErrorMessage = message;
-            VisibleErrorMessage = message;
-            ProgressText = WorkflowStatusTextFormatter.SummarizeStatusDetail(message);
-            StatusText = "Decryption failed";
-            FooterActionText = string.Empty;
+            lock (progressGate)
+            {
+                CompleteProgressRun(progressRunId);
+                runStopwatch.Stop();
+                string message = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
+                ErrorMessage = message;
+                VisibleErrorMessage = message;
+                ProgressText = WorkflowStatusTextFormatter.SummarizeStatusDetail(message);
+                StatusText = "Decryption failed";
+                FooterActionText = string.Empty;
+            }
         }
         finally
         {
@@ -544,21 +551,24 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     private void ReportProgress(int progressRunId, FileCrypterProgress progress)
     {
-        if (!IsActiveProgressRun(progressRunId))
+        lock (progressGate)
         {
-            return;
-        }
+            if (!IsActiveProgressRun(progressRunId))
+            {
+                return;
+            }
 
-        if (progress.TotalInputBytes is > 0)
-        {
-            ProgressPercent = Math.Clamp(
-                progress.InputBytes * 100d / progress.TotalInputBytes.Value,
-                0,
-                100);
-        }
+            if (progress.TotalInputBytes is > 0)
+            {
+                ProgressPercent = Math.Clamp(
+                    progress.InputBytes * 100d / progress.TotalInputBytes.Value,
+                    0,
+                    100);
+            }
 
-        ProgressText = WorkflowStatusTextFormatter.FormatByteProgress(progress.InputBytes, progress.TotalInputBytes);
-        FooterActionText = string.Empty;
+            ProgressText = WorkflowStatusTextFormatter.FormatByteProgress(progress.InputBytes, progress.TotalInputBytes);
+            FooterActionText = string.Empty;
+        }
     }
 
     private int BeginProgressRun()
