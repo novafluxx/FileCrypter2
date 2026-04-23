@@ -326,6 +326,67 @@ public sealed class EncryptViewModelTests
         Assert.Contains("bits of estimated entropy", viewModel.PasswordStrengthDetail, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void PasswordStrengthProperties_UpdateWhenPasswordChanges()
+    {
+        var viewModel = new EncryptViewModel(new RecordingWorkflowService())
+        {
+            Password = "short",
+        };
+
+        Assert.Equal(0, viewModel.PasswordStrengthScore);
+        Assert.Equal("Enter a passphrase", viewModel.PasswordStrengthLabel);
+
+        viewModel.Password = "Strong!Pass123";
+
+        Assert.Equal(4, viewModel.PasswordStrengthScore);
+        Assert.Equal(100d, viewModel.PasswordStrengthPercent);
+        Assert.Equal("Excellent", viewModel.PasswordStrengthLabel);
+        Assert.Contains("bits of estimated entropy", viewModel.PasswordStrengthDetail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateRandomPasswordCommand_FillsPasswordShowsItAndEnablesEncrypt()
+    {
+        var generator = new RecordingPasswordGeneratorService
+        {
+            RandomPassword = "Generated!Password123456",
+        };
+        var viewModel = new EncryptViewModel(new RecordingWorkflowService(), passwordGeneratorService: generator)
+        {
+            SourcePath = "/tmp/plain.txt",
+        };
+
+        viewModel.GenerateRandomPasswordCommand.Execute(null);
+
+        Assert.Equal("Generated!Password123456", viewModel.Password);
+        Assert.True(viewModel.ShowPassword);
+        Assert.False(viewModel.ShowMaskedPasswordInput);
+        Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.Equal(4, viewModel.PasswordStrengthScore);
+    }
+
+    [Fact]
+    public void GenerateMemorablePassphraseCommand_FillsPasswordShowsItAndEnablesEncrypt()
+    {
+        var generator = new RecordingPasswordGeneratorService
+        {
+            MemorablePassphrase = "river-lantern-copper-signal-violet",
+        };
+        var viewModel = new EncryptViewModel(new RecordingWorkflowService(), passwordGeneratorService: generator)
+        {
+            SourcePath = "/tmp/plain.txt",
+        };
+
+        viewModel.GenerateMemorablePassphraseCommand.Execute(null);
+
+        Assert.Equal("river-lantern-copper-signal-violet", viewModel.Password);
+        Assert.True(viewModel.ShowPassword);
+        Assert.False(viewModel.ShowMaskedPasswordInput);
+        Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.Equal(4, viewModel.PasswordStrengthScore);
+    }
+
     private static EncryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)
     {
         return new EncryptViewModel(workflow)
@@ -456,6 +517,23 @@ public sealed class EncryptViewModelTests
         public void Finish(EncryptFileResult result)
         {
             completion.SetResult(result);
+        }
+    }
+
+    private sealed class RecordingPasswordGeneratorService : IPasswordGeneratorService
+    {
+        public string RandomPassword { get; init; } = "Random!Password123456789";
+
+        public string MemorablePassphrase { get; init; } = "river-lantern-copper-signal-violet";
+
+        public string GenerateRandomPassword()
+        {
+            return RandomPassword;
+        }
+
+        public string GenerateMemorablePassphrase()
+        {
+            return MemorablePassphrase;
         }
     }
 

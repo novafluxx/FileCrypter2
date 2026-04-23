@@ -15,6 +15,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private readonly IFilePickerService? filePickerService;
     private readonly IClipboardService? clipboardService;
     private readonly IPathRevealService pathRevealService;
+    private readonly IPasswordGeneratorService passwordGeneratorService;
     private readonly Stopwatch runStopwatch = new();
     private string defaultOutputDirectory = string.Empty;
     private OutputPathOrigin outputPathOrigin;
@@ -99,8 +100,9 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         IFileCrypterWorkflowService workflowService,
         IFilePickerService? filePickerService = null,
         IClipboardService? clipboardService = null,
-        IPathRevealService? pathRevealService = null)
-        : this(workflowService, enableCompressionByDefault: false, filePickerService, clipboardService, pathRevealService)
+        IPathRevealService? pathRevealService = null,
+        IPasswordGeneratorService? passwordGeneratorService = null)
+        : this(workflowService, enableCompressionByDefault: false, filePickerService, clipboardService, pathRevealService, passwordGeneratorService)
     {
     }
 
@@ -109,12 +111,14 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         bool enableCompressionByDefault,
         IFilePickerService? filePickerService = null,
         IClipboardService? clipboardService = null,
-        IPathRevealService? pathRevealService = null)
+        IPathRevealService? pathRevealService = null,
+        IPasswordGeneratorService? passwordGeneratorService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
         this.clipboardService = clipboardService;
         this.pathRevealService = pathRevealService ?? new NoOpPathRevealService();
+        this.passwordGeneratorService = passwordGeneratorService ?? new PasswordGeneratorService();
         EnableCompression = enableCompressionByDefault;
     }
 
@@ -123,12 +127,14 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         FileCrypterSettings initialSettings,
         IFilePickerService? filePickerService = null,
         IClipboardService? clipboardService = null,
-        IPathRevealService? pathRevealService = null)
+        IPathRevealService? pathRevealService = null,
+        IPasswordGeneratorService? passwordGeneratorService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
         this.clipboardService = clipboardService;
         this.pathRevealService = pathRevealService ?? new NoOpPathRevealService();
+        this.passwordGeneratorService = passwordGeneratorService ?? new PasswordGeneratorService();
         ApplySettings(initialSettings);
     }
 
@@ -352,6 +358,24 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private void TogglePasswordVisibility()
     {
         ShowPassword = !ShowPassword;
+    }
+
+    [RelayCommand]
+    private void GenerateRandomPassword()
+    {
+        ApplyGeneratedPassword(passwordGeneratorService.GenerateRandomPassword());
+    }
+
+    [RelayCommand]
+    private void GenerateMemorablePassphrase()
+    {
+        ApplyGeneratedPassword(passwordGeneratorService.GenerateMemorablePassphrase());
+    }
+
+    private void ApplyGeneratedPassword(string generatedPassword)
+    {
+        Password = generatedPassword;
+        ShowPassword = true;
     }
 
     [RelayCommand]
@@ -776,6 +800,11 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         }
 
         if (password.Any(static character => !char.IsLetterOrDigit(character)))
+        {
+            score++;
+        }
+
+        if (password.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length >= 4)
         {
             score++;
         }
