@@ -131,11 +131,11 @@
                     <Border Classes="aurora-card">
                         <StackPanel Spacing="14">
                             <StackPanel Spacing="4">
-                                <TextBlock Text="PASSWORD AND KEY FILE"
+                                <TextBlock Text="PASSWORD"
                                            Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                            FontSize="{StaticResource FontSizeCaption}"
                                            LetterSpacing="2" />
-                                <TextBlock Text="Enter the original password and supply the matching key file when the payload requires one."
+                                <TextBlock Text="Enter the original password. Add the matching key file in Advanced Options when the payload requires one."
                                            Foreground="{DynamicResource MutedForegroundBrush}"
                                            TextWrapping="Wrap" />
                             </StackPanel>
@@ -154,12 +154,45 @@
                                         Content="{Binding PasswordVisibilityActionText}"
                                         Command="{Binding TogglePasswordVisibilityCommand}" />
                             </Grid>
+                            <TextBlock Text="Compressed files are decompressed automatically after authenticated decryption."
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card"
+                            IsVisible="{Binding IsAdvancedOptionsExpanded}">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="Advanced Options"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="Output naming, overwrite protection, and optional key-file mode for the restored file."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="OUTPUT FILE"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <Grid ColumnDefinitions="*,Auto"
+                                      ColumnSpacing="12">
+                                    <TextBox Text="{Binding OutputPath}"
+                                             PlaceholderText="Auto-generated from input filename..." />
+                                    <Button Grid.Column="1"
+                                            Classes="aurora-secondary"
+                                            Content="Browse"
+                                            Command="{Binding BrowseOutputCommand}" />
+                                </Grid>
+                            </StackPanel>
+
+                            <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
+                                      Content="Never overwrite existing files" />
 
                             <TextBlock Text="{Binding KeyFileChoiceStatusText}"
                                        Foreground="{DynamicResource AccentForegroundBrush}"
                                        TextWrapping="Wrap" />
 
-                            <Grid ColumnDefinitions="*,120,92"
+                            <Grid ColumnDefinitions="*,120"
                                   ColumnSpacing="10">
                                 <TextBox Text="{Binding KeyFilePath}"
                                          PlaceholderText="Optional matching key file..." />
@@ -167,14 +200,7 @@
                                         Classes="aurora-secondary"
                                         Content="Browse"
                                         Command="{Binding BrowseKeyFileCommand}" />
-                                <Button Grid.Column="2"
-                                        Classes="aurora-secondary"
-                                        Content="Clear"
-                                        Command="{Binding ClearKeyFileCommand}" />
                             </Grid>
-                            <TextBlock Text="Compressed files are decompressed automatically after authenticated decryption."
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
 
@@ -217,35 +243,6 @@
                                         Command="{Binding ToggleAdvancedOptionsCommand}"
                                         VerticalAlignment="Center" />
                             </Grid>
-                            <Border IsVisible="{Binding IsAdvancedOptionsExpanded}"
-                                    Background="{DynamicResource SurfaceAltBorderBrush}"
-                                    Height="1"
-                                    Margin="24,0,24,0" />
-                            <StackPanel IsVisible="{Binding IsAdvancedOptionsExpanded}"
-                                        Margin="24,18,24,24"
-                                        Spacing="16">
-                                <StackPanel Spacing="8">
-                                    <TextBlock Text="OUTPUT FILE"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontSize="{StaticResource FontSizeCaption}"
-                                               LetterSpacing="2" />
-                                    <Grid ColumnDefinitions="*,150"
-                                          ColumnSpacing="12">
-                                        <TextBox Text="{Binding OutputPath}"
-                                                 PlaceholderText="Auto-generated from input filename..." />
-                                        <Button Grid.Column="1"
-                                                Classes="aurora-secondary"
-                                                Content="Browse"
-                                                Command="{Binding BrowseOutputCommand}" />
-                                    </Grid>
-                                </StackPanel>
-
-                                <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
-                                          Content="Never overwrite existing files" />
-                                <TextBlock Text="Saves as &quot;name (1)&quot; if the restored file already exists."
-                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                           Margin="30,0,0,0" />
-                            </StackPanel>
                         </StackPanel>
                     </Border>
 

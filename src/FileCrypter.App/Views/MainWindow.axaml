@@ -44,29 +44,6 @@
           Background="{DynamicResource WindowBackgroundBrush}"
           ColumnDefinitions="248,*"
           RowDefinitions="*,58">
-        <Canvas Grid.ColumnSpan="2"
-                Grid.RowSpan="2"
-                IsHitTestVisible="False">
-            <Ellipse Width="680"
-                     Height="680"
-                     Fill="{DynamicResource AmbientVioletBrush}"
-                     Opacity="0.10"
-                     Canvas.Left="-180"
-                     Canvas.Top="-220" />
-            <Ellipse Width="760"
-                     Height="760"
-                     Fill="{DynamicResource AmbientCyanBrush}"
-                     Opacity="0.08"
-                     Canvas.Left="860"
-                     Canvas.Top="340" />
-            <Ellipse Width="420"
-                     Height="420"
-                     Fill="{DynamicResource PinkAccentBrush}"
-                     Opacity="0.06"
-                     Canvas.Left="560"
-                     Canvas.Top="120" />
-        </Canvas>
-
         <Border Grid.RowSpan="2"
                 Background="{DynamicResource SidebarBackgroundBrush}"
                 BorderBrush="{DynamicResource SidebarBorderBrush}"

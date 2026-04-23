@@ -173,6 +173,73 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Classes="aurora-card"
+                            IsVisible="{Binding IsAdvancedOptionsExpanded}">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="Advanced Options"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="Output path, overwrite protection, compression, and optional key-file modes."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="OUTPUT FILE"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <Grid ColumnDefinitions="*,150"
+                                      ColumnSpacing="12">
+                                    <TextBox Text="{Binding OutputPath}"
+                                             PlaceholderText="Auto-generated from input filename..." />
+                                    <Button Grid.Column="1"
+                                            Classes="aurora-secondary"
+                                            Content="Browse"
+                                            Command="{Binding BrowseOutputCommand}" />
+                                </Grid>
+                            </StackPanel>
+
+                            <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
+                                      Content="Never overwrite existing files" />
+
+                            <CheckBox IsChecked="{Binding EnableCompression}"
+                                      Content="Enable compression (ZSTD)" />
+
+                            <TextBlock Text="{Binding KeyFileChoiceStatusText}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       TextWrapping="Wrap" />
+
+                            <Grid ColumnDefinitions="*,120"
+                                  ColumnSpacing="10">
+                                <TextBox Text="{Binding KeyFilePath}"
+                                         IsEnabled="{Binding CanEditExistingKeyFileChoice}"
+                                         PlaceholderText="Optional existing key file..." />
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Browse"
+                                        Command="{Binding BrowseKeyFileCommand}" />
+                            </Grid>
+                            <TextBlock Text="Use a key file you already have. The exact same unchanged file is required to decrypt later."
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       Margin="30,0,0,0"
+                                       TextWrapping="Wrap" />
+
+                            <Grid ColumnDefinitions="*,120"
+                                  ColumnSpacing="10">
+                                <TextBox Text="{Binding GenerateKeyFilePath}"
+                                         IsEnabled="{Binding CanEditGeneratedKeyFileChoice}"
+                                         PlaceholderText="Optional new key file path..." />
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Browse"
+                                        Command="{Binding BrowseGeneratedKeyFileCommand}" />
+                            </Grid>
+                            <TextBlock Text="Generate a fresh key file for this run if you want a second factor you can store separately."
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       Margin="30,0,0,0"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
                 </StackPanel>
 
                 <StackPanel Grid.Column="1"
@@ -213,83 +280,6 @@
                                         Command="{Binding ToggleAdvancedOptionsCommand}"
                                         VerticalAlignment="Center" />
                             </Grid>
-                            <Border IsVisible="{Binding IsAdvancedOptionsExpanded}"
-                                    Background="{DynamicResource SurfaceAltBorderBrush}"
-                                    Height="1"
-                                    Margin="24,0,24,0" />
-                            <StackPanel IsVisible="{Binding IsAdvancedOptionsExpanded}"
-                                        Margin="24,18,24,24"
-                                        Spacing="16">
-                                <StackPanel Spacing="8">
-                                    <TextBlock Text="OUTPUT FILE"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontSize="{StaticResource FontSizeCaption}"
-                                               LetterSpacing="2" />
-                                    <Grid ColumnDefinitions="*,150"
-                                          ColumnSpacing="12">
-                                        <TextBox Text="{Binding OutputPath}"
-                                                 PlaceholderText="Auto-generated from input filename..." />
-                                        <Button Grid.Column="1"
-                                                Classes="aurora-secondary"
-                                                Content="Browse"
-                                                Command="{Binding BrowseOutputCommand}" />
-                                    </Grid>
-                                </StackPanel>
-
-                                <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
-                                          Content="Never overwrite existing files" />
-                                <TextBlock Text="Saves as &quot;name (1)&quot; if the output already exists."
-                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                           Margin="30,0,0,0" />
-
-                                <CheckBox IsChecked="{Binding EnableCompression}"
-                                          Content="Enable compression (ZSTD)" />
-                                <TextBlock Text="Compresses before encrypting. Best for text and documents."
-                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                           Margin="30,0,0,0" />
-
-                                <TextBlock Text="{Binding KeyFileChoiceStatusText}"
-                                           Foreground="{DynamicResource AccentForegroundBrush}"
-                                           TextWrapping="Wrap" />
-
-                                <Grid ColumnDefinitions="*,120,92"
-                                      ColumnSpacing="10">
-                                    <TextBox Text="{Binding KeyFilePath}"
-                                             IsEnabled="{Binding CanEditExistingKeyFileChoice}"
-                                             PlaceholderText="Optional existing key file..." />
-                                    <Button Grid.Column="1"
-                                            Classes="aurora-secondary"
-                                            Content="Browse"
-                                            Command="{Binding BrowseKeyFileCommand}" />
-                                    <Button Grid.Column="2"
-                                            Classes="aurora-secondary"
-                                            Content="Clear"
-                                            Command="{Binding ClearKeyFileCommand}" />
-                                </Grid>
-                                <TextBlock Text="Use a key file you already have. The exact same unchanged file is required to decrypt later."
-                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                           Margin="30,0,0,0"
-                                           TextWrapping="Wrap" />
-
-                                <Grid ColumnDefinitions="*,120,92"
-                                      ColumnSpacing="10">
-                                    <TextBox Text="{Binding GenerateKeyFilePath}"
-                                             IsEnabled="{Binding CanEditGeneratedKeyFileChoice}"
-                                             PlaceholderText="Optional new key file path..." />
-                                    <Button Grid.Column="1"
-                                            Classes="aurora-secondary"
-                                            Content="Browse"
-                                            Command="{Binding BrowseGeneratedKeyFileCommand}" />
-                                    <Button Grid.Column="2"
-                                            Classes="aurora-secondary"
-                                            Content="Clear"
-                                            Command="{Binding ClearGeneratedKeyFileCommand}" />
-                                </Grid>
-                                <TextBlock Text="Generate a fresh key file for this run if you want a second factor you can store separately."
-                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                           Margin="30,0,0,0"
-                                           TextWrapping="Wrap" />
-                            </StackPanel>
                         </StackPanel>
                     </Border>
 
