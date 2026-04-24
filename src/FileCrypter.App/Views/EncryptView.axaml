@@ -239,13 +239,13 @@
                                   ColumnSpacing="10">
                                 <TextBox Text="{Binding GenerateKeyFilePath}"
                                          IsEnabled="{Binding CanEditGeneratedKeyFileChoice}"
-                                         PlaceholderText="Optional new key file path..." />
+                                         PlaceholderText="Choose where to create a new key file..." />
                                 <Button Grid.Column="1"
                                         Classes="aurora-secondary"
-                                        Content="Browse"
-                                        Command="{Binding BrowseGeneratedKeyFileCommand}" />
+                                        Content="Generate"
+                                        Command="{Binding GenerateKeyFileCommand}" />
                             </Grid>
-                            <TextBlock Text="Generate a fresh key file for this run if you want a second factor you can store separately."
+                            <TextBlock Text="Generate a fresh key file for this run. FileCrypter creates it when you seal the file, then requires it for decryption."
                                        Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                        Margin="30,0,0,0"
                                        TextWrapping="Wrap" />

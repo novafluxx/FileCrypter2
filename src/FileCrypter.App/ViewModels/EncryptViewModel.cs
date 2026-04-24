@@ -27,6 +27,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     [NotifyCanExecuteChangedFor(nameof(BrowseOutputCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseGeneratedKeyFileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(GenerateKeyFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearSourceCommand))]
     private bool isRunning;
 
@@ -57,12 +58,14 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseGeneratedKeyFileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(GenerateKeyFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearKeyFileCommand))]
     private string keyFilePath = string.Empty;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseGeneratedKeyFileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(GenerateKeyFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearGeneratedKeyFileCommand))]
     private string generateKeyFilePath = string.Empty;
 
@@ -444,6 +447,17 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     [RelayCommand(CanExecute = nameof(CanBrowseGeneratedKeyFile))]
     private async Task BrowseGeneratedKeyFileAsync()
+    {
+        await ChooseGeneratedKeyFilePathAsync().ConfigureAwait(true);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanBrowseGeneratedKeyFile))]
+    private async Task GenerateKeyFileAsync()
+    {
+        await ChooseGeneratedKeyFilePathAsync().ConfigureAwait(true);
+    }
+
+    private async Task ChooseGeneratedKeyFilePathAsync()
     {
         if (filePickerService is null)
         {

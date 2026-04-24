@@ -204,6 +204,27 @@ public sealed class EncryptViewModelTests
     }
 
     [Fact]
+    public async Task GenerateKeyFileCommand_ChoosesGeneratedKeyFilePath()
+    {
+        var picker = new RecordingFilePickerService
+        {
+            SaveResult = "/tmp/generated.key",
+        };
+        var viewModel = new EncryptViewModel(new RecordingWorkflowService(), picker)
+        {
+            SourcePath = "/tmp/plain.txt",
+            Password = "secret",
+        };
+
+        await viewModel.GenerateKeyFileCommand.ExecuteAsync(null);
+
+        Assert.Equal("/tmp/generated.key", viewModel.GenerateKeyFilePath);
+        Assert.Equal("Choose where to save a new key file", picker.LastSaveTitle);
+        Assert.Equal("filecrypter.key", picker.LastSuggestedFileName);
+        Assert.Contains("new key file", viewModel.KeyFileChoiceStatusText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BrowseKeyFileCommand_ClearsGeneratedKeyFileChoice()
     {
         var picker = new RecordingFilePickerService
