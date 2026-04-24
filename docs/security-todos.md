@@ -2,6 +2,8 @@
 
 Findings from the 2026-04-23 audit of `src/FileCrypter.Core/`, ranked by severity. Items are actionable and map to specific files/lines.
 
+Implementation status: H1, M1, M3, L2, and L3 have been addressed in code. M2 and L1 are documented as accepted residual risks in `docs/security.md`.
+
 ## H1 — Decryption trusts attacker-controlled Argon2 cost parameters (DoS)
 
 `Format/FileCrypterHeaderParser.cs:93-101` only rejects 0 for `argon2MemoryKiB` / `Iterations` / `Parallelism`. `FileCrypter.cs:1650-1657` (`ValidateSupportedPayload`) only rejects values > `int.MaxValue`. A maliciously crafted header can declare e.g. `MemorySize = 2,147,483,647` KiB (~2 TiB) or extremely high iterations/parallelism, and `FileCrypterKeyDeriver.DeriveKey` runs Argon2 with those values before AEAD ever gets a chance to reject the file. Allocation will eventually throw, but realistic values like 4 GiB memory or millions of iterations will exhaust RAM / burn CPU first.

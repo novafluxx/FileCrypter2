@@ -1118,8 +1118,8 @@ public sealed class FileCrypterCommandTests
         return new FileCrypterOptions
         {
             ChunkSize = 65_536,
-            Argon2MemoryKiB = 1024,
-            Argon2Iterations = 1,
+            Argon2MemoryKiB = 19_456,
+            Argon2Iterations = 2,
             Argon2Parallelism = 1,
             Progress = progress,
         };

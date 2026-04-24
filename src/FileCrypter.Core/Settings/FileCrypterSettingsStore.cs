@@ -80,6 +80,11 @@ public sealed class FileCrypterSettingsStore
                     .ConfigureAwait(false);
             }
 
+            if (IsSymbolicLink(settingsPath))
+            {
+                throw new IOException("The settings path must not be a symbolic link.");
+            }
+
             File.Move(stagingPath, settingsPath, overwrite: true);
             completed = true;
         }
@@ -119,6 +124,18 @@ public sealed class FileCrypterSettingsStore
         }
 
         return Path.Combine(directory, $".{fileName}.{Guid.NewGuid():N}.tmp");
+    }
+
+    private static bool IsSymbolicLink(string path)
+    {
+        var fileInfo = new FileInfo(path);
+        if (fileInfo.LinkTarget is not null)
+        {
+            return true;
+        }
+
+        var directoryInfo = new DirectoryInfo(path);
+        return directoryInfo.LinkTarget is not null;
     }
 
     private static void TryDeleteFile(string path)

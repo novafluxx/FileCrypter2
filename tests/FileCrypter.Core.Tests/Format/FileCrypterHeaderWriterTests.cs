@@ -11,9 +11,9 @@ public sealed class FileCrypterHeaderWriterTests
         var options = new FileCrypterOptions
         {
             ChunkSize = (int)FileCrypterFormatConstants.MinimumChunkSize,
-            Argon2MemoryKiB = 1024,
-            Argon2Iterations = 1,
-            Argon2Parallelism = 1,
+            Argon2MemoryKiB = (int)FileCrypterFormatConstants.MinimumArgon2MemoryKiB,
+            Argon2Iterations = (int)FileCrypterFormatConstants.MinimumArgon2Iterations,
+            Argon2Parallelism = (int)FileCrypterFormatConstants.MinimumArgon2Parallelism,
         };
         byte[] salt = Enumerable.Range(1, FileCrypterFormatConstants.SaltLength).Select(value => (byte)value).ToArray();
         byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
@@ -46,9 +46,9 @@ public sealed class FileCrypterHeaderWriterTests
         var options = new FileCrypterOptions
         {
             ChunkSize = (int)FileCrypterFormatConstants.MinimumChunkSize,
-            Argon2MemoryKiB = 1024,
-            Argon2Iterations = 1,
-            Argon2Parallelism = 1,
+            Argon2MemoryKiB = (int)FileCrypterFormatConstants.MinimumArgon2MemoryKiB,
+            Argon2Iterations = (int)FileCrypterFormatConstants.MinimumArgon2Iterations,
+            Argon2Parallelism = (int)FileCrypterFormatConstants.MinimumArgon2Parallelism,
         };
         byte[] salt = Enumerable.Range(1, FileCrypterFormatConstants.SaltLength).Select(value => (byte)value).ToArray();
         byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
@@ -71,9 +71,9 @@ public sealed class FileCrypterHeaderWriterTests
         var options = new FileCrypterOptions
         {
             ChunkSize = (int)FileCrypterFormatConstants.MinimumChunkSize,
-            Argon2MemoryKiB = 1024,
-            Argon2Iterations = 1,
-            Argon2Parallelism = 1,
+            Argon2MemoryKiB = (int)FileCrypterFormatConstants.MinimumArgon2MemoryKiB,
+            Argon2Iterations = (int)FileCrypterFormatConstants.MinimumArgon2Iterations,
+            Argon2Parallelism = (int)FileCrypterFormatConstants.MinimumArgon2Parallelism,
             EnableCompression = true,
         };
         byte[] salt = Enumerable.Range(1, FileCrypterFormatConstants.SaltLength).Select(value => (byte)value).ToArray();

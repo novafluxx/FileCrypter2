@@ -34,6 +34,12 @@ internal static class FileCrypterFormatConstants
     public const uint DefaultArgon2MemoryKiB = 65_536;
     public const uint DefaultArgon2Iterations = 3;
     public const uint DefaultArgon2Parallelism = 4;
+    public const uint MinimumArgon2MemoryKiB = 19_456;
+    public const uint MaximumArgon2MemoryKiB = 1_048_576;
+    public const uint MinimumArgon2Iterations = 2;
+    public const uint MaximumArgon2Iterations = 64;
+    public const uint MinimumArgon2Parallelism = 1;
+    public const uint MaximumArgon2Parallelism = 16;
     public const byte Argon2Version = 0x13;
 
     public const byte KeyFileHashNone = 0;

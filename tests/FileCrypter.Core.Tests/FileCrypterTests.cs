@@ -1,5 +1,8 @@
 using System.Buffers.Binary;
+using System.Runtime.Versioning;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text;
 using FileCrypter.Core.Cryptography;
 using FileCrypter.Core.Format;
@@ -192,6 +195,37 @@ public sealed class FileCrypterTests
             UnixFileMode.OtherWrite |
             UnixFileMode.OtherExecute;
         Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(finalKeyFilePath) & accessMask);
+    }
+
+    [Fact]
+    public async Task GenerateKeyFileAsync_OnWindows_CreatesOutputWithCurrentUserOnlyAcl()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var directory = new TemporaryDirectory();
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+
+        string finalKeyFilePath = await FileCrypter.GenerateKeyFileAsync(
+            keyFilePath,
+            CreateFastOptions());
+
+        AssertWindowsCurrentUserOnlyAcl(finalKeyFilePath);
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidArgon2Options))]
+    public async Task EncryptAsync_WithInvalidArgon2Options_Throws(FileCrypterOptions options)
+    {
+        using var plaintext = new MemoryStream(Encoding.UTF8.GetBytes("secret"));
+        using var encrypted = new MemoryStream();
+
+        ArgumentOutOfRangeException exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => FileCrypter.EncryptAsync(plaintext, encrypted, Password, options));
+
+        Assert.Equal("options", exception.ParamName);
     }
 
     [Fact]
@@ -1130,6 +1164,27 @@ public sealed class FileCrypterTests
         Assert.Equal(FileCrypterFormatErrorCode.InvalidChunkReservedBytes, exception.Code);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData((int)FileCrypterFormatConstants.MinimumChunkSize - 1)]
+    public async Task DecryptAsync_WithNonFullNonFinalChunk_ThrowsInvalidChunkLength(int nonFinalPlaintextLength)
+    {
+        FileCrypterOptions options = CreateFastOptions();
+        byte[] firstChunk = Enumerable
+            .Range(0, nonFinalPlaintextLength)
+            .Select(value => (byte)value)
+            .ToArray();
+        byte[] encryptedBytes = EncryptChunkSequence(
+            options,
+            new EncryptedChunk(firstChunk, IsFinal: false),
+            new EncryptedChunk(Encoding.UTF8.GetBytes("final"), IsFinal: true));
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.DecryptAsync(new MemoryStream(encryptedBytes), new MemoryStream(), Password, options));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidChunkLength, exception.Code);
+    }
+
     [Fact]
     public async Task DecryptAsync_WithKeyFileRequiredHeaderAndNoKeyFile_ThrowsKeyFileRequired()
     {
@@ -1143,6 +1198,20 @@ public sealed class FileCrypterTests
             () => FileCrypter.DecryptAsync(new MemoryStream(headerBytes), new MemoryStream(), Password, CreateFastOptions()));
 
         Assert.Equal(FileCrypterFormatErrorCode.KeyFileRequired, exception.Code);
+    }
+
+    [Fact]
+    public async Task DecryptAsync_WithHugeArgon2Header_ThrowsInvalidArgon2Parameters()
+    {
+        byte[] headerBytes = CreateSupportedHeader();
+        BinaryPrimitives.WriteUInt32LittleEndian(
+            headerBytes.AsSpan(FileCrypterFormatConstants.Argon2MemoryOffset, sizeof(uint)),
+            FileCrypterFormatConstants.MaximumArgon2MemoryKiB + 1);
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.DecryptAsync(new MemoryStream(headerBytes), new MemoryStream(), Password, CreateFastOptions()));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidArgon2Parameters, exception.Code);
     }
 
     [Fact]
@@ -1235,7 +1304,7 @@ public sealed class FileCrypterTests
             .Select(value => (byte)value)
             .ToArray();
         byte[] expectedEncryptedBytes = Convert.FromHexString(
-            "4643525950540D0A0100400000000101000100000100000102030405060708090A0B0C0D0E0F10111213141516170004000001000000010000001300000000000D00000001000000BAED9C9E6CDE84D4A6CCAA222062A01FB62BE218125E3A13BC157843C6");
+            "4643525950540D0A0100400000000101000100000100000102030405060708090A0B0C0D0E0F1011121314151617004C000002000000010000001300000000000D00000001000000CFDB3020D7BA15F0F7ECEA28900C1A2FDB1DAD906AABD0551ECDC39A07");
         using var plaintext = new MemoryStream(Encoding.UTF8.GetBytes("deterministic"));
         using var encrypted = new MemoryStream();
 
@@ -1264,6 +1333,16 @@ public sealed class FileCrypterTests
 
     private static byte[] EncryptSingleChunkPayload(byte[] payload, FileCrypterOptions options, byte payloadKind)
     {
+        return EncryptChunkSequence(options, payloadKind, new EncryptedChunk(payload, IsFinal: true));
+    }
+
+    private static byte[] EncryptChunkSequence(FileCrypterOptions options, params EncryptedChunk[] chunks)
+    {
+        return EncryptChunkSequence(options, FileCrypterFormatConstants.PayloadKindSingleFile, chunks);
+    }
+
+    private static byte[] EncryptChunkSequence(FileCrypterOptions options, byte payloadKind, params EncryptedChunk[] chunks)
+    {
         byte[] headerBytes = new byte[FileCrypterFormatConstants.HeaderLength];
         byte[] salt = Enumerable.Range(1, FileCrypterFormatConstants.SaltLength).Select(value => (byte)value).ToArray();
         byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
@@ -1273,29 +1352,37 @@ public sealed class FileCrypterTests
 
         try
         {
-            byte[] prefix = new byte[FileCrypterFormatConstants.ChunkFramePrefixLength];
-            BinaryPrimitives.WriteUInt32LittleEndian(prefix.AsSpan(0, sizeof(uint)), (uint)payload.Length);
-            BinaryPrimitives.WriteUInt16LittleEndian(
-                prefix.AsSpan(4, sizeof(ushort)),
-                FileCrypterFormatConstants.ChunkFlagFinal);
-
             byte[] nonce = new byte[FileCrypterFormatConstants.AesGcmNonceLength];
             header.NoncePrefix.CopyTo(nonce);
             byte[] associatedData = new byte[
                 FileCrypterFormatConstants.HeaderLength + FileCrypterFormatConstants.ChunkFramePrefixLength];
             headerBytes.CopyTo(associatedData, 0);
-            prefix.CopyTo(associatedData, FileCrypterFormatConstants.HeaderLength);
-            byte[] ciphertext = new byte[payload.Length];
-            byte[] tag = new byte[FileCrypterFormatConstants.AesGcmTagLength];
-
             using var aesGcm = new AesGcm(key, FileCrypterFormatConstants.AesGcmTagLength);
-            aesGcm.Encrypt(nonce, payload, ciphertext, tag, associatedData);
-
             using var encrypted = new MemoryStream();
             encrypted.Write(headerBytes);
-            encrypted.Write(prefix);
-            encrypted.Write(ciphertext);
-            encrypted.Write(tag);
+
+            for (int chunkIndex = 0; chunkIndex < chunks.Length; chunkIndex++)
+            {
+                EncryptedChunk chunk = chunks[chunkIndex];
+                byte[] prefix = new byte[FileCrypterFormatConstants.ChunkFramePrefixLength];
+                BinaryPrimitives.WriteUInt32LittleEndian(prefix.AsSpan(0, sizeof(uint)), (uint)chunk.Plaintext.Length);
+                BinaryPrimitives.WriteUInt16LittleEndian(
+                    prefix.AsSpan(4, sizeof(ushort)),
+                    chunk.IsFinal ? FileCrypterFormatConstants.ChunkFlagFinal : (ushort)0);
+
+                prefix.CopyTo(associatedData, FileCrypterFormatConstants.HeaderLength);
+                BinaryPrimitives.WriteUInt32LittleEndian(
+                    nonce.AsSpan(FileCrypterFormatConstants.NoncePrefixLength, sizeof(uint)),
+                    (uint)chunkIndex);
+                byte[] ciphertext = new byte[chunk.Plaintext.Length];
+                byte[] tag = new byte[FileCrypterFormatConstants.AesGcmTagLength];
+                aesGcm.Encrypt(nonce, chunk.Plaintext, ciphertext, tag, associatedData);
+
+                encrypted.Write(prefix);
+                encrypted.Write(ciphertext);
+                encrypted.Write(tag);
+            }
+
             return encrypted.ToArray();
         }
         finally
@@ -1304,10 +1391,38 @@ public sealed class FileCrypterTests
         }
     }
 
+    public static IEnumerable<object[]> InvalidArgon2Options()
+    {
+        yield return
+        [
+            CreateFastOptions(argon2MemoryKiB: (int)FileCrypterFormatConstants.MinimumArgon2MemoryKiB - 1),
+        ];
+        yield return
+        [
+            CreateFastOptions(argon2MemoryKiB: (int)FileCrypterFormatConstants.MaximumArgon2MemoryKiB + 1),
+        ];
+        yield return
+        [
+            CreateFastOptions(argon2Iterations: (int)FileCrypterFormatConstants.MinimumArgon2Iterations - 1),
+        ];
+        yield return
+        [
+            CreateFastOptions(argon2Iterations: (int)FileCrypterFormatConstants.MaximumArgon2Iterations + 1),
+        ];
+        yield return
+        [
+            CreateFastOptions(argon2Parallelism: (int)FileCrypterFormatConstants.MinimumArgon2Parallelism - 1),
+        ];
+        yield return
+        [
+            CreateFastOptions(argon2Parallelism: (int)FileCrypterFormatConstants.MaximumArgon2Parallelism + 1),
+        ];
+    }
+
     public static IEnumerable<object[]> CompatibilityVectors()
     {
         const string zeroStartHeader =
-            "4643525950540D0A0100400000000101000100000100000102030405060708090A0B0C0D0E0F1011121314151617000400000100000001000000130000000000";
+            "4643525950540D0A0100400000000101000100000100000102030405060708090A0B0C0D0E0F1011121314151617004C00000200000001000000130000000000";
 
         yield return
         [
@@ -1316,13 +1431,13 @@ public sealed class FileCrypterTests
                 ExpectedPlaintextLength: 0,
                 RandomStart: 0,
                 ExpectedEncryptedLength: 88,
-                ExpectedEncryptedSha256Hex: "EBFBAC483FFB75A805D456718D1C680119CA127ED289153FF1E5004935795084",
+                ExpectedEncryptedSha256Hex: "6B4F40FBDA0B0C9725D60818288760CAD3404F1635786AC5453F7181972D8770",
                 ExpectedHeaderHex: zeroStartHeader,
                 ExpectedChunks:
                 [
                     new ChunkVector(
                         PrefixHex: "0000000001000000",
-                        TagHex: "5005EAF8395E79184BB3EFC2482D76F3"),
+                        TagHex: "62743EA364CB61B90B09C56D4F2DF2CD"),
                 ]),
         ];
 
@@ -1333,13 +1448,13 @@ public sealed class FileCrypterTests
                 ExpectedPlaintextLength: 13,
                 RandomStart: 0,
                 ExpectedEncryptedLength: 101,
-                ExpectedEncryptedSha256Hex: "236C3BCFE0BC19917619E64396C64310D4E381233FC4DC890A072A7A4B42B9AA",
+                ExpectedEncryptedSha256Hex: "68C46824F9C874EB45C3C3AABDE7863BB64DEBF4D5055824A60F04A6AD9FFB78",
                 ExpectedHeaderHex: zeroStartHeader,
                 ExpectedChunks:
                 [
                     new ChunkVector(
                         PrefixHex: "0D00000001000000",
-                        TagHex: "62A01FB62BE218125E3A13BC157843C6"),
+                        TagHex: "0C1A2FDB1DAD906AABD0551ECDC39A07"),
                 ]),
         ];
 
@@ -1350,17 +1465,17 @@ public sealed class FileCrypterTests
                 ExpectedPlaintextLength: (int)FileCrypterFormatConstants.MinimumChunkSize,
                 RandomStart: 24,
                 ExpectedEncryptedLength: 65648,
-                ExpectedEncryptedSha256Hex: "126F2EB854EEDA5BC3F599FC1F4A504E6B0F05B584C5155C51334875970A9DA9",
+                ExpectedEncryptedSha256Hex: "FDBDF7D814A80F5116F472E81337AD154A0A365F81B6F907BE29601AE8154540",
                 ExpectedHeaderHex:
-                    "4643525950540D0A010040000000010100010000010018191A1B1C1D1E1F202122232425262728292A2B2C2D2E2F000400000100000001000000130000000000",
+                    "4643525950540D0A010040000000010100010000010018191A1B1C1D1E1F202122232425262728292A2B2C2D2E2F004C00000200000001000000130000000000",
                 ExpectedChunks:
                 [
                     new ChunkVector(
                         PrefixHex: "0000010000000000",
-                        TagHex: "CB60E5DC2A51F5762477B7373CE669A9"),
+                        TagHex: "3BFD480077B64BAC2DE4841456B32555"),
                     new ChunkVector(
                         PrefixHex: "0000000001000000",
-                        TagHex: "E935FB59E33E5AB1157DA6A004BF03F1"),
+                        TagHex: "266EE2CB63D9137A000C241D24144320"),
                 ]),
         ];
 
@@ -1371,17 +1486,17 @@ public sealed class FileCrypterTests
                 ExpectedPlaintextLength: (int)FileCrypterFormatConstants.MinimumChunkSize + 17,
                 RandomStart: 48,
                 ExpectedEncryptedLength: 65665,
-                ExpectedEncryptedSha256Hex: "E3E3FAC63488BF0585F427875DAA0D8A02582A1F56C0B501C2CFD3B9FFDE4B5B",
+                ExpectedEncryptedSha256Hex: "96EDD56D00C59F7AC0713CB5A2D49DE32FA25AC9206AA93677CF8AB40EBC1B7F",
                 ExpectedHeaderHex:
-                    "4643525950540D0A0100400000000101000100000100303132333435363738393A3B3C3D3E3F4041424344454647000400000100000001000000130000000000",
+                    "4643525950540D0A0100400000000101000100000100303132333435363738393A3B3C3D3E3F4041424344454647004C00000200000001000000130000000000",
                 ExpectedChunks:
                 [
                     new ChunkVector(
                         PrefixHex: "0000010000000000",
-                        TagHex: "1006D8D39F494D822E815878CC82E855"),
+                        TagHex: "FAED6591B39742547CC62520C1E62BFC"),
                     new ChunkVector(
                         PrefixHex: "1100000001000000",
-                        TagHex: "DFC4382DC1018277617AB5B18C99D67F"),
+                        TagHex: "1CA532EFD0A4CCCC62F2D29693D1884F"),
                 ]),
         ];
     }
@@ -1427,14 +1542,17 @@ public sealed class FileCrypterTests
     private static FileCrypterOptions CreateFastOptions(
         IFileCrypterRandomSource? randomSource = null,
         IProgress<FileCrypterProgress>? progress = null,
-        bool enableCompression = false)
+        bool enableCompression = false,
+        int? argon2MemoryKiB = null,
+        int? argon2Iterations = null,
+        int? argon2Parallelism = null)
     {
         return new FileCrypterOptions
         {
             ChunkSize = (int)FileCrypterFormatConstants.MinimumChunkSize,
-            Argon2MemoryKiB = 1024,
-            Argon2Iterations = 1,
-            Argon2Parallelism = 1,
+            Argon2MemoryKiB = argon2MemoryKiB ?? (int)FileCrypterFormatConstants.MinimumArgon2MemoryKiB,
+            Argon2Iterations = argon2Iterations ?? (int)FileCrypterFormatConstants.MinimumArgon2Iterations,
+            Argon2Parallelism = argon2Parallelism ?? (int)FileCrypterFormatConstants.MinimumArgon2Parallelism,
             EnableCompression = enableCompression,
             RandomSource = randomSource,
             Progress = progress,
@@ -1469,6 +1587,32 @@ public sealed class FileCrypterTests
         }
     }
 
+    [SupportedOSPlatform("windows")]
+    private static void AssertWindowsCurrentUserOnlyAcl(string path)
+    {
+        SecurityIdentifier currentUser = WindowsIdentity.GetCurrent().User
+            ?? throw new InvalidOperationException("The current Windows user identity could not be resolved.");
+        FileSecurity security = new FileInfo(path).GetAccessControl();
+        AuthorizationRuleCollection rules = security.GetAccessRules(
+            includeExplicit: true,
+            includeInherited: true,
+            targetType: typeof(SecurityIdentifier));
+
+        Assert.True(security.AreAccessRulesProtected);
+        Assert.NotEmpty(rules);
+        foreach (FileSystemAccessRule rule in rules)
+        {
+            Assert.False(rule.IsInherited);
+            Assert.Equal(AccessControlType.Allow, rule.AccessControlType);
+            Assert.Equal(currentUser, rule.IdentityReference);
+        }
+
+        Assert.Contains(rules.Cast<FileSystemAccessRule>(), rule =>
+            rule.IdentityReference == currentUser &&
+            rule.AccessControlType == AccessControlType.Allow &&
+            (rule.FileSystemRights & FileSystemRights.FullControl) == FileSystemRights.FullControl);
+    }
+
     private sealed class CallbackProgress : IProgress<FileCrypterProgress>
     {
         private readonly Action<FileCrypterProgress> callback;
@@ -1494,6 +1638,8 @@ public sealed class FileCrypterTests
         IReadOnlyList<ChunkVector> ExpectedChunks);
 
     public sealed record ChunkVector(string PrefixHex, string TagHex);
+
+    private sealed record EncryptedChunk(byte[] Plaintext, bool IsFinal);
 
     private sealed class FixedRandomSource : IFileCrypterRandomSource
     {

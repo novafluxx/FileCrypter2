@@ -93,7 +93,12 @@ internal static class FileCrypterHeaderParser
         uint argon2MemoryKiB = ReadUInt32(header, FileCrypterFormatConstants.Argon2MemoryOffset);
         uint argon2Iterations = ReadUInt32(header, FileCrypterFormatConstants.Argon2IterationsOffset);
         uint argon2Parallelism = ReadUInt32(header, FileCrypterFormatConstants.Argon2ParallelismOffset);
-        if (argon2MemoryKiB == 0 || argon2Iterations == 0 || argon2Parallelism == 0)
+        if (argon2MemoryKiB < FileCrypterFormatConstants.MinimumArgon2MemoryKiB ||
+            argon2MemoryKiB > FileCrypterFormatConstants.MaximumArgon2MemoryKiB ||
+            argon2Iterations < FileCrypterFormatConstants.MinimumArgon2Iterations ||
+            argon2Iterations > FileCrypterFormatConstants.MaximumArgon2Iterations ||
+            argon2Parallelism < FileCrypterFormatConstants.MinimumArgon2Parallelism ||
+            argon2Parallelism > FileCrypterFormatConstants.MaximumArgon2Parallelism)
         {
             throw new FileCrypterFormatException(
                 FileCrypterFormatErrorCode.InvalidArgon2Parameters,

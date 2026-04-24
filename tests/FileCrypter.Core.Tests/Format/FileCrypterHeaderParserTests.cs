@@ -129,13 +129,16 @@ public sealed class FileCrypterHeaderParserTests
     }
 
     [Theory]
-    [InlineData(FileCrypterFormatConstants.Argon2MemoryOffset)]
-    [InlineData(FileCrypterFormatConstants.Argon2IterationsOffset)]
-    [InlineData(FileCrypterFormatConstants.Argon2ParallelismOffset)]
-    public void Parse_WithInvalidArgon2Parameters_ThrowsInvalidArgon2Parameters(int offset)
+    [InlineData(FileCrypterFormatConstants.Argon2MemoryOffset, FileCrypterFormatConstants.MinimumArgon2MemoryKiB - 1)]
+    [InlineData(FileCrypterFormatConstants.Argon2MemoryOffset, FileCrypterFormatConstants.MaximumArgon2MemoryKiB + 1)]
+    [InlineData(FileCrypterFormatConstants.Argon2IterationsOffset, FileCrypterFormatConstants.MinimumArgon2Iterations - 1)]
+    [InlineData(FileCrypterFormatConstants.Argon2IterationsOffset, FileCrypterFormatConstants.MaximumArgon2Iterations + 1)]
+    [InlineData(FileCrypterFormatConstants.Argon2ParallelismOffset, FileCrypterFormatConstants.MinimumArgon2Parallelism - 1)]
+    [InlineData(FileCrypterFormatConstants.Argon2ParallelismOffset, FileCrypterFormatConstants.MaximumArgon2Parallelism + 1)]
+    public void Parse_WithInvalidArgon2Parameters_ThrowsInvalidArgon2Parameters(int offset, uint value)
     {
         byte[] headerBytes = CreateValidHeader();
-        WriteUInt32(headerBytes, offset, 0);
+        WriteUInt32(headerBytes, offset, value);
 
         AssertFormatError(FileCrypterFormatErrorCode.InvalidArgon2Parameters, headerBytes);
     }

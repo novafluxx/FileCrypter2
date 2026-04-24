@@ -45,6 +45,44 @@ public sealed class FileCrypterSettingsStoreTests
         Assert.Equal(tempDirectory.Path, loadedSettings.DefaultOutputDirectory);
     }
 
+    [Fact]
+    public async Task SaveAsync_WhenSettingsPathIsSymbolicLink_ThrowsAndPreservesTarget()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        string targetPath = Path.Combine(tempDirectory.Path, "target.json");
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.json");
+        const string targetJson = """{"themePreference":"dark"}""";
+        await File.WriteAllTextAsync(targetPath, targetJson);
+        if (!TryCreateFileSymbolicLink(settingsPath, targetPath))
+        {
+            return;
+        }
+
+        var store = new FileCrypterSettingsStore(settingsPath);
+
+        IOException exception = await Assert.ThrowsAsync<IOException>(
+            () => store.SaveAsync(new FileCrypterSettings()));
+
+        Assert.Contains("symbolic link", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(targetJson, await File.ReadAllTextAsync(targetPath));
+        Assert.True(File.Exists(settingsPath));
+        Assert.Empty(Directory.GetFiles(tempDirectory.Path, "*.tmp"));
+    }
+
+    private static bool TryCreateFileSymbolicLink(string linkPath, string targetPath)
+    {
+        try
+        {
+            File.CreateSymbolicLink(linkPath, targetPath);
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return false;
+        }
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public TemporaryDirectory()

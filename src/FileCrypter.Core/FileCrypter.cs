@@ -1,6 +1,9 @@
 using System.Buffers.Binary;
 using System.Formats.Tar;
+using System.Runtime.Versioning;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using FileCrypter.Core.Cryptography;
 using FileCrypter.Core.Format;
 using ZstdSharp;
@@ -68,9 +71,7 @@ public static class FileCrypter
 
         try
         {
-            await using (FileStream output = new(
-                stagingPath,
-                CreateOutputFileStreamOptions()))
+            await using (FileStream output = CreateOutputFileStream(stagingPath))
             {
                 await output.WriteAsync(keyFileBytes, cancellationToken).ConfigureAwait(false);
             }
@@ -577,9 +578,7 @@ public static class FileCrypter
                 bufferSize: 81920,
                 FileOptions.SequentialScan);
 
-            await using (FileStream output = new(
-                stagingPath,
-                CreateOutputFileStreamOptions()))
+            await using (FileStream output = CreateOutputFileStream(stagingPath))
             {
                 if (encrypt)
                 {
@@ -789,7 +788,7 @@ public static class FileCrypter
                 keyFileBytes = await ReadKeyFileAsync(fullKeyFilePath, cancellationToken).ConfigureAwait(false);
             }
 
-            await using (FileStream tarOutput = new(tarStagingPath, CreateOutputFileStreamOptions()))
+            await using (FileStream tarOutput = CreateOutputFileStream(tarStagingPath))
             {
                 await WriteTarArchiveAsync(
                     fullInputPaths,
@@ -806,9 +805,7 @@ public static class FileCrypter
                 FileShare.Read,
                 bufferSize: 81920,
                 FileOptions.SequentialScan);
-            await using (FileStream encryptedOutput = new(
-                encryptedStagingPath,
-                CreateOutputFileStreamOptions()))
+            await using (FileStream encryptedOutput = CreateOutputFileStream(encryptedStagingPath))
             {
                 long tarLength = tarInput.Length;
                 FileCrypterOptions archiveOptions = CreateOptionsWithProgress(
@@ -1163,7 +1160,7 @@ public static class FileCrypter
 
                 string stagingPath = CreateStagingPath(finalOutputPath);
                 using var progressEntryData = new ProgressReportingReadStream(entry.DataStream, archiveProgress);
-                await using (FileStream output = new(stagingPath, CreateOutputFileStreamOptions()))
+                await using (FileStream output = CreateOutputFileStream(stagingPath))
                 {
                     await progressEntryData.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
                 }
@@ -1363,6 +1360,40 @@ public static class FileCrypter
         return options;
     }
 
+    private static FileStream CreateOutputFileStream(string path)
+    {
+        return OperatingSystem.IsWindows()
+            ? CreateWindowsOutputFileStream(path)
+            : new FileStream(path, CreateOutputFileStreamOptions());
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static FileStream CreateWindowsOutputFileStream(string path)
+    {
+        SecurityIdentifier? currentUser = WindowsIdentity.GetCurrent().User;
+        if (currentUser is null)
+        {
+            throw new UnauthorizedAccessException("The current Windows user identity could not be resolved.");
+        }
+
+        var fileSecurity = new FileSecurity();
+        fileSecurity.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        fileSecurity.AddAccessRule(new FileSystemAccessRule(
+            currentUser,
+            FileSystemRights.FullControl,
+            InheritanceFlags.None,
+            PropagationFlags.None,
+            AccessControlType.Allow));
+
+        return new FileInfo(path).Create(
+            FileMode.CreateNew,
+            FileSystemRights.Write,
+            FileShare.None,
+            bufferSize: 81920,
+            FileOptions.SequentialScan,
+            fileSecurity);
+    }
+
     private static void MoveStagedOutput(string stagingPath, string finalPath, bool overwrite)
     {
         try
@@ -1433,9 +1464,14 @@ public static class FileCrypter
             throw new ArgumentOutOfRangeException(nameof(options), "The chunk size is outside the FileCrypter v1 range.");
         }
 
-        if (options.Argon2MemoryKiB <= 0 || options.Argon2Iterations <= 0 || options.Argon2Parallelism <= 0)
+        if (options.Argon2MemoryKiB < FileCrypterFormatConstants.MinimumArgon2MemoryKiB ||
+            options.Argon2MemoryKiB > FileCrypterFormatConstants.MaximumArgon2MemoryKiB ||
+            options.Argon2Iterations < FileCrypterFormatConstants.MinimumArgon2Iterations ||
+            options.Argon2Iterations > FileCrypterFormatConstants.MaximumArgon2Iterations ||
+            options.Argon2Parallelism < FileCrypterFormatConstants.MinimumArgon2Parallelism ||
+            options.Argon2Parallelism > FileCrypterFormatConstants.MaximumArgon2Parallelism)
         {
-            throw new ArgumentOutOfRangeException(nameof(options), "The Argon2 parameters must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(options), "The Argon2 parameters are outside the FileCrypter v1 range.");
         }
     }
 
@@ -1647,9 +1683,12 @@ public static class FileCrypter
                     : "This FileCrypter operation only supports single-file payloads.");
         }
 
-        if (header.Argon2MemoryKiB > int.MaxValue ||
-            header.Argon2Iterations > int.MaxValue ||
-            header.Argon2Parallelism > int.MaxValue)
+        if (header.Argon2MemoryKiB < FileCrypterFormatConstants.MinimumArgon2MemoryKiB ||
+            header.Argon2MemoryKiB > FileCrypterFormatConstants.MaximumArgon2MemoryKiB ||
+            header.Argon2Iterations < FileCrypterFormatConstants.MinimumArgon2Iterations ||
+            header.Argon2Iterations > FileCrypterFormatConstants.MaximumArgon2Iterations ||
+            header.Argon2Parallelism < FileCrypterFormatConstants.MinimumArgon2Parallelism ||
+            header.Argon2Parallelism > FileCrypterFormatConstants.MaximumArgon2Parallelism)
         {
             throw new FileCrypterFormatException(
                 FileCrypterFormatErrorCode.InvalidArgon2Parameters,
@@ -2275,7 +2314,9 @@ public static class FileCrypter
                     "The FileCrypter chunk contains nonzero reserved bytes.");
             }
 
-            if (plaintextLengthValue > header.ChunkSize || (isFinal && plaintextLengthValue == header.ChunkSize))
+            if (plaintextLengthValue > header.ChunkSize ||
+                (isFinal && plaintextLengthValue == header.ChunkSize) ||
+                (!isFinal && plaintextLengthValue != header.ChunkSize))
             {
                 throw new FileCrypterFormatException(
                     FileCrypterFormatErrorCode.InvalidChunkLength,
