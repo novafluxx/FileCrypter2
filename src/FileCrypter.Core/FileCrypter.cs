@@ -75,7 +75,7 @@ public static class FileCrypter
                 await output.WriteAsync(keyFileBytes, cancellationToken).ConfigureAwait(false);
             }
 
-            File.Move(stagingPath, fullKeyFilePath, overwrite);
+            MoveStagedOutput(stagingPath, fullKeyFilePath, overwrite);
             completed = true;
             return fullKeyFilePath;
         }
@@ -605,7 +605,7 @@ public static class FileCrypter
                 }
             }
 
-            File.Move(stagingPath, fullOutputPath, overwrite);
+            MoveStagedOutput(stagingPath, fullOutputPath, overwrite);
             completed = true;
             return fullOutputPath;
         }
@@ -848,7 +848,7 @@ public static class FileCrypter
                 progressTarInput.ReportComplete(encryptedOutput.Position);
             }
 
-            File.Move(encryptedStagingPath, fullOutputPath, overwrite);
+            MoveStagedOutput(encryptedStagingPath, fullOutputPath, overwrite);
             completed = true;
             return fullOutputPath;
         }
@@ -1173,7 +1173,7 @@ public static class FileCrypter
 
             foreach (StagedArchiveExtraction extraction in stagedExtractions)
             {
-                File.Move(extraction.StagingPath, extraction.FinalPath, overwrite);
+                MoveStagedOutput(extraction.StagingPath, extraction.FinalPath, overwrite);
             }
 
             completed = true;
@@ -1361,6 +1361,20 @@ public static class FileCrypter
         }
 
         return options;
+    }
+
+    private static void MoveStagedOutput(string stagingPath, string finalPath, bool overwrite)
+    {
+        try
+        {
+            File.Move(stagingPath, finalPath, overwrite);
+        }
+        catch (IOException exception)
+        {
+            throw new IOException(
+                $"Could not move staged output '{stagingPath}' to '{finalPath}'.",
+                exception);
+        }
     }
 
     private static async Task<byte[]> ReadKeyFileAsync(string fullKeyFilePath, CancellationToken cancellationToken)
