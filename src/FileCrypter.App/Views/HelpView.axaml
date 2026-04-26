@@ -167,6 +167,46 @@
                                        TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
+
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="ABOUT FILECRYPTER"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding CurrentVersion}"
+                                       FontSize="{StaticResource FontSizePanelTitle}"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding FormatVersionText}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding AboutSummaryText}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="THIRD-PARTY NOTICES"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="{Binding ThirdPartyNoticeSummary}"
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <Border Classes="aurora-panel"
+                                    Padding="10">
+                                <ScrollViewer Height="220">
+                                    <TextBlock Text="{Binding ThirdPartyNoticeText}"
+                                               FontFamily="Cascadia Mono, Consolas, monospace"
+                                               FontSize="{StaticResource FontSizeAppMeta}"
+                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               TextWrapping="Wrap" />
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Grid>
         </StackPanel>

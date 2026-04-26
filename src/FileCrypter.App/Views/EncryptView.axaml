@@ -245,7 +245,7 @@
                                         Content="Generate"
                                         Command="{Binding GenerateKeyFileCommand}" />
                             </Grid>
-                            <TextBlock Text="Generate a fresh key file for this run. FileCrypter creates it when you seal the file, then requires it for decryption."
+                            <TextBlock Text="Generate a fresh key file for this run. FileCrypter creates it when you encrypt the file, then requires it for decryption."
                                        Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                        Margin="30,0,0,0"
                                        TextWrapping="Wrap" />
@@ -299,7 +299,7 @@
                             IsVisible="{Binding IsRunning}">
                         <StackPanel Spacing="12">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="Sealing"
+                                <TextBlock Text="Encrypting"
                                            FontWeight="SemiBold" />
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding ProgressPercent, StringFormat={}{0:0}%}"
@@ -345,7 +345,7 @@
                             IsVisible="{Binding ShowReadyAction}"
                             Background="{DynamicResource GlassPanelBackgroundBrush}">
                         <StackPanel Spacing="12">
-                            <TextBlock Text="Ready to seal"
+                            <TextBlock Text="Ready to encrypt"
                                        Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                        FontSize="{StaticResource FontSizeCaption}"
                                        LetterSpacing="2" />
@@ -353,7 +353,7 @@
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
                             <Button Classes="aurora-primary"
-                                    Content="Seal file"
+                                    Content="Encrypt file"
                                     Command="{Binding StartEncryptCommand}"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center" />

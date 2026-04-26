@@ -209,8 +209,8 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     public string FilePreviewPanelBody => HasResult
         ? ResultPath
         : HasSelectedFile && SourcePreview is not null
-            ? $"{SourcePreview.DisplayName} will be sealed locally with the configured output path and protection settings."
-            : "Select a file to preview the local output path and sealing parameters.";
+            ? $"{SourcePreview.DisplayName} will be encrypted locally with the configured output path and protection settings."
+            : "Select a file to preview the local output path and encryption parameters.";
 
     public string OutputDisplayText => string.IsNullOrWhiteSpace(OutputPath)
         ? "Auto-generated from input filename..."

@@ -19,6 +19,11 @@ public sealed class HelpViewModelTests
         Assert.Equal("Help and recovery", viewModel.Title);
         Assert.Equal("v9.8.7", viewModel.CurrentVersion);
         Assert.Equal("Encrypted file format v4", viewModel.FormatVersionText);
+        Assert.Contains("local-first", viewModel.AboutSummaryText, StringComparison.Ordinal);
+        Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeSummary, StringComparison.Ordinal);
+        Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
+        Assert.Contains("Copyright (c) Microsoft Corporation", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
+        Assert.Contains("MIT License", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
         Assert.Equal("Update checks are not configured for this build.", viewModel.UpdateSummaryText);
         Assert.Equal("Help and recovery", viewModel.StatusText);
         Assert.Equal("Update checks are not configured for this build.", viewModel.ProgressText);

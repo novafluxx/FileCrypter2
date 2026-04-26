@@ -66,7 +66,7 @@
                                                   Data="M7 11 V8 C7 5.79 8.79 4 11 4 H13 C15.21 4 17 5.79 17 8 V11 M6 11 H18 C19.1 11 20 11.9 20 13 V19 C20 20.1 19.1 21 18 21 H6 C4.9 21 4 20.1 4 19 V13 C4 11.9 4.9 11 6 11 Z" />
                                         </Viewbox>
                                     </Border>
-                                    <TextBlock Text="Drop a sealed file"
+                                    <TextBlock Text="Drop an encrypted file"
                                                FontSize="18"
                                                FontWeight="SemiBold"
                                                HorizontalAlignment="Center" />
@@ -112,7 +112,7 @@
                                                        TextWrapping="Wrap" />
                                         </StackPanel>
                                         <TextBlock Grid.Column="2"
-                                                   Text="SEALED"
+                                                   Text="ENCRYPTED"
                                                    Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                                    VerticalAlignment="Center"
                                                    FontSize="{StaticResource FontSizeCaption}"
@@ -296,7 +296,7 @@
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
                             <Button Classes="aurora-primary"
-                                    Content="Open sealed file"
+                                    Content="Decrypt file"
                                     Command="{Binding StartDecryptCommand}"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center" />
