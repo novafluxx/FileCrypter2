@@ -20,6 +20,7 @@ public sealed class HelpViewModelTests
         Assert.Equal("v9.8.7", viewModel.CurrentVersion);
         Assert.Equal("Encrypted file format v4", viewModel.FormatVersionText);
         Assert.Contains("local-first", viewModel.AboutSummaryText, StringComparison.Ordinal);
+        Assert.Contains("record it before sealing the file", viewModel.RecoveryWarningText, StringComparison.Ordinal);
         Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeSummary, StringComparison.Ordinal);
         Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
         Assert.Contains("Copyright (c) Microsoft Corporation", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
@@ -27,9 +28,35 @@ public sealed class HelpViewModelTests
         Assert.Equal("Update checks are not configured for this build.", viewModel.UpdateSummaryText);
         Assert.Equal("Help and recovery", viewModel.StatusText);
         Assert.Equal("Update checks are not configured for this build.", viewModel.ProgressText);
-        Assert.Equal(6, viewModel.WorkflowTopics.Count);
+        Assert.Equal(7, viewModel.WorkflowTopics.Count);
         Assert.Equal(4, viewModel.TroubleshootingTopics.Count);
         Assert.Equal(3, viewModel.SafetyTopics.Count);
+    }
+
+    [Fact]
+    public void Constructor_IncludesPasswordGeneratorRecoveryGuidance()
+    {
+        var viewModel = new HelpViewModel(
+            new StubAppMetadataService("v0.1.0", 1),
+            new StubAppUpdateService(
+                new AppUpdateCheckResult(
+                    AppUpdateStatus.NotConfigured,
+                    "Waiting for an update check.",
+                    "No update check has run yet.")));
+
+        HelpTopicViewModel generatorTopic = Assert.Single(
+            viewModel.WorkflowTopics,
+            topic => topic.Title == "Password generator");
+        Assert.Contains("random password", generatorTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("maximum entropy", generatorTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("memorable passphrase", generatorTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("record them before encrypting", generatorTopic.Description, StringComparison.Ordinal);
+
+        HelpTopicViewModel recoveryTopic = Assert.Single(
+            viewModel.SafetyTopics,
+            topic => topic.Title == "Recovery limits");
+        Assert.Contains("Generated passwords and passphrases are not saved", recoveryTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("unless you record them yourself", recoveryTopic.Description, StringComparison.Ordinal);
     }
 
     [Fact]

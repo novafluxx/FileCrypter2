@@ -18,6 +18,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private readonly IFilePickerService? filePickerService;
     private readonly IClipboardService? clipboardService;
     private readonly IPathRevealService pathRevealService;
+    private readonly IPasswordGeneratorService passwordGeneratorService;
     private readonly Stopwatch runStopwatch = new();
     private readonly StringComparer pathComparer = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
         ? StringComparer.OrdinalIgnoreCase
@@ -99,12 +100,14 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         IFileCrypterWorkflowService workflowService,
         IFilePickerService? filePickerService = null,
         IClipboardService? clipboardService = null,
-        IPathRevealService? pathRevealService = null)
+        IPathRevealService? pathRevealService = null,
+        IPasswordGeneratorService? passwordGeneratorService = null)
     {
         this.workflowService = workflowService;
         this.filePickerService = filePickerService;
         this.clipboardService = clipboardService;
         this.pathRevealService = pathRevealService ?? new NoOpPathRevealService();
+        this.passwordGeneratorService = passwordGeneratorService ?? new PasswordGeneratorService();
 
         SourcePaths.CollectionChanged += OnSourcePathsChanged;
         Results.CollectionChanged += OnResultsChanged;
@@ -115,8 +118,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         FileCrypterSettings initialSettings,
         IFilePickerService? filePickerService = null,
         IClipboardService? clipboardService = null,
-        IPathRevealService? pathRevealService = null)
-        : this(workflowService, filePickerService, clipboardService, pathRevealService)
+        IPathRevealService? pathRevealService = null,
+        IPasswordGeneratorService? passwordGeneratorService = null)
+        : this(workflowService, filePickerService, clipboardService, pathRevealService, passwordGeneratorService)
     {
         ApplySettings(initialSettings);
     }
@@ -175,13 +179,30 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     public string PasswordVisibilityActionText => ShowPassword ? "Hide" : "Show";
 
+    public int PasswordStrengthScore => GetPasswordStrengthScore(Password);
+
+    public double PasswordStrengthPercent => PasswordStrengthScore / 4d * 100d;
+
+    public string PasswordStrengthLabel => PasswordStrengthScore switch
+    {
+        0 => "Enter a password",
+        1 => "Weak",
+        2 => "Fair",
+        3 => "Strong",
+        _ => "Excellent",
+    };
+
+    public string PasswordStrengthDetail => string.IsNullOrWhiteSpace(Password)
+        ? "Choose something memorable but uncommon."
+        : $"{EstimateEntropyBits(Password)} bits of estimated entropy";
+
     public bool ShowArchiveNameEditor => ArchiveMode && EncryptMode;
 
     public string QueueInspectorTitle => HasResults
-        ? "Last run"
+        ? "LAST RUN"
         : HasSelectedFiles
-            ? "Queued items"
-            : "Queue preview";
+            ? "QUEUED ITEMS"
+            : "QUEUE PREVIEW";
 
     public string QueueInspectorBody => HasResults
         ? ResultSummary
@@ -379,6 +400,10 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     partial void OnPasswordChanged(string value)
     {
+        OnPropertyChanged(nameof(PasswordStrengthScore));
+        OnPropertyChanged(nameof(PasswordStrengthPercent));
+        OnPropertyChanged(nameof(PasswordStrengthLabel));
+        OnPropertyChanged(nameof(PasswordStrengthDetail));
         RefreshIdleValidationState();
     }
 
@@ -420,6 +445,24 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private void TogglePasswordVisibility()
     {
         ShowPassword = !ShowPassword;
+    }
+
+    [RelayCommand]
+    private void GenerateRandomPassword()
+    {
+        ApplyGeneratedPassword(passwordGeneratorService.GenerateRandomPassword());
+    }
+
+    [RelayCommand]
+    private void GenerateMemorablePassphrase()
+    {
+        ApplyGeneratedPassword(passwordGeneratorService.GenerateMemorablePassphrase());
+    }
+
+    private void ApplyGeneratedPassword(string generatedPassword)
+    {
+        Password = generatedPassword;
+        ShowPassword = true;
     }
 
     [RelayCommand]
@@ -1207,6 +1250,68 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         return !string.IsNullOrWhiteSpace(path) && Directory.Exists(path)
             ? path
             : string.Empty;
+    }
+
+    private static int GetPasswordStrengthScore(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return 0;
+        }
+
+        int score = 0;
+        if (password.Length >= 8)
+        {
+            score++;
+        }
+
+        if (password.Length >= 12)
+        {
+            score++;
+        }
+
+        if (password.Any(char.IsUpper))
+        {
+            score++;
+        }
+
+        if (password.Any(static character => !char.IsLetterOrDigit(character)))
+        {
+            score++;
+        }
+
+        if (password.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length >= 4)
+        {
+            score++;
+        }
+
+        return Math.Clamp(score, 0, 4);
+    }
+
+    private static int EstimateEntropyBits(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return 0;
+        }
+
+        int estimate = password.Length * 4;
+        if (password.Length >= 12)
+        {
+            estimate += 10;
+        }
+
+        if (password.Any(char.IsUpper))
+        {
+            estimate += 6;
+        }
+
+        if (password.Any(static character => !char.IsLetterOrDigit(character)))
+        {
+            estimate += 6;
+        }
+
+        return estimate;
     }
 
     private async Task CopyTextAsync(string text, string successProgressText)

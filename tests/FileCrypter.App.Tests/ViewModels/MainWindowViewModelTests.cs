@@ -34,6 +34,42 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void Constructor_DefaultsToExpandedSidebar()
+    {
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService());
+
+        Assert.False(viewModel.IsSidebarCollapsed);
+        Assert.True(viewModel.IsSidebarExpanded);
+        Assert.Equal("Collapse sidebar", viewModel.SidebarToggleToolTip);
+    }
+
+    [Fact]
+    public void ToggleSidebarCommand_TogglesCollapsedState()
+    {
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService());
+
+        viewModel.ToggleSidebarCommand.Execute(null);
+
+        Assert.True(viewModel.IsSidebarCollapsed);
+        Assert.False(viewModel.IsSidebarExpanded);
+        Assert.Equal("Expand sidebar", viewModel.SidebarToggleToolTip);
+
+        viewModel.ToggleSidebarCommand.Execute(null);
+
+        Assert.False(viewModel.IsSidebarCollapsed);
+        Assert.True(viewModel.IsSidebarExpanded);
+        Assert.Equal("Collapse sidebar", viewModel.SidebarToggleToolTip);
+    }
+
+    [Fact]
     public void Constructor_AppliesPersistedCompressionDefaultToEncryptPage()
     {
         using var outputDirectory = new TemporaryDirectory();

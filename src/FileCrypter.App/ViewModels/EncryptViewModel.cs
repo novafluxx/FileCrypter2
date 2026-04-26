@@ -199,12 +199,12 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         : $"{EstimateEntropyBits(Password)} bits of estimated entropy";
 
     public string FilePreviewPanelTitle => HasResult
-        ? "Encrypted"
+        ? "ENCRYPTED"
         : IsRunning
-            ? "Cipher stream"
+            ? "CIPHER STREAM"
             : HasSelectedFile
-                ? "File preview"
-                : "Preview";
+                ? "FILE PREVIEW"
+                : "PREVIEW";
 
     public string FilePreviewPanelBody => HasResult
         ? ResultPath

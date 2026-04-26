@@ -205,6 +205,19 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
 
+        <Style Selector="Button.sidebar-toggle">
+            <Setter Property="MinWidth" Value="34" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
         <Style Selector="Button.aurora-primary">
             <Setter Property="Background" Value="{DynamicResource AccentGradientBrush}" />
             <Setter Property="BorderThickness" Value="0" />
@@ -333,6 +346,38 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style Selector="Grid.sidebar-collapsed Border.sidebar-shell">
+            <Setter Property="Padding" Value="8,18,8,20" />
+        </Style>
+
+        <Style Selector="Grid.sidebar-collapsed StackPanel.sidebar-nav-primary">
+            <Setter Property="Margin" Value="0,26,0,0" />
+        </Style>
+
+        <Style Selector="Grid.sidebar-collapsed StackPanel.sidebar-nav-secondary">
+            <Setter Property="Margin" Value="0" />
+        </Style>
+
+        <Style Selector="Grid.sidebar-collapsed Border.sidebar-divider">
+            <Setter Property="Margin" Value="12,26,12,18" />
+        </Style>
+
+        <Style Selector="Grid.sidebar-collapsed TextBlock.sidebar-expanded-only">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <Style Selector="Grid.sidebar-collapsed TextBlock.nav-item-label">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+
+        <Style Selector="Grid.sidebar-collapsed ToggleButton.nav-item">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="44" />
+            <Setter Property="Width" Value="44" />
         </Style>
 
         <Style Selector="Path.nav-item-icon">

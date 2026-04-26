@@ -141,12 +141,12 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         : "No key file selected. Decryption will use only the password unless the file requires one.";
 
     public string DetailsPanelTitle => HasResult
-        ? "Restored"
+        ? "RESTORED"
         : IsRunning
-            ? "Decrypting"
+            ? "DECRYPTING"
             : HasSelectedFile
-                ? "File details"
-                : "Ready";
+                ? "FILE DETAILS"
+                : "READY";
 
     public string DetailsPanelBody => HasResult
         ? ResultPath

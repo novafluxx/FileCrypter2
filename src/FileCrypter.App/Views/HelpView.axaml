@@ -28,7 +28,7 @@
                                Foreground="{DynamicResource WarningAccentForegroundBrush}"
                                FontSize="{StaticResource FontSizeCaption}"
                                LetterSpacing="2" />
-                    <TextBlock Text="Keep the password and any key file together in a way you trust. FileCrypter cannot recover forgotten passwords or lost or changed key files."
+                    <TextBlock Text="{Binding RecoveryWarningText}"
                                Foreground="{DynamicResource WarningForegroundBrush}"
                                FontSize="{StaticResource FontSizeTitle}"
                                TextWrapping="Wrap" />

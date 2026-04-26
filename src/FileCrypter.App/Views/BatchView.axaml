@@ -228,6 +228,24 @@
                     </Border>
 
                     <Border Classes="aurora-card"
+                            Background="{DynamicResource GlassPanelBackgroundBrush}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="RUN QUEUE"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="The selected workflow, output folder, and password apply to the whole queue."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <Button Classes="aurora-primary"
+                                    Content="{Binding ActionButtonText}"
+                                    Command="{Binding StartBatchCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="aurora-card"
                             IsVisible="{Binding HasResults}">
                         <StackPanel Spacing="14">
                             <Grid ColumnDefinitions="*,Auto">
@@ -301,7 +319,7 @@
                                        Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                        FontSize="{StaticResource FontSizeCaption}"
                                        LetterSpacing="2" />
-                            <Grid ColumnDefinitions="*,150"
+                            <Grid ColumnDefinitions="*,Auto"
                                   ColumnSpacing="12">
                                 <TextBox Text="{Binding OutputDirectory}"
                                          PlaceholderText="Choose an existing output folder..." />
@@ -319,17 +337,15 @@
                     <Border Classes="aurora-card">
                         <StackPanel Spacing="14">
                             <StackPanel Spacing="4">
-                                <TextBlock Text="PASSWORD AND OPTIONAL KEY FILE"
+                                <TextBlock Text="PASSWORD"
                                            Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                            FontSize="{StaticResource FontSizeCaption}"
                                            LetterSpacing="2" />
-                                <TextBlock Text="{Binding KeyFileChoiceStatusText}"
-                                           Foreground="{DynamicResource AccentForegroundBrush}"
-                                           TextWrapping="Wrap" />
+                                <TextBlock Text="Use something memorable but uncommon."
+                                           Foreground="{DynamicResource MutedForegroundBrush}" />
                             </StackPanel>
 
-                            <Grid ColumnDefinitions="*,Auto"
-                                  ColumnSpacing="10">
+                            <Grid>
                                 <TextBox Text="{Binding Password}"
                                          PasswordChar="*"
                                          PlaceholderText="Enter the batch password"
@@ -337,25 +353,41 @@
                                 <TextBox Text="{Binding Password}"
                                          PlaceholderText="Enter the batch password"
                                          IsVisible="{Binding ShowPassword}" />
-                                <Button Grid.Column="1"
-                                        Classes="aurora-secondary"
-                                        Content="{Binding PasswordVisibilityActionText}"
-                                        Command="{Binding TogglePasswordVisibilityCommand}" />
                             </Grid>
 
-                            <Grid ColumnDefinitions="*,120,92"
-                                  ColumnSpacing="10">
-                                <TextBox Text="{Binding KeyFilePath}"
-                                         PlaceholderText="Optional batch key file..." />
-                                <Button Grid.Column="1"
-                                        Classes="aurora-secondary"
-                                        Content="Browse"
-                                        Command="{Binding BrowseKeyFileCommand}" />
-                                <Button Grid.Column="2"
-                                        Classes="aurora-secondary"
-                                        Content="Clear"
-                                        Command="{Binding ClearKeyFileCommand}" />
-                            </Grid>
+                            <StackPanel Spacing="6">
+                                <ProgressBar Classes="aurora-progress"
+                                             Minimum="0"
+                                             Maximum="100"
+                                             Value="{Binding PasswordStrengthPercent}" />
+                                <Grid ColumnDefinitions="*,Auto"
+                                      ColumnSpacing="12">
+                                    <TextBlock Text="{Binding PasswordStrengthLabel}"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding PasswordStrengthDetail}"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontFamily="Cascadia Mono, Consolas, monospace" />
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="10">
+                                <Button Classes="aurora-secondary"
+                                        Content="Generate">
+                                    <Button.Flyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="Random password"
+                                                      Command="{Binding GenerateRandomPasswordCommand}" />
+                                            <MenuItem Header="Memorable passphrase"
+                                                      Command="{Binding GenerateMemorablePassphraseCommand}" />
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                                <Button Classes="aurora-secondary"
+                                        Content="{Binding PasswordVisibilityActionText}"
+                                        Command="{Binding TogglePasswordVisibilityCommand}" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -365,9 +397,11 @@
                             <Grid Margin="24,18,24,18"
                                   ColumnDefinitions="*,Auto">
                                 <StackPanel Spacing="3">
-                                    <TextBlock Text="Advanced options"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="Archive naming, overwrite handling, and queue safety details."
+                                    <TextBlock Text="ADVANCED OPTIONS"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               LetterSpacing="2" />
+                                    <TextBlock Text="Archive naming, optional key-file, overwrite handling, and queue safety details."
                                                Foreground="{DynamicResource MutedForegroundBrush}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
@@ -404,6 +438,27 @@
                                            Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                            Margin="30,0,0,0"
                                            TextWrapping="Wrap" />
+
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="OPTIONAL KEY FILE"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               LetterSpacing="2" />
+                                    <TextBlock Text="{Binding KeyFileChoiceStatusText}"
+                                               Foreground="{DynamicResource AccentForegroundBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBox Text="{Binding KeyFilePath}"
+                                             PlaceholderText="Optional batch key file..." />
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="10">
+                                        <Button Classes="aurora-secondary"
+                                                Content="Browse"
+                                                Command="{Binding BrowseKeyFileCommand}" />
+                                        <Button Classes="aurora-secondary"
+                                                Content="Clear"
+                                                Command="{Binding ClearKeyFileCommand}" />
+                                    </StackPanel>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -428,23 +483,6 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Classes="aurora-card"
-                            Background="{DynamicResource GlassPanelBackgroundBrush}">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Run queue"
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       LetterSpacing="2" />
-                            <TextBlock Text="The selected workflow, output folder, and password apply to the whole queue."
-                                       Foreground="{DynamicResource MutedForegroundBrush}"
-                                       TextWrapping="Wrap" />
-                            <Button Classes="aurora-primary"
-                                    Content="{Binding ActionButtonText}"
-                                    Command="{Binding StartBatchCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center" />
-                        </StackPanel>
-                    </Border>
                 </StackPanel>
             </Grid>
         </StackPanel>

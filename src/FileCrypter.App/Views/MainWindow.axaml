@@ -26,6 +26,7 @@
                           Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
                 </Viewbox>
                 <TextBlock Text="{Binding Title}"
+                           Classes="nav-item-label"
                            VerticalAlignment="Center"
                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
             </StackPanel>
@@ -36,20 +37,31 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid ClipToBounds="True"
+    <Grid x:Name="RootLayout"
+          ClipToBounds="True"
+          Classes.sidebar-collapsed="{Binding IsSidebarCollapsed}"
           Background="{DynamicResource WindowBackgroundBrush}"
-          ColumnDefinitions="248,*"
           RowDefinitions="*,58">
-        <Border Grid.RowSpan="2"
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="248"
+                              MinWidth="72"
+                              MaxWidth="248" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border x:Name="SidebarShell"
+                Classes="sidebar-shell"
+                Grid.RowSpan="2"
                 Background="{DynamicResource SidebarBackgroundBrush}"
                 BorderBrush="{DynamicResource SidebarBorderBrush}"
                 BorderThickness="0,0,1,0"
                 Padding="18,18,18,20">
             <Grid RowDefinitions="Auto,Auto,*,Auto">
-                <Border Classes="aurora-card"
+                <Border Classes="aurora-card app-brand"
+                        IsVisible="{Binding IsSidebarExpanded}"
                         Padding="16"
                         CornerRadius="18">
-                    <Grid ColumnDefinitions="Auto,*"
+                    <Grid ColumnDefinitions="Auto,*,Auto"
                           ColumnSpacing="12">
                         <Border Width="46"
                                 Height="46"
@@ -61,6 +73,7 @@
                                    Stretch="UniformToFill" />
                         </Border>
                         <StackPanel Grid.Column="1"
+                                    IsVisible="{Binding IsSidebarExpanded}"
                                     VerticalAlignment="Center"
                                     Spacing="2">
                             <TextBlock Text="FileCrypter"
@@ -70,13 +83,54 @@
                                        FontSize="{StaticResource FontSizeAppMeta}"
                                        Foreground="{DynamicResource SidebarDetailForegroundBrush}" />
                         </StackPanel>
+                        <Button Grid.Column="2"
+                                Classes="sidebar-toggle"
+                                Command="{Binding ToggleSidebarCommand}"
+                                ToolTip.Tip="{Binding SidebarToggleToolTip}">
+                            <Viewbox Width="18"
+                                     Height="18"
+                                     Stretch="Uniform">
+                                <Path Classes="nav-item-icon"
+                                      Data="M4 5.25C4 4.83579 4.33579 4.5 4.75 4.5H19.25C19.6642 4.5 20 4.83579 20 5.25C20 5.66421 19.6642 6 19.25 6H4.75C4.33579 6 4 5.66421 4 5.25ZM4 12C4 11.5858 4.33579 11.25 4.75 11.25H19.25C19.6642 11.25 20 11.5858 20 12C20 12.4142 19.6642 12.75 19.25 12.75H4.75C4.33579 12.75 4 12.4142 4 12ZM4.75 18C4.33579 18 4 18.3358 4 18.75C4 19.1642 4.33579 19.5 4.75 19.5H19.25C19.6642 19.5 20 19.1642 20 18.75C20 18.3358 19.6642 18 19.25 18H4.75Z"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </Viewbox>
+                        </Button>
                     </Grid>
                 </Border>
 
+                <StackPanel Classes="collapsed-brand"
+                            IsVisible="{Binding IsSidebarCollapsed}"
+                            Spacing="10"
+                            HorizontalAlignment="Center">
+                    <Border Width="46"
+                            Height="46"
+                            CornerRadius="14"
+                            ClipToBounds="True"
+                            ToolTip.Tip="FileCrypter">
+                        <Image Source="/Assets/FileCrypter.png"
+                               Width="46"
+                               Height="46"
+                               Stretch="UniformToFill" />
+                    </Border>
+                    <Button Classes="sidebar-toggle"
+                            Command="{Binding ToggleSidebarCommand}"
+                            ToolTip.Tip="{Binding SidebarToggleToolTip}">
+                        <Viewbox Width="18"
+                                 Height="18"
+                                 Stretch="Uniform">
+                            <Path Classes="nav-item-icon"
+                                  Data="M4 5.25C4 4.83579 4.33579 4.5 4.75 4.5H19.25C19.6642 4.5 20 4.83579 20 5.25C20 5.66421 19.6642 6 19.25 6H4.75C4.33579 6 4 5.66421 4 5.25ZM4 12C4 11.5858 4.33579 11.25 4.75 11.25H19.25C19.6642 11.25 20 11.5858 20 12C20 12.4142 19.6642 12.75 19.25 12.75H4.75C4.33579 12.75 4 12.4142 4 12ZM4.75 18C4.33579 18 4 18.3358 4 18.75C4 19.1642 4.33579 19.5 4.75 19.5H19.25C19.6642 19.5 20 19.1642 20 18.75C20 18.3358 19.6642 18 19.25 18H4.75Z"
+                                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                        </Viewbox>
+                    </Button>
+                </StackPanel>
+
                 <StackPanel Grid.Row="1"
+                            Classes="sidebar-nav-primary"
                             Margin="6,26,6,0"
                             Spacing="8">
                     <TextBlock Text="WORKFLOWS"
+                               Classes="sidebar-expanded-only"
                                FontSize="{StaticResource FontSizeCaption}"
                                LetterSpacing="2"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}" />
@@ -87,13 +141,15 @@
                                               Content="{Binding}"
                                               ContentTemplate="{StaticResource NavigationItemContentTemplate}"
                                               IsChecked="{Binding IsSelected}"
-                                              Command="{Binding SelectCommand}" />
+                                              Command="{Binding SelectCommand}"
+                                              ToolTip.Tip="{Binding Title}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </StackPanel>
 
                 <Border Grid.Row="2"
+                        Classes="sidebar-divider"
                         Margin="10,26,10,18"
                         Background="#0DFFFFFF"
                         CornerRadius="1"
@@ -101,9 +157,11 @@
                         VerticalAlignment="Top" />
 
                 <StackPanel Grid.Row="3"
+                            Classes="sidebar-nav-secondary"
                             Margin="6,0,6,0"
                             Spacing="8">
                     <TextBlock Text="SYSTEM"
+                               Classes="sidebar-expanded-only"
                                FontSize="{StaticResource FontSizeCaption}"
                                LetterSpacing="2"
                                Foreground="{DynamicResource SectionLabelForegroundBrush}" />
@@ -114,7 +172,8 @@
                                               Content="{Binding}"
                                               ContentTemplate="{StaticResource NavigationItemContentTemplate}"
                                               IsChecked="{Binding IsSelected}"
-                                              Command="{Binding SelectCommand}" />
+                                              Command="{Binding SelectCommand}"
+                                              ToolTip.Tip="{Binding Title}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

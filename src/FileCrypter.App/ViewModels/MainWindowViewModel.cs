@@ -21,6 +21,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private ViewModelBase currentPage;
 
+    [ObservableProperty]
+    private bool isSidebarCollapsed;
+
     public MainWindowViewModel()
         : this(new FileCrypterWorkflowService(), new FileCrypterSettingsService())
     {
@@ -99,6 +102,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<NavigationItemViewModel> SecondaryNavigationItems { get; }
 
+    public bool IsSidebarExpanded => !IsSidebarCollapsed;
+
+    public string SidebarToggleToolTip => IsSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar";
+
     public string AppVersion => appMetadataService.DisplayVersion;
 
     public string StatusText => CurrentPage is IWorkflowStatusViewModel workflowPage
@@ -126,6 +133,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(FooterActionText));
         OnPropertyChanged(nameof(FooterActionCommand));
         OnPropertyChanged(nameof(HasFooterAction));
+    }
+
+    partial void OnIsSidebarCollapsedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsSidebarExpanded));
+        OnPropertyChanged(nameof(SidebarToggleToolTip));
+    }
+
+    [RelayCommand]
+    private void ToggleSidebar()
+    {
+        IsSidebarCollapsed = !IsSidebarCollapsed;
     }
 
     [RelayCommand]

@@ -163,8 +163,10 @@
                     <Border Classes="aurora-card"
                             IsVisible="{Binding IsAdvancedOptionsExpanded}">
                         <StackPanel Spacing="16">
-                            <TextBlock Text="Advanced Options"
-                                       FontWeight="SemiBold" />
+                            <TextBlock Text="ADVANCED OPTIONS"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
                             <TextBlock Text="Output naming, overwrite protection, and optional key-file mode for the restored file."
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
@@ -231,8 +233,10 @@
                             <Grid Margin="24,18,24,18"
                                   ColumnDefinitions="*,Auto">
                                 <StackPanel Spacing="3">
-                                    <TextBlock Text="Advanced Options"
-                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="ADVANCED OPTIONS"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               LetterSpacing="2" />
                                     <TextBlock Text="Output naming and overwrite protection for the restored file."
                                                Foreground="{DynamicResource MutedForegroundBrush}"
                                                TextWrapping="Wrap" />
@@ -288,7 +292,7 @@
                             IsVisible="{Binding ShowReadyAction}"
                             Background="{DynamicResource GlassPanelBackgroundBrush}">
                         <StackPanel Spacing="12">
-                            <TextBlock Text="Ready to open"
+                            <TextBlock Text="READY TO DECRYPT"
                                        Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                        FontSize="{StaticResource FontSizeCaption}"
                                        LetterSpacing="2" />
