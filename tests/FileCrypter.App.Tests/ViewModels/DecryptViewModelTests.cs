@@ -16,13 +16,16 @@ public sealed class DecryptViewModelTests
         var viewModel = new DecryptViewModel(new RecordingWorkflowService());
 
         Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.False(viewModel.ShowReadyAction);
         Assert.False(viewModel.HasError);
 
         viewModel.SourcePath = "/tmp/plain.txt.encrypted";
         Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.False(viewModel.ShowReadyAction);
 
         viewModel.Password = "secret";
         Assert.True(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.True(viewModel.ShowReadyAction);
     }
 
     [Fact]
@@ -41,7 +44,7 @@ public sealed class DecryptViewModelTests
         Assert.Empty(viewModel.Password);
         Assert.Empty(viewModel.ErrorMessage);
         Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
-        Assert.True(viewModel.ShowReadyAction);
+        Assert.False(viewModel.ShowReadyAction);
         Assert.StartsWith("Decrypted in ", viewModel.StatusText, StringComparison.Ordinal);
         Assert.Equal("Saved to", viewModel.ProgressText);
         Assert.Equal("/tmp/plain.txt", viewModel.FooterActionText);
@@ -66,7 +69,7 @@ public sealed class DecryptViewModelTests
 
         Assert.False(viewModel.IsRunning);
         Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
-        Assert.True(viewModel.ShowReadyAction);
+        Assert.False(viewModel.ShowReadyAction);
     }
 
     [Fact]

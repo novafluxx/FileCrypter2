@@ -158,7 +158,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public bool HasGeneratedKeyFileResult => !string.IsNullOrWhiteSpace(GeneratedKeyFileResultPath);
 
-    public bool ShowReadyAction => !IsRunning;
+    public bool ShowReadyAction => GetIsReady();
 
     public bool HasSelectedFile => !string.IsNullOrWhiteSpace(SourcePath);
 
@@ -259,6 +259,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         OnPropertyChanged(nameof(ShowEmptySourceState));
         OnPropertyChanged(nameof(FilePreviewPanelTitle));
         OnPropertyChanged(nameof(FilePreviewPanelBody));
+        OnPropertyChanged(nameof(ShowReadyAction));
         RefreshSuggestedOutputPath();
         ResetReadyFooter();
     }
@@ -284,6 +285,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         OnPropertyChanged(nameof(PasswordStrengthPercent));
         OnPropertyChanged(nameof(PasswordStrengthLabel));
         OnPropertyChanged(nameof(PasswordStrengthDetail));
+        OnPropertyChanged(nameof(ShowReadyAction));
         ResetReadyFooter();
     }
 
@@ -608,6 +610,11 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     }
 
     private bool CanStartEncrypt()
+    {
+        return GetIsReady();
+    }
+
+    private bool GetIsReady()
     {
         return !IsRunning &&
             !string.IsNullOrWhiteSpace(SourcePath) &&

@@ -56,57 +56,109 @@
 
                             <Grid ColumnDefinitions="*,*"
                                   ColumnSpacing="14">
-                                <Border Classes="aurora-panel">
-                                    <StackPanel Spacing="10">
-                                        <TextBlock Text="WHAT ARE YOU WORKING WITH?"
-                                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                                   FontSize="{StaticResource FontSizeCaption}"
-                                                   LetterSpacing="1.5" />
-                                        <RadioButton Content="Individual files"
-                                                     GroupName="BatchWorkflowType"
-                                                     IsChecked="{Binding IndividualFilesMode}" />
-                                        <TextBlock Text="{Binding IndividualFilesOptionDescription}"
-                                                   Foreground="{DynamicResource MutedForegroundBrush}"
-                                                   Margin="28,0,0,0"
-                                                   TextWrapping="Wrap" />
-                                        <RadioButton Content="Encrypted archive"
-                                                     GroupName="BatchWorkflowType"
-                                                     IsChecked="{Binding ArchiveMode}" />
-                                        <TextBlock Text="{Binding ArchiveModeOptionDescription}"
-                                                   Foreground="{DynamicResource MutedForegroundBrush}"
-                                                   Margin="28,0,0,0"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </Border>
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="WHAT ARE YOU WORKING WITH?"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               LetterSpacing="1.5" />
+                                    <RadioButton Classes="workflow-tile"
+                                                 GroupName="BatchWorkflowType"
+                                                 IsChecked="{Binding IndividualFilesMode}">
+                                            <Grid RowDefinitions="Auto,*,Auto"
+                                                  RowSpacing="10">
+                                                <Viewbox Width="24"
+                                                         Height="24"
+                                                         HorizontalAlignment="Left">
+                                                    <Path Classes="workflow-tile-icon"
+                                                          Data="M4 4.25C4 3.00736 5.00736 2 6.25 2H10.5039V6.74753C10.5039 7.99017 11.5113 8.99753 12.7539 8.99753H17.5V17.25C17.5 18.4926 16.4926 19.5 15.25 19.5H6.25C5.00736 19.5 4 18.4926 4 17.25V4.25Z M12.0039 6.74753V2.46728C12.0803 2.52611 12.1532 2.59009 12.2221 2.65901L16.841 7.27786C16.9103 7.34721 16.9747 7.42062 17.0338 7.49753H12.7539C12.3397 7.49753 12.0039 7.16174 12.0039 6.74753Z" />
+                                                </Viewbox>
+                                                <TextBlock Grid.Row="1"
+                                                           Text="Individual files"
+                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap" />
+                                                <TextBlock Grid.Row="2"
+                                                           Text="{Binding IndividualFilesOptionDescription}"
+                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </Grid>
+                                    </RadioButton>
+                                    <RadioButton Classes="workflow-tile"
+                                                 GroupName="BatchWorkflowType"
+                                                 IsChecked="{Binding ArchiveMode}">
+                                            <Grid RowDefinitions="Auto,*,Auto"
+                                                  RowSpacing="10">
+                                                <Viewbox Width="24"
+                                                         Height="24"
+                                                         HorizontalAlignment="Left">
+                                                    <Path Classes="workflow-tile-icon"
+                                                          Data="M4 4.25C4 3.00736 5.00736 2 6.25 2H10.5039V6.74753C10.5039 7.99017 11.5113 8.99753 12.7539 8.99753H17.5V17.25C17.5 18.4926 16.4926 19.5 15.25 19.5H6.25C5.00736 19.5 4 18.4926 4 17.25V4.25Z M12.0039 6.74753V2.46728C12.0803 2.52611 12.1532 2.59009 12.2221 2.65901L16.841 7.27786C16.9103 7.34721 16.9747 7.42062 17.0338 7.49753H12.7539C12.3397 7.49753 12.0039 7.16174 12.0039 6.74753Z M8.75088 22C7.77121 22 6.93778 21.3739 6.62891 20.5H15.2509C17.0458 20.5 18.5009 19.0449 18.5009 17.25V8.93689L19.3419 9.77788C19.7638 10.1998 20.0009 10.7721 20.0009 11.3689V17.25C20.0009 19.8734 17.8742 22 15.2509 22H8.75088Z" />
+                                                </Viewbox>
+                                                <TextBlock Grid.Row="1"
+                                                           Text="Encrypted archive"
+                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap" />
+                                                <TextBlock Grid.Row="2"
+                                                           Text="{Binding ArchiveModeOptionDescription}"
+                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </Grid>
+                                    </RadioButton>
+                                </StackPanel>
 
-                                <Border Grid.Column="1"
-                                        Classes="aurora-panel">
-                                    <StackPanel Spacing="10">
-                                        <TextBlock Text="WHAT SHOULD FILECRYPTER DO?"
-                                                   Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                                   FontSize="{StaticResource FontSizeCaption}"
-                                                   LetterSpacing="1.5" />
-                                        <RadioButton Content="Encrypt"
-                                                     GroupName="BatchWorkflowDirection"
-                                                     IsChecked="{Binding EncryptMode}" />
-                                        <TextBlock Text="{Binding EncryptActionDescription}"
-                                                   Foreground="{DynamicResource MutedForegroundBrush}"
-                                                   Margin="28,0,0,0"
-                                                   TextWrapping="Wrap" />
-                                        <RadioButton Content="Decrypt"
-                                                     GroupName="BatchWorkflowDirection"
-                                                     IsChecked="{Binding IsDecryptMode}" />
-                                        <TextBlock Text="{Binding DecryptActionDescription}"
-                                                   Foreground="{DynamicResource MutedForegroundBrush}"
-                                                   Margin="28,0,0,0"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </Border>
+                                <StackPanel Grid.Column="1"
+                                            Spacing="10">
+                                    <TextBlock Text="WHAT SHOULD FILECRYPTER DO?"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontSize="{StaticResource FontSizeCaption}"
+                                               LetterSpacing="1.5" />
+                                    <RadioButton Classes="workflow-tile"
+                                                 GroupName="BatchWorkflowDirection"
+                                                 IsChecked="{Binding EncryptMode}">
+                                            <Grid RowDefinitions="Auto,*,Auto"
+                                                  RowSpacing="10">
+                                                <Viewbox Width="24"
+                                                         Height="24"
+                                                         HorizontalAlignment="Left">
+                                                    <Path Classes="workflow-tile-icon"
+                                                          Data="M12 1C14.7614 1 17 3.23858 17 6V8.00977C18.6781 8.13743 20 9.5392 20 11.25V18.75C20 20.5449 18.5449 22 16.75 22H7.25C5.45507 22 4 20.5449 4 18.75V11.25C4 9.5392 5.3219 8.13743 7 8.00977V6C7 3.23858 9.23858 1 12 1ZM12 13.75C11.3096 13.75 10.75 14.3096 10.75 15C10.75 15.6904 11.3096 16.25 12 16.25C12.6904 16.25 13.25 15.6904 13.25 15C13.25 14.3096 12.6904 13.75 12 13.75ZM12 2.5C10.067 2.5 8.5 4.067 8.5 6V8H15.5V6C15.5 4.067 13.933 2.5 12 2.5Z" />
+                                                </Viewbox>
+                                                <TextBlock Grid.Row="1"
+                                                           Text="Encrypt"
+                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap" />
+                                                <TextBlock Grid.Row="2"
+                                                           Text="{Binding EncryptActionDescription}"
+                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </Grid>
+                                    </RadioButton>
+                                    <RadioButton Classes="workflow-tile"
+                                                 GroupName="BatchWorkflowDirection"
+                                                 IsChecked="{Binding IsDecryptMode}">
+                                            <Grid RowDefinitions="Auto,*,Auto"
+                                                  RowSpacing="10">
+                                                <Viewbox Width="24"
+                                                         Height="24"
+                                                         HorizontalAlignment="Left">
+                                                    <Path Classes="workflow-tile-icon"
+                                                          Data="M18.75 1C21.3734 1 23.5 3.12665 23.5 5.75V6.25C23.5 6.66421 23.1642 7 22.75 7C22.3358 7 22 6.66421 22 6.25V5.75C22 3.95507 20.5449 2.5 18.75 2.5C16.9551 2.5 15.5 3.95507 15.5 5.75V8H16.75C18.5449 8 20 9.45507 20 11.25V18.75C20 20.5449 18.5449 22 16.75 22H7.25C5.45507 22 4 20.5449 4 18.75V11.25C4 9.45507 5.45507 8 7.25 8H14V5.75C14 3.12665 16.1266 1 18.75 1ZM12 13.75C11.3096 13.75 10.75 14.3096 10.75 15C10.75 15.6904 11.3096 16.25 12 16.25C12.6904 16.25 13.25 15.6904 13.25 15C13.25 14.3096 12.6904 13.75 12 13.75Z" />
+                                                </Viewbox>
+                                                <TextBlock Grid.Row="1"
+                                                           Text="Decrypt"
+                                                           FontSize="{StaticResource FontSizeTitle}"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap" />
+                                                <TextBlock Grid.Row="2"
+                                                           Text="{Binding DecryptActionDescription}"
+                                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                                           TextWrapping="Wrap" />
+                                            </Grid>
+                                    </RadioButton>
+                                </StackPanel>
                             </Grid>
-
-                            <TextBlock Text="{Binding WorkflowKindDescription}"
-                                       Foreground="{DynamicResource AccentForegroundBrush}"
-                                       TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
 
@@ -228,24 +280,6 @@
                     </Border>
 
                     <Border Classes="aurora-card"
-                            Background="{DynamicResource GlassPanelBackgroundBrush}">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="RUN QUEUE"
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       LetterSpacing="2" />
-                            <TextBlock Text="The selected workflow, output folder, and password apply to the whole queue."
-                                       Foreground="{DynamicResource MutedForegroundBrush}"
-                                       TextWrapping="Wrap" />
-                            <Button Classes="aurora-primary"
-                                    Content="{Binding ActionButtonText}"
-                                    Command="{Binding StartBatchCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center" />
-                        </StackPanel>
-                    </Border>
-
-                    <Border Classes="aurora-card"
                             IsVisible="{Binding HasResults}">
                         <StackPanel Spacing="14">
                             <Grid ColumnDefinitions="*,Auto">
@@ -313,12 +347,21 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Classes="aurora-card">
-                        <StackPanel Spacing="14">
-                            <TextBlock Text="{Binding OutputHeading}"
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       LetterSpacing="2" />
+                    <Expander Classes="compact-section"
+                              IsExpanded="True">
+                        <Expander.Header>
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{Binding OutputHeading}"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <TextBlock Text="{Binding OutputDescription}"
+                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Expander.Header>
+                        <StackPanel Margin="0,14,0,0"
+                                    Spacing="12">
                             <Grid ColumnDefinitions="*,Auto"
                                   ColumnSpacing="12">
                                 <TextBox Text="{Binding OutputDirectory}"
@@ -328,30 +371,31 @@
                                         Content="Browse"
                                         Command="{Binding BrowseOutputDirectoryCommand}" />
                             </Grid>
-                            <TextBlock Text="{Binding OutputDescription}"
-                                       Foreground="{DynamicResource MutedForegroundBrush}"
-                                       TextWrapping="Wrap" />
                         </StackPanel>
-                    </Border>
+                    </Expander>
 
-                    <Border Classes="aurora-card">
-                        <StackPanel Spacing="14">
+                    <Expander Classes="compact-section"
+                              IsExpanded="True">
+                        <Expander.Header>
                             <StackPanel Spacing="4">
-                                <TextBlock Text="PASSWORD"
+                                <TextBlock Text="PASSPHRASE"
                                            Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                            FontSize="{StaticResource FontSizeCaption}"
                                            LetterSpacing="2" />
                                 <TextBlock Text="Use something memorable but uncommon."
                                            Foreground="{DynamicResource MutedForegroundBrush}" />
                             </StackPanel>
+                        </Expander.Header>
+                        <StackPanel Margin="0,14,0,0"
+                                    Spacing="14">
 
                             <Grid>
                                 <TextBox Text="{Binding Password}"
                                          PasswordChar="*"
-                                         PlaceholderText="Enter the batch password"
+                                         PlaceholderText="Enter the batch passphrase"
                                          IsVisible="{Binding ShowMaskedPasswordInput}" />
                                 <TextBox Text="{Binding Password}"
-                                         PlaceholderText="Enter the batch password"
+                                         PlaceholderText="Enter the batch passphrase"
                                          IsVisible="{Binding ShowPassword}" />
                             </Grid>
 
@@ -360,15 +404,15 @@
                                              Minimum="0"
                                              Maximum="100"
                                              Value="{Binding PasswordStrengthPercent}" />
-                                <Grid ColumnDefinitions="*,Auto"
-                                      ColumnSpacing="12">
+                                <StackPanel Spacing="2">
                                     <TextBlock Text="{Binding PasswordStrengthLabel}"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding PasswordStrengthDetail}"
                                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontFamily="Cascadia Mono, Consolas, monospace" />
-                                </Grid>
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding PasswordStrengthDetail}"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontFamily="Cascadia Mono, Consolas, monospace"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal"
@@ -389,79 +433,85 @@
                                         Command="{Binding TogglePasswordVisibilityCommand}" />
                             </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </Expander>
 
                     <Border Classes="aurora-card"
-                            Padding="0">
-                        <StackPanel>
-                            <Grid Margin="24,18,24,18"
-                                  ColumnDefinitions="*,Auto">
-                                <StackPanel Spacing="3">
-                                    <TextBlock Text="ADVANCED OPTIONS"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontSize="{StaticResource FontSizeCaption}"
-                                               LetterSpacing="2" />
-                                    <TextBlock Text="Archive naming, optional key-file, overwrite handling, and queue safety details."
-                                               Foreground="{DynamicResource MutedForegroundBrush}"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                                <Button Grid.Column="1"
-                                        Classes="aurora-secondary"
-                                        Content="Toggle"
-                                        Command="{Binding ToggleAdvancedOptionsCommand}"
-                                        VerticalAlignment="Center" />
-                            </Grid>
-                            <Border IsVisible="{Binding IsAdvancedOptionsExpanded}"
-                                    Background="{DynamicResource SurfaceAltBorderBrush}"
-                                    Height="1"
-                                    Margin="24,0,24,0" />
-                            <StackPanel IsVisible="{Binding IsAdvancedOptionsExpanded}"
-                                        Margin="24,18,24,24"
-                                        Spacing="16">
-                                <StackPanel IsVisible="{Binding ShowArchiveNameEditor}"
-                                            Spacing="8">
-                                    <TextBlock Text="ARCHIVE NAME"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontSize="{StaticResource FontSizeCaption}"
-                                               LetterSpacing="2" />
-                                    <TextBox Text="{Binding ArchiveName}"
-                                             PlaceholderText="Optional archive name, like project-docs" />
-                                    <TextBlock Text="{Binding ArchiveNameStatusText}"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               Margin="30,0,0,0"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
+                            IsVisible="{Binding ShowBatchReadyAction}"
+                            Background="{DynamicResource GlassPanelBackgroundBrush}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="READY TO RUN"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock Text="The selected workflow, output folder, and passphrase apply to the whole queue."
+                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <Button Classes="aurora-primary"
+                                    Content="{Binding ActionButtonText}"
+                                    Command="{Binding StartBatchCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" />
+                        </StackPanel>
+                    </Border>
 
-                                <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
-                                          Content="Never overwrite existing files" />
-                                <TextBlock Text="FileCrypter auto-renames each destination when that folder already contains a matching name."
+                    <Expander Classes="compact-section"
+                              IsExpanded="{Binding IsAdvancedOptionsExpanded}">
+                        <Expander.Header>
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="ADVANCED OPTIONS"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <TextBlock Text="Archive naming, optional key-file, overwrite handling, and queue safety details."
+                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Expander.Header>
+                        <StackPanel Margin="0,14,0,0"
+                                    Spacing="16">
+                            <StackPanel IsVisible="{Binding ShowArchiveNameEditor}"
+                                        Spacing="8">
+                                <TextBlock Text="ARCHIVE NAME"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <TextBox Text="{Binding ArchiveName}"
+                                         PlaceholderText="Optional archive name, like project-docs" />
+                                <TextBlock Text="{Binding ArchiveNameStatusText}"
                                            Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                            Margin="30,0,0,0"
                                            TextWrapping="Wrap" />
+                            </StackPanel>
 
-                                <StackPanel Spacing="8">
-                                    <TextBlock Text="OPTIONAL KEY FILE"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontSize="{StaticResource FontSizeCaption}"
-                                               LetterSpacing="2" />
-                                    <TextBlock Text="{Binding KeyFileChoiceStatusText}"
-                                               Foreground="{DynamicResource AccentForegroundBrush}"
-                                               TextWrapping="Wrap" />
-                                    <TextBox Text="{Binding KeyFilePath}"
-                                             PlaceholderText="Optional batch key file..." />
-                                    <StackPanel Orientation="Horizontal"
-                                                Spacing="10">
-                                        <Button Classes="aurora-secondary"
-                                                Content="Browse"
-                                                Command="{Binding BrowseKeyFileCommand}" />
-                                        <Button Classes="aurora-secondary"
-                                                Content="Clear"
-                                                Command="{Binding ClearKeyFileCommand}" />
-                                    </StackPanel>
+                            <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
+                                      Content="Never overwrite existing files" />
+                            <TextBlock Text="FileCrypter auto-renames each destination when that folder already contains a matching name."
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       Margin="30,0,0,0"
+                                       TextWrapping="Wrap" />
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="OPTIONAL KEY FILE"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <TextBlock Text="{Binding KeyFileChoiceStatusText}"
+                                           Foreground="{DynamicResource AccentForegroundBrush}"
+                                           TextWrapping="Wrap" />
+                                <TextBox Text="{Binding KeyFilePath}"
+                                         PlaceholderText="Optional batch key file..." />
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="10">
+                                    <Button Classes="aurora-secondary"
+                                            Content="Browse"
+                                            Command="{Binding BrowseKeyFileCommand}" />
+                                    <Button Classes="aurora-secondary"
+                                            Content="Clear"
+                                            Command="{Binding ClearKeyFileCommand}" />
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </Expander>
 
                     <Border Classes="aurora-card"
                             IsVisible="{Binding IsRunning}">

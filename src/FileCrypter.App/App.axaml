@@ -49,6 +49,8 @@
                     <SolidColorBrush x:Key="InputBorderBrush" Color="#36354B" />
                     <SolidColorBrush x:Key="InputForegroundBrush" Color="#F4F5F9" />
                     <SolidColorBrush x:Key="AccentSecondaryForegroundBrush" Color="#7DD3FC" />
+                    <SolidColorBrush x:Key="WorkflowTileSelectedBackgroundBrush" Color="#1B2A3D" />
+                    <SolidColorBrush x:Key="WorkflowTileSelectedBorderBrush" Color="#7DD3FC" />
                     <SolidColorBrush x:Key="PinkAccentBrush" Color="#F0ABFC" />
                     <SolidColorBrush x:Key="AmbientVioletBrush" Color="#B08AF7" />
                     <SolidColorBrush x:Key="AmbientCyanBrush" Color="#7DD3FC" />
@@ -96,6 +98,8 @@
                     <SolidColorBrush x:Key="InputBorderBrush" Color="#36354B" />
                     <SolidColorBrush x:Key="InputForegroundBrush" Color="#F4F5F9" />
                     <SolidColorBrush x:Key="AccentSecondaryForegroundBrush" Color="#7DD3FC" />
+                    <SolidColorBrush x:Key="WorkflowTileSelectedBackgroundBrush" Color="#1B2A3D" />
+                    <SolidColorBrush x:Key="WorkflowTileSelectedBorderBrush" Color="#7DD3FC" />
                     <SolidColorBrush x:Key="PinkAccentBrush" Color="#F0ABFC" />
                     <SolidColorBrush x:Key="AmbientVioletBrush" Color="#B08AF7" />
                     <SolidColorBrush x:Key="AmbientCyanBrush" Color="#7DD3FC" />
@@ -143,6 +147,8 @@
                     <SolidColorBrush x:Key="InputBorderBrush" Color="#D2D8F0" />
                     <SolidColorBrush x:Key="InputForegroundBrush" Color="#1F2947" />
                     <SolidColorBrush x:Key="AccentSecondaryForegroundBrush" Color="#2C99D3" />
+                    <SolidColorBrush x:Key="WorkflowTileSelectedBackgroundBrush" Color="#E8F7FF" />
+                    <SolidColorBrush x:Key="WorkflowTileSelectedBorderBrush" Color="#2C99D3" />
                     <SolidColorBrush x:Key="PinkAccentBrush" Color="#E281D6" />
                     <SolidColorBrush x:Key="AmbientVioletBrush" Color="#B08AF7" />
                     <SolidColorBrush x:Key="AmbientCyanBrush" Color="#7DD3FC" />
@@ -288,6 +294,63 @@
         <Style Selector="CheckBox, RadioButton">
             <Setter Property="Foreground" Value="{DynamicResource ResultHeadingForegroundBrush}" />
             <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
+        </Style>
+
+        <Style Selector="RadioButton.workflow-tile">
+            <Setter Property="Background" Value="{DynamicResource GlassPanelBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceAltBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="MinHeight" Value="116" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="TileBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource ControlCornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter x:Name="PART_ContentPresenter"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="RadioButton.workflow-tile:pointerover">
+            <Setter Property="Background" Value="{DynamicResource NavigationHoverBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource NavigationHoverBorderBrush}" />
+        </Style>
+
+        <Style Selector="RadioButton.workflow-tile:checked">
+            <Setter Property="Background" Value="{DynamicResource WorkflowTileSelectedBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkflowTileSelectedBorderBrush}" />
+        </Style>
+
+        <Style Selector="RadioButton.workflow-tile:checked /template/ Border#TileBorder">
+            <Setter Property="BoxShadow" Value="0 0 20 #407DD3FC" />
+        </Style>
+
+        <Style Selector="RadioButton.workflow-tile:disabled">
+            <Setter Property="Opacity" Value="0.65" />
+        </Style>
+
+        <Style Selector="Path.workflow-tile-icon">
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="Fill" Value="{DynamicResource AccentSecondaryForegroundBrush}" />
+        </Style>
+
+        <Style Selector="Expander.compact-section">
+            <Setter Property="Background" Value="{DynamicResource GlassBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="18,12" />
         </Style>
 
         <Style Selector="ProgressBar">

@@ -62,8 +62,8 @@
                                                  Height="30"
                                                  HorizontalAlignment="Center"
                                                  VerticalAlignment="Center">
-                                            <Path Classes="file-preview-icon"
-                                                  Data="M21 15 V19 C21 20.1 20.1 21 19 21 H5 C3.9 21 3 20.1 3 19 V15 M17 8 L12 3 L7 8 M12 3 V16" />
+                                            <Path Classes="workflow-tile-icon"
+                                                  Data="M4 4.25C4 3.00736 5.00736 2 6.25 2H10.5039V6.74753C10.5039 7.99017 11.5113 8.99753 12.7539 8.99753H17.5V17.25C17.5 18.4926 16.4926 19.5 15.25 19.5H6.25C5.00736 19.5 4 18.4926 4 17.25V4.25Z M12.0039 6.74753V2.46728C12.0803 2.52611 12.1532 2.59009 12.2221 2.65901L16.841 7.27786C16.9103 7.34721 16.9747 7.42062 17.0338 7.49753H12.7539C12.3397 7.49753 12.0039 7.16174 12.0039 6.74753Z" />
                                         </Viewbox>
                                     </Border>
                                     <TextBlock Text="Drop a file here"
@@ -129,128 +129,21 @@
                         </Border>
                     </Border>
 
-                    <Border Classes="aurora-card">
-                        <StackPanel Spacing="14">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="PASSPHRASE"
-                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                           FontSize="{StaticResource FontSizeCaption}"
-                                           LetterSpacing="2" />
-                                <TextBlock Text="Use something memorable but uncommon."
-                                           Foreground="{DynamicResource MutedForegroundBrush}" />
-                            </StackPanel>
-
-                            <Grid ColumnDefinitions="*,Auto,Auto"
-                                  ColumnSpacing="10">
-                                <TextBox Text="{Binding Password}"
-                                         PasswordChar="*"
-                                         PlaceholderText="Enter a passphrase"
-                                         IsVisible="{Binding ShowMaskedPasswordInput}" />
-                                <TextBox Text="{Binding Password}"
-                                         PlaceholderText="Enter a passphrase"
-                                         IsVisible="{Binding ShowPassword}" />
-                                <Button Grid.Column="1"
-                                        Classes="aurora-secondary"
-                                        Content="Generate">
-                                    <Button.Flyout>
-                                        <MenuFlyout>
-                                            <MenuItem Header="Random password"
-                                                      Command="{Binding GenerateRandomPasswordCommand}" />
-                                            <MenuItem Header="Memorable passphrase"
-                                                      Command="{Binding GenerateMemorablePassphraseCommand}" />
-                                        </MenuFlyout>
-                                    </Button.Flyout>
-                                </Button>
-                                <Button Grid.Column="2"
-                                        Classes="aurora-secondary"
-                                        Content="{Binding PasswordVisibilityActionText}"
-                                        Command="{Binding TogglePasswordVisibilityCommand}" />
-                            </Grid>
-
-                            <StackPanel Spacing="6">
-                                <ProgressBar Classes="aurora-progress"
-                                             Minimum="0"
-                                             Maximum="100"
-                                             Value="{Binding PasswordStrengthPercent}" />
-                                <Grid ColumnDefinitions="*,Auto"
-                                      ColumnSpacing="12">
-                                    <TextBlock Text="{Binding PasswordStrengthLabel}"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding PasswordStrengthDetail}"
-                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontFamily="Cascadia Mono, Consolas, monospace" />
-                                </Grid>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-
                     <Border Classes="aurora-card"
-                            IsVisible="{Binding IsAdvancedOptionsExpanded}">
-                        <StackPanel Spacing="16">
-                            <TextBlock Text="ADVANCED OPTIONS"
+                            Background="{DynamicResource GlassPanelBackgroundBrush}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="READY TO ENCRYPT"
                                        Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                        FontSize="{StaticResource FontSizeCaption}"
                                        LetterSpacing="2" />
-                            <TextBlock Text="Output path, overwrite protection, compression, and optional key-file modes."
+                            <TextBlock Text="FileCrypter writes the encrypted output locally and never keeps your password."
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
-
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="OUTPUT FILE"
-                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                           FontSize="{StaticResource FontSizeCaption}"
-                                           LetterSpacing="2" />
-                                <Grid ColumnDefinitions="*,150"
-                                      ColumnSpacing="12">
-                                    <TextBox Text="{Binding OutputPath}"
-                                             PlaceholderText="Auto-generated from input filename..." />
-                                    <Button Grid.Column="1"
-                                            Classes="aurora-secondary"
-                                            Content="Browse"
-                                            Command="{Binding BrowseOutputCommand}" />
-                                </Grid>
-                            </StackPanel>
-
-                            <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
-                                      Content="Never overwrite existing files" />
-
-                            <CheckBox IsChecked="{Binding EnableCompression}"
-                                      Content="Enable compression (ZSTD)" />
-
-                            <TextBlock Text="{Binding KeyFileChoiceStatusText}"
-                                       Foreground="{DynamicResource AccentForegroundBrush}"
-                                       TextWrapping="Wrap" />
-
-                            <Grid ColumnDefinitions="*,120"
-                                  ColumnSpacing="10">
-                                <TextBox Text="{Binding KeyFilePath}"
-                                         IsEnabled="{Binding CanEditExistingKeyFileChoice}"
-                                         PlaceholderText="Optional existing key file..." />
-                                <Button Grid.Column="1"
-                                        Classes="aurora-secondary"
-                                        Content="Browse"
-                                        Command="{Binding BrowseKeyFileCommand}" />
-                            </Grid>
-                            <TextBlock Text="Use a key file you already have. The exact same unchanged file is required to decrypt later."
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       Margin="30,0,0,0"
-                                       TextWrapping="Wrap" />
-
-                            <Grid ColumnDefinitions="*,120"
-                                  ColumnSpacing="10">
-                                <TextBox Text="{Binding GenerateKeyFilePath}"
-                                         IsEnabled="{Binding CanEditGeneratedKeyFileChoice}"
-                                         PlaceholderText="Choose where to create a new key file..." />
-                                <Button Grid.Column="1"
-                                        Classes="aurora-secondary"
-                                        Content="Generate"
-                                        Command="{Binding GenerateKeyFileCommand}" />
-                            </Grid>
-                            <TextBlock Text="Generate a fresh key file for this run. FileCrypter creates it when you encrypt the file, then requires it for decryption."
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       Margin="30,0,0,0"
-                                       TextWrapping="Wrap" />
+                            <Button Classes="aurora-primary"
+                                    Content="Encrypt file"
+                                    Command="{Binding StartEncryptCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" />
                         </StackPanel>
                     </Border>
 
@@ -290,29 +183,65 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Classes="aurora-card"
-                            Padding="0">
-                        <StackPanel>
-                            <Grid Margin="24,18,24,18"
-                                  ColumnDefinitions="*,Auto"
-                                  ColumnSpacing="12">
-                                <StackPanel Spacing="3">
-                                    <TextBlock Text="ADVANCED OPTIONS"
+                    <Expander Classes="compact-section"
+                              IsExpanded="True">
+                        <Expander.Header>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="PASSPHRASE"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <TextBlock Text="Use something memorable but uncommon."
+                                           Foreground="{DynamicResource MutedForegroundBrush}" />
+                            </StackPanel>
+                        </Expander.Header>
+                        <StackPanel Margin="0,14,0,0"
+                                    Spacing="14">
+                            <Grid>
+                                <TextBox Text="{Binding Password}"
+                                         PasswordChar="*"
+                                         PlaceholderText="Enter a passphrase"
+                                         IsVisible="{Binding ShowMaskedPasswordInput}" />
+                                <TextBox Text="{Binding Password}"
+                                         PlaceholderText="Enter a passphrase"
+                                         IsVisible="{Binding ShowPassword}" />
+                            </Grid>
+
+                            <StackPanel Spacing="6">
+                                <ProgressBar Classes="aurora-progress"
+                                             Minimum="0"
+                                             Maximum="100"
+                                             Value="{Binding PasswordStrengthPercent}" />
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding PasswordStrengthLabel}"
                                                Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                               FontSize="{StaticResource FontSizeCaption}"
-                                               LetterSpacing="2" />
-                                    <TextBlock Text="Output path, overwrite protection, compression, and optional key-file modes."
-                                               Foreground="{DynamicResource MutedForegroundBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding PasswordStrengthDetail}"
+                                               Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                               FontFamily="Cascadia Mono, Consolas, monospace"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
-                                <Button Grid.Column="1"
-                                        Classes="aurora-secondary"
-                                        Content="Toggle"
-                                        Command="{Binding ToggleAdvancedOptionsCommand}"
-                                        VerticalAlignment="Center" />
-                            </Grid>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="10">
+                                <Button Classes="aurora-secondary"
+                                        Content="Generate">
+                                    <Button.Flyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="Random password"
+                                                      Command="{Binding GenerateRandomPasswordCommand}" />
+                                            <MenuItem Header="Memorable passphrase"
+                                                      Command="{Binding GenerateMemorablePassphraseCommand}" />
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                                <Button Classes="aurora-secondary"
+                                        Content="{Binding PasswordVisibilityActionText}"
+                                        Command="{Binding TogglePasswordVisibilityCommand}" />
+                            </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </Expander>
 
                     <Border Classes="aurora-card"
                             IsVisible="{Binding IsRunning}">
@@ -336,24 +265,78 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Classes="aurora-card"
-                            IsVisible="{Binding ShowReadyAction}"
-                            Background="{DynamicResource GlassPanelBackgroundBrush}">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="READY TO ENCRYPT"
-                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       LetterSpacing="2" />
-                            <TextBlock Text="FileCrypter writes the encrypted output locally and never keeps your password."
-                                       Foreground="{DynamicResource MutedForegroundBrush}"
+                    <Expander Classes="compact-section"
+                              IsExpanded="{Binding IsAdvancedOptionsExpanded}">
+                        <Expander.Header>
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="ADVANCED OPTIONS"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <TextBlock Text="Output path, overwrite protection, compression, and optional key-file modes."
+                                           Foreground="{DynamicResource MutedForegroundBrush}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Expander.Header>
+                        <StackPanel Margin="0,14,0,0"
+                                    Spacing="16">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="OUTPUT FILE"
+                                           Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                           FontSize="{StaticResource FontSizeCaption}"
+                                           LetterSpacing="2" />
+                                <Grid ColumnDefinitions="*,Auto"
+                                      ColumnSpacing="12">
+                                    <TextBox Text="{Binding OutputPath}"
+                                             PlaceholderText="Auto-generated from input filename..." />
+                                    <Button Grid.Column="1"
+                                            Classes="aurora-secondary"
+                                            Content="Browse"
+                                            Command="{Binding BrowseOutputCommand}" />
+                                </Grid>
+                            </StackPanel>
+
+                            <CheckBox IsChecked="{Binding NeverOverwriteExistingFiles}"
+                                      Content="Never overwrite existing files" />
+
+                            <CheckBox IsChecked="{Binding EnableCompression}"
+                                      Content="Enable compression (ZSTD)" />
+
+                            <TextBlock Text="{Binding KeyFileChoiceStatusText}"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
                                        TextWrapping="Wrap" />
-                            <Button Classes="aurora-primary"
-                                    Content="Encrypt file"
-                                    Command="{Binding StartEncryptCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center" />
+
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="10">
+                                <TextBox Text="{Binding KeyFilePath}"
+                                         IsEnabled="{Binding CanEditExistingKeyFileChoice}"
+                                         PlaceholderText="Optional existing key file..." />
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Browse"
+                                        Command="{Binding BrowseKeyFileCommand}" />
+                            </Grid>
+                            <TextBlock Text="Use a key file you already have. The exact same unchanged file is required to decrypt later."
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       Margin="30,0,0,0"
+                                       TextWrapping="Wrap" />
+
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="10">
+                                <TextBox Text="{Binding GenerateKeyFilePath}"
+                                         IsEnabled="{Binding CanEditGeneratedKeyFileChoice}"
+                                         PlaceholderText="Choose where to create a new key file..." />
+                                <Button Grid.Column="1"
+                                        Classes="aurora-secondary"
+                                        Content="Generate"
+                                        Command="{Binding GenerateKeyFileCommand}" />
+                            </Grid>
+                            <TextBlock Text="Generate a fresh key file for this run. FileCrypter creates it when you encrypt the file, then requires it for decryption."
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       Margin="30,0,0,0"
+                                       TextWrapping="Wrap" />
                         </StackPanel>
-                    </Border>
+                    </Expander>
                 </StackPanel>
             </Grid>
         </StackPanel>

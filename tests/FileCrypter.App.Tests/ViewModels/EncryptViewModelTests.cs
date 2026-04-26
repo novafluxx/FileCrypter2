@@ -14,13 +14,16 @@ public sealed class EncryptViewModelTests
         var viewModel = new EncryptViewModel(new RecordingWorkflowService());
 
         Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.False(viewModel.ShowReadyAction);
         Assert.False(viewModel.HasError);
 
         viewModel.SourcePath = "/tmp/plain.txt";
         Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.False(viewModel.ShowReadyAction);
 
         viewModel.Password = "secret";
         Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.True(viewModel.ShowReadyAction);
     }
 
     [Fact]
@@ -39,7 +42,7 @@ public sealed class EncryptViewModelTests
         Assert.Empty(viewModel.Password);
         Assert.Empty(viewModel.ErrorMessage);
         Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
-        Assert.True(viewModel.ShowReadyAction);
+        Assert.False(viewModel.ShowReadyAction);
         Assert.StartsWith("Encrypted in ", viewModel.StatusText, StringComparison.Ordinal);
         Assert.Equal("Saved to", viewModel.ProgressText);
         Assert.Equal("/tmp/plain.txt.encrypted", viewModel.FooterActionText);
@@ -77,7 +80,7 @@ public sealed class EncryptViewModelTests
 
         Assert.False(viewModel.IsRunning);
         Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
-        Assert.True(viewModel.ShowReadyAction);
+        Assert.False(viewModel.ShowReadyAction);
     }
 
     [Fact]

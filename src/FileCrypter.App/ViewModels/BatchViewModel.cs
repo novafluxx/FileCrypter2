@@ -27,7 +27,6 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private bool isUpdatingOutputDirectoryInternally;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StartBatchCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseFilesCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseOutputDirectoryCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
@@ -47,11 +46,9 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private string? selectedSourcePath;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StartBatchCommand))]
     private string outputDirectory = string.Empty;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(StartBatchCommand))]
     private string password = string.Empty;
 
     [ObservableProperty]
@@ -176,6 +173,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     public bool HasFooterAction => !string.IsNullOrWhiteSpace(FooterActionText);
 
     public System.Windows.Input.ICommand FooterActionCommand => RevealFooterPathCommand;
+
+    public bool ShowBatchReadyAction => GetIsReady();
 
     public bool ShowMaskedPasswordInput => !ShowPassword;
 
@@ -369,6 +368,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         OnPropertyChanged(nameof(QueueInspectorTitle));
         OnPropertyChanged(nameof(QueueInspectorBody));
+        NotifyReadinessChanged();
         foreach (FileSelectionPreviewViewModel preview in SourceFilePreviews)
         {
             preview.NotifyRemoveCommandChanged();
@@ -398,6 +398,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         }
 
         RefreshIdleValidationState();
+        NotifyReadinessChanged();
     }
 
     partial void OnPasswordChanged(string value)
@@ -407,6 +408,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         OnPropertyChanged(nameof(PasswordStrengthLabel));
         OnPropertyChanged(nameof(PasswordStrengthDetail));
         RefreshIdleValidationState();
+        NotifyReadinessChanged();
     }
 
     partial void OnShowPasswordChanged(bool value)
@@ -419,6 +421,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         OnPropertyChanged(nameof(ArchiveNameStatusText));
         RefreshIdleValidationState();
+        NotifyReadinessChanged();
     }
 
     partial void OnVisibleErrorMessageChanged(string value)
@@ -668,11 +671,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     private bool CanStartBatch()
     {
-        return !IsRunning &&
-            HasValidSourceSelection() &&
-            HasValidOutputDirectory() &&
-            !string.IsNullOrWhiteSpace(Password) &&
-            HasValidArchiveName();
+        return GetIsReady();
     }
 
     private bool CanCopyError()
@@ -688,6 +687,21 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private bool CanRevealFooterPath()
     {
         return HasFooterAction;
+    }
+
+    private bool GetIsReady()
+    {
+        return !IsRunning &&
+            HasValidSourceSelection() &&
+            HasValidOutputDirectory() &&
+            !string.IsNullOrWhiteSpace(Password) &&
+            HasValidArchiveName();
+    }
+
+    private void NotifyReadinessChanged()
+    {
+        OnPropertyChanged(nameof(ShowBatchReadyAction));
+        StartBatchCommand.NotifyCanExecuteChanged();
     }
 
     private void OnSourcePathsChanged(object? sender, NotifyCollectionChangedEventArgs args)
@@ -709,7 +723,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         OnPropertyChanged(nameof(FilesSummaryText));
         OnPropertyChanged(nameof(QueueInspectorTitle));
         OnPropertyChanged(nameof(QueueInspectorBody));
-        StartBatchCommand.NotifyCanExecuteChanged();
+        NotifyReadinessChanged();
         RemoveSelectedFileCommand.NotifyCanExecuteChanged();
         ClearFilesCommand.NotifyCanExecuteChanged();
 
@@ -746,7 +760,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         OnPropertyChanged(nameof(QueueInspectorTitle));
         OnPropertyChanged(nameof(QueueInspectorBody));
 
-        StartBatchCommand.NotifyCanExecuteChanged();
+        NotifyReadinessChanged();
         ClearResults();
         ResetIdleStateForMode();
     }

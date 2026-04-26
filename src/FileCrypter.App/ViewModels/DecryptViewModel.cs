@@ -126,7 +126,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public bool HasResult => !string.IsNullOrWhiteSpace(ResultPath);
 
-    public bool ShowReadyAction => !IsRunning;
+    public bool ShowReadyAction => GetIsReady();
 
     public bool HasSelectedFile => !string.IsNullOrWhiteSpace(SourcePath);
 
@@ -199,6 +199,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         OnPropertyChanged(nameof(ShowEmptySourceState));
         OnPropertyChanged(nameof(DetailsPanelTitle));
         OnPropertyChanged(nameof(DetailsPanelBody));
+        OnPropertyChanged(nameof(ShowReadyAction));
         RefreshSuggestedOutputPath();
         ResetReadyFooter();
     }
@@ -220,6 +221,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     partial void OnPasswordChanged(string value)
     {
         ClearVisibleError();
+        OnPropertyChanged(nameof(ShowReadyAction));
         ResetReadyFooter();
     }
 
@@ -448,6 +450,11 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     }
 
     private bool CanStartDecrypt()
+    {
+        return GetIsReady();
+    }
+
+    private bool GetIsReady()
     {
         return !IsRunning &&
             !string.IsNullOrWhiteSpace(SourcePath) &&
