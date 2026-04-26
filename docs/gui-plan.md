@@ -24,7 +24,7 @@ The GUI references `FileCrypter.Core` directly and does not reference `FileCrypt
 View model tests live in:
 
 ```text
-tests/FileCrypter.App.Tests/
+tests/FileCrypter.Desktop.Tests/
 ```
 
 ## First Workflow

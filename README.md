@@ -29,11 +29,11 @@ FileCrypterDotNet/
   src/
     FileCrypter.Core/
     FileCrypter.Cli/
-    FileCrypter.App/
+    FileCrypter.Desktop/
   tests/
     FileCrypter.Core.Tests/
     FileCrypter.Cli.Tests/
-    FileCrypter.App.Tests/
+    FileCrypter.Desktop.Tests/
   docs/
     planning-brief.md
     file-format.md
@@ -188,7 +188,7 @@ dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set 
 The Avalonia desktop app wraps the same core library:
 
 ```bash
-dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
+dotnet run --project src/FileCrypter.Desktop/FileCrypter.Desktop.csproj
 ```
 
 Current GUI scope:

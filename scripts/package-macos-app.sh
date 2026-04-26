@@ -4,11 +4,11 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "${script_dir}/.." && pwd)"
-project_path="${repo_root}/src/FileCrypter.App/FileCrypter.App.csproj"
+project_path="${repo_root}/src/FileCrypter.Desktop/FileCrypter.Desktop.csproj"
 artifacts_root="${repo_root}/artifacts/macos"
 
 if [[ ! -f "${project_path}" ]]; then
-    echo "Could not find FileCrypter.App.csproj at ${project_path}" >&2
+    echo "Could not find FileCrypter.Desktop.csproj at ${project_path}" >&2
     exit 1
 fi
 

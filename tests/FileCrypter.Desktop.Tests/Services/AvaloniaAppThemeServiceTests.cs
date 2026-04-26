@@ -3,7 +3,7 @@ using Avalonia.Styling;
 using FileCrypter.App.Services;
 using FileCrypter.Core.Settings;
 
-namespace FileCrypter.App.Tests.Services;
+namespace FileCrypter.Desktop.Tests.Services;
 
 public sealed class AvaloniaAppThemeServiceTests
 {

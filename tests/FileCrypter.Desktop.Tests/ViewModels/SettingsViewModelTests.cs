@@ -2,7 +2,7 @@ using FileCrypter.App.Services;
 using FileCrypter.App.ViewModels;
 using FileCrypter.Core.Settings;
 
-namespace FileCrypter.App.Tests.ViewModels;
+namespace FileCrypter.Desktop.Tests.ViewModels;
 
 public sealed class SettingsViewModelTests
 {

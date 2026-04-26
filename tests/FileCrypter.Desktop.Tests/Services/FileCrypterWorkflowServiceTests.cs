@@ -2,7 +2,7 @@ using System.Text;
 using FileCrypter.App.Services;
 using FileCrypter.Core;
 
-namespace FileCrypter.App.Tests.Services;
+namespace FileCrypter.Desktop.Tests.Services;
 
 public sealed class FileCrypterWorkflowServiceTests
 {
@@ -258,7 +258,7 @@ public sealed class FileCrypterWorkflowServiceTests
         {
             Path = System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),
-                "FileCrypter.App.Tests." + Guid.NewGuid().ToString("N"));
+                "FileCrypter.Desktop.Tests." + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path);
         }
 

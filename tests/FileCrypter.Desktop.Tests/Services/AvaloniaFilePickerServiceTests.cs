@@ -1,7 +1,7 @@
 using Avalonia.Platform.Storage;
 using FileCrypter.App.Services;
 
-namespace FileCrypter.App.Tests.Services;
+namespace FileCrypter.Desktop.Tests.Services;
 
 public sealed class AvaloniaFilePickerServiceTests
 {

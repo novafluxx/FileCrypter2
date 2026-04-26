@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-FileCrypter is a .NET 10 solution pinned by `global.json` and organized by host boundary. Core encryption and file-format logic lives in `src/FileCrypter.Core/`. Command-line behavior lives in `src/FileCrypter.Cli/`. The Avalonia desktop UI lives in `src/FileCrypter.App/`, with `Views/`, `ViewModels/`, and app-facing `Services/`. Tests mirror these projects under `tests/FileCrypter.Core.Tests/`, `tests/FileCrypter.Cli.Tests/`, and `tests/FileCrypter.App.Tests/`. Product and implementation notes are in `docs/`, with `docs/file-format.md` especially important for format changes.
+FileCrypter is a .NET 10 solution pinned by `global.json` and organized by host boundary. Core encryption and file-format logic lives in `src/FileCrypter.Core/`. Command-line behavior lives in `src/FileCrypter.Cli/`. The Avalonia desktop UI lives in `src/FileCrypter.Desktop/`, with `Views/`, `ViewModels/`, and app-facing `Services/`. Tests mirror these projects under `tests/FileCrypter.Core.Tests/`, `tests/FileCrypter.Cli.Tests/`, and `tests/FileCrypter.Desktop.Tests/`. Product and implementation notes are in `docs/`, with `docs/file-format.md` especially important for format changes.
 
 ## Build, Test, and Development Commands
 
@@ -10,7 +10,7 @@ FileCrypter is a .NET 10 solution pinned by `global.json` and organized by host 
 - `dotnet build --no-restore`: compile all projects with warnings treated as errors.
 - `dotnet test --no-build`: run the xUnit v3 test suite after a build.
 - `dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- --help`: run the CLI locally.
-- `dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj`: launch the Avalonia app.
+- `dotnet run --project src/FileCrypter.Desktop/FileCrypter.Desktop.csproj`: launch the Avalonia app.
 - `./scripts/package-macos-app.sh`: create the macOS `.app` bundle on macOS-capable environments.
 
 ## Coding Style & Naming Conventions

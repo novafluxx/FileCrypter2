@@ -1,7 +1,7 @@
 using FileCrypter.App.Services;
 using FileCrypter.App.ViewModels;
 
-namespace FileCrypter.App.Tests.ViewModels;
+namespace FileCrypter.Desktop.Tests.ViewModels;
 
 public sealed class HelpViewModelTests
 {

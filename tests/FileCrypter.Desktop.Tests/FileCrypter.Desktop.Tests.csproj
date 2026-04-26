@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\FileCrypter.App\FileCrypter.App.csproj" />
+    <ProjectReference Include="..\..\src\FileCrypter.Desktop\FileCrypter.Desktop.csproj" />
   </ItemGroup>
 
 </Project>

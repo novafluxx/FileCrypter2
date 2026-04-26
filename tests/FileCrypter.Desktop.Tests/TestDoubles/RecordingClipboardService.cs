@@ -1,6 +1,6 @@
 using FileCrypter.App.Services;
 
-namespace FileCrypter.App.Tests.TestDoubles;
+namespace FileCrypter.Desktop.Tests.TestDoubles;
 
 internal sealed class RecordingClipboardService : IClipboardService
 {

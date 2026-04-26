@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace FileCrypter.App.Tests.Packaging;
+namespace FileCrypter.Desktop.Tests.Packaging;
 
 public sealed class MacAppBundleTests
 {

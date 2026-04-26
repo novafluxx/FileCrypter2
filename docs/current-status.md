@@ -68,7 +68,7 @@ main
 - CLI batch item troubleshooting now includes format hints, including a specific `archive-decrypt` hint when `batch-decrypt` receives an archive payload.
 - `README.md` now reflects the current CLI surface, including single-file, compression, key-file generation, batch, archive, settings, smoke-test commands, and safety notes.
 - Avalonia 12.0.1 GUI work is started in `src/FileCrypter.App` with a desktop MVVM app shell, persistent sidebar navigation, placeholder Decrypt/Batch/Help/Settings pages, and an implemented single-file Encrypt view model wired to `FileCrypter.Core`.
-- GUI view model coverage lives in `tests/FileCrypter.App.Tests` and covers sidebar navigation, encrypt command validation, compression propagation, running-state behavior, success, and failure messaging.
+- GUI view model coverage lives in `tests/FileCrypter.Desktop.Tests` and covers sidebar navigation, encrypt command validation, compression propagation, running-state behavior, success, and failure messaging.
 - The Encrypt page now keeps existing key-file selection and generated key-file output mutually exclusive, adds clearer user-facing guidance plus explicit clear actions, and labels generated key-file results in the success state.
 - App test coverage now includes the Encrypt page key-file choice behavior plus picker-service option forwarding for open/save dialogs; full native file-picker interaction remains a manual smoke-test concern.
 - Avalonia GUI single-file decryption is now implemented in `src/FileCrypter.App` with source/output pickers, safe default output naming, optional existing key-file input, progress reporting, and result/error messaging wired through `FileCrypter.Core`.
@@ -91,9 +91,9 @@ main
 - The desktop shell version label now comes from an app metadata service rather than a hardcoded string, which keeps the sidebar and Help page aligned on the same displayed version.
 - The first Help/update-flow slice uses the existing app-service and MVVM pattern with a small update-status abstraction that currently reports the local development-build state while leaving fuller automatic install/relaunch work for later.
 - App test coverage now includes Help page metadata/update-state behavior, update-check failure handling, and main-window Help navigation/footer wiring.
-- A repo-native macOS packaging script now creates a true `artifacts/macos/FileCrypter.app` bundle for local use by publishing `src/FileCrypter.App` as a framework-dependent Release macOS apphost and wrapping it in the standard `Contents/MacOS`, `Contents/Resources`, and `Info.plist` structure.
+- A repo-native macOS packaging script now creates a true `artifacts/macos/FileCrypter.app` bundle for local use by publishing `src/FileCrypter.Desktop` as a framework-dependent Release macOS apphost and wrapping it in the standard `Contents/MacOS`, `Contents/Resources`, and `Info.plist` structure.
 - The macOS packaging script now also applies an ad-hoc code signature to the completed `.app` bundle so Launch Services and `codesign --verify` see a coherent signed bundle after the manual wrapper step.
-- The macOS bundle metadata now lives in `src/FileCrypter.App/FileCrypter.App.csproj`, which keeps the bundle name, identifier, version, executable name, and minimum macOS version deterministic for the packaging script.
+- The macOS bundle metadata now lives in `src/FileCrypter.Desktop/FileCrypter.Desktop.csproj`, which keeps the bundle name, identifier, version, executable name, and minimum macOS version deterministic for the packaging script.
 - App test coverage now also includes a focused macOS packaging test that runs the repo bundle script on macOS and verifies the resulting `.app` contents, `Info.plist`, executable permissions, absence of CLI payloads, and successful `codesign --verify`.
 - A real macOS `.app` smoke pass is now complete for the Batch page using the bundled desktop app, native file/folder pickers, and Computer Use against `artifacts/macos/FileCrypter.app`.
 - That desktop Batch smoke covered individual-file encrypt picker flow, output-folder autofill from selected sources, folder override via the native picker, archive-encrypt multi-file selection, archive-decrypt single-selection validation, single-archive native selection, extraction-folder picking, and a full archive encrypt/decrypt round trip with extracted files landing in the chosen folder.
@@ -141,7 +141,7 @@ main
 These commands passed after the latest desktop theme-support pass:
 
 ```bash
-dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj
+dotnet test tests/FileCrypter.Desktop.Tests/FileCrypter.Desktop.Tests.csproj
 dotnet test
 ```
 
@@ -197,21 +197,21 @@ open artifacts/macos/FileCrypter.app
 The changelog-relocation slice was verified with focused app view-model coverage:
 
 ```bash
-dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj --filter "FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~MainWindowViewModelTests"
+dotnet test tests/FileCrypter.Desktop.Tests/FileCrypter.Desktop.Tests.csproj --filter "FullyQualifiedName~SettingsViewModelTests|FullyQualifiedName~MainWindowViewModelTests"
 ```
 
-Note for the current Windows sandbox environment: a broader `dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj` rerun still reports pre-existing path-format assertion failures in unrelated Encrypt/Decrypt/Batch picker-drop tests that expect `/tmp/...`-style paths.
+Note for the current Windows sandbox environment: a broader `dotnet test tests/FileCrypter.Desktop.Tests/FileCrypter.Desktop.Tests.csproj` rerun still reports pre-existing path-format assertion failures in unrelated Encrypt/Decrypt/Batch picker-drop tests that expect `/tmp/...`-style paths.
 
 The Batch workflow-card grouping slice was verified with focused app view-model coverage:
 
 ```bash
-dotnet test tests/FileCrypter.App.Tests/FileCrypter.App.Tests.csproj --filter "FullyQualifiedName~BatchViewModelTests.WorkflowKindDescription_FollowsSelectedCombination|FullyQualifiedName~BatchViewModelTests.WorkflowChooserDescription_ExplainsThatAllFourCombinationsAreAvailable|FullyQualifiedName~BatchViewModelTests.SwitchingToArchiveMode_UpdatesTitlesAndShowsArchiveNameInput|FullyQualifiedName~BatchViewModelTests.StartBatchCommand_InArchiveDecryptMode_RequiresExactlyOneArchive"
+dotnet test tests/FileCrypter.Desktop.Tests/FileCrypter.Desktop.Tests.csproj --filter "FullyQualifiedName~BatchViewModelTests.WorkflowKindDescription_FollowsSelectedCombination|FullyQualifiedName~BatchViewModelTests.WorkflowChooserDescription_ExplainsThatAllFourCombinationsAreAvailable|FullyQualifiedName~BatchViewModelTests.SwitchingToArchiveMode_UpdatesTitlesAndShowsArchiveNameInput|FullyQualifiedName~BatchViewModelTests.StartBatchCommand_InArchiveDecryptMode_RequiresExactlyOneArchive"
 ```
 
 The sidebar-hover polish slice was verified with a focused app build:
 
 ```bash
-dotnet build src/FileCrypter.App/FileCrypter.App.csproj
+dotnet build src/FileCrypter.Desktop/FileCrypter.Desktop.csproj
 ```
 
 Latest test count at handoff: 192 passed, 0 failed.
@@ -219,7 +219,7 @@ Latest test count at handoff: 192 passed, 0 failed.
 Previous GUI launch smoke coverage:
 
 ```bash
-dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
+dotnet run --project src/FileCrypter.Desktop/FileCrypter.Desktop.csproj
 ```
 
 The desktop app launch command stayed running until manually interrupted during the previous GUI pass, which is a basic launch smoke signal. A fresh rerun in this session hit `Avalonia.Native` render-timer startup error `-6661` before window creation in the current environment, so native picker dialogs and the new Help page still need a real desktop click-through on the target machine.

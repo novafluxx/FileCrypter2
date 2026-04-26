@@ -1,10 +1,10 @@
 using FileCrypter.App.Services;
-using FileCrypter.App.Tests.TestDoubles;
+using FileCrypter.Desktop.Tests.TestDoubles;
 using FileCrypter.App.ViewModels;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
 
-namespace FileCrypter.App.Tests.ViewModels;
+namespace FileCrypter.Desktop.Tests.ViewModels;
 
 public sealed class EncryptViewModelTests
 {
