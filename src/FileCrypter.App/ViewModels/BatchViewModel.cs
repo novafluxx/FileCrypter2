@@ -11,7 +11,7 @@ using CoreFileCrypter = FileCrypter.Core.FileCrypter;
 
 namespace FileCrypter.App.ViewModels;
 
-public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewModel
+public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewModel, IWorkflowToastSource
 {
     private int activeProgressRunId;
     private readonly IFileCrypterWorkflowService workflowService;
@@ -124,6 +124,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         ApplySettings(initialSettings);
     }
+
+    public event EventHandler<WorkflowToastNotification>? ToastNotificationRequested;
 
     public string Title => "Batch workflows";
 
@@ -788,6 +790,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         CompleteProgressRun(progressRunId);
         runStopwatch.Stop();
         ApplyBatchResults(result);
+        Password = string.Empty;
         ProgressPercent = 100;
         StatusText = result.Succeeded
             ? EncryptMode
@@ -807,6 +810,11 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             : EncryptMode
                 ? $"Batch encryption finished with {result.FailedCount} failure(s) and {result.SucceededCount} success(es)."
                 : $"Batch decryption finished with {result.FailedCount} failure(s) and {result.SucceededCount} success(es).";
+        RaiseToast(
+            result.Succeeded ? WorkflowToastKind.Success : WorkflowToastKind.Warning,
+            result.Succeeded ? "Batch complete" : "Batch completed with failures",
+            ResultSummary,
+            OutputDirectory);
     }
 
     private async Task RunArchiveEncryptAsync(int progressRunId)
@@ -827,6 +835,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
         CompleteProgressRun(progressRunId);
         runStopwatch.Stop();
+        Password = string.Empty;
         Results.Add(new BatchResultItemViewModel(
             succeeded: true,
             statusLabel: "Created",
@@ -842,6 +851,11 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         ProgressText = "Saved to";
         FooterActionText = result.OutputPath;
         ResultSummary = $"Archive encryption complete. {SourcePaths.Count} file(s) bundled into one encrypted archive.";
+        RaiseToast(
+            WorkflowToastKind.Success,
+            "Archive created",
+            ResultSummary,
+            result.OutputPath);
     }
 
     private async Task RunArchiveDecryptAsync(int progressRunId)
@@ -861,6 +875,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
         CompleteProgressRun(progressRunId);
         runStopwatch.Stop();
+        Password = string.Empty;
         foreach (string outputPath in result.OutputPaths)
         {
             Results.Add(new BatchResultItemViewModel(
@@ -880,6 +895,11 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         ProgressText = $"Extracted {result.OutputPaths.Count} file(s) to";
         FooterActionText = OutputDirectory;
         ResultSummary = $"Archive extraction complete. {result.OutputPaths.Count} file(s) extracted.";
+        RaiseToast(
+            WorkflowToastKind.Success,
+            "Archive extracted",
+            ResultSummary,
+            OutputDirectory);
     }
 
     private void AddSourcePaths(IEnumerable<string> selectedPaths)
@@ -1314,7 +1334,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         return estimate;
     }
 
-    private async Task CopyTextAsync(string text, string successProgressText)
+    private async Task CopyTextAsync(string text, string successMessage)
     {
         if (clipboardService is null || string.IsNullOrWhiteSpace(text))
         {
@@ -1324,7 +1344,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         try
         {
             await clipboardService.SetTextAsync(text, CancellationToken.None).ConfigureAwait(true);
-            ProgressText = successProgressText;
+            RaiseToast(WorkflowToastKind.Success, "Copied", successMessage);
         }
         catch (Exception exception)
         {
@@ -1364,6 +1384,11 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    private void RaiseToast(WorkflowToastKind kind, string title, string message, string detail = "")
+    {
+        ToastNotificationRequested?.Invoke(this, new WorkflowToastNotification(kind, title, message, detail));
     }
 
     private enum OutputDirectoryOrigin

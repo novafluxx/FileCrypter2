@@ -224,6 +224,11 @@
                             <TextBlock Text="If a key file was used during encryption, the original unchanged file is required here too."
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
+                            <Button Classes="aurora-secondary"
+                                    IsVisible="{Binding HasResult}"
+                                    Content="Copy result"
+                                    Command="{Binding CopyResultCommand}"
+                                    HorizontalAlignment="Left" />
                         </StackPanel>
                     </Border>
 
@@ -267,24 +272,6 @@
                             <TextBlock Text="{Binding ProgressText}"
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
-                        </StackPanel>
-                    </Border>
-
-                    <Border Classes="aurora-card"
-                            IsVisible="{Binding HasResult}"
-                            Background="{DynamicResource SuccessBackgroundBrush}"
-                            BorderBrush="{DynamicResource SuccessBorderBrush}">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="Decryption complete"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource SuccessAccentForegroundBrush}" />
-                            <TextBlock Text="{Binding ResultPath}"
-                                       Foreground="{DynamicResource SuccessForegroundBrush}"
-                                       TextWrapping="Wrap" />
-                            <Button Classes="aurora-secondary"
-                                    Content="Copy result"
-                                    Command="{Binding CopyResultCommand}"
-                                    HorizontalAlignment="Left" />
                         </StackPanel>
                     </Border>
 

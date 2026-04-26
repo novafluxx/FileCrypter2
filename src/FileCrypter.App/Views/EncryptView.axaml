@@ -272,6 +272,21 @@
                             <TextBlock Text="Passwords, key files, and plaintext stay on this device."
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
+                            <TextBlock IsVisible="{Binding HasGeneratedKeyFileResult}"
+                                       Text="GENERATED KEY FILE"
+                                       Foreground="{DynamicResource SectionLabelForegroundBrush}"
+                                       FontSize="{StaticResource FontSizeCaption}"
+                                       LetterSpacing="2" />
+                            <TextBlock IsVisible="{Binding HasGeneratedKeyFileResult}"
+                                       Text="{Binding GeneratedKeyFileResultPath}"
+                                       FontFamily="Cascadia Mono, Consolas, monospace"
+                                       Foreground="{DynamicResource AccentForegroundBrush}"
+                                       TextWrapping="Wrap" />
+                            <Button Classes="aurora-secondary"
+                                    IsVisible="{Binding HasResult}"
+                                    Content="Copy result"
+                                    Command="{Binding CopyResultCommand}"
+                                    HorizontalAlignment="Left" />
                         </StackPanel>
                     </Border>
 
@@ -318,32 +333,6 @@
                             <TextBlock Text="{Binding ProgressText}"
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
-                        </StackPanel>
-                    </Border>
-
-                    <Border Classes="aurora-card"
-                            IsVisible="{Binding HasResult}"
-                            Background="{DynamicResource SuccessBackgroundBrush}"
-                            BorderBrush="{DynamicResource SuccessBorderBrush}">
-                        <StackPanel Spacing="10">
-                            <TextBlock Text="ENCRYPTION COMPLETE"
-                                       Foreground="{DynamicResource SuccessAccentForegroundBrush}" />
-                            <TextBlock Text="{Binding ResultPath}"
-                                       Foreground="{DynamicResource SuccessForegroundBrush}"
-                                       TextWrapping="Wrap" />
-                            <TextBlock IsVisible="{Binding HasGeneratedKeyFileResult}"
-                                       Text="GENERATED KEY FILE"
-                                       Foreground="{DynamicResource SuccessAccentForegroundBrush}"
-                                       FontSize="{StaticResource FontSizeCaption}"
-                                       LetterSpacing="2" />
-                            <TextBlock IsVisible="{Binding HasGeneratedKeyFileResult}"
-                                       Text="{Binding GeneratedKeyFileResultPath}"
-                                       Foreground="{DynamicResource SuccessForegroundBrush}"
-                                       TextWrapping="Wrap" />
-                            <Button Classes="aurora-secondary"
-                                    Content="Copy result"
-                                    Command="{Binding CopyResultCommand}"
-                                    HorizontalAlignment="Left" />
                         </StackPanel>
                     </Border>
 

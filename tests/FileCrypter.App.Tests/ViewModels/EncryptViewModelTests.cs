@@ -36,8 +36,9 @@ public sealed class EncryptViewModelTests
 
         Assert.Equal("/tmp/plain.txt.encrypted", viewModel.ResultPath);
         Assert.True(viewModel.HasResult);
+        Assert.Empty(viewModel.Password);
         Assert.Empty(viewModel.ErrorMessage);
-        Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
         Assert.True(viewModel.ShowReadyAction);
         Assert.StartsWith("Encrypted in ", viewModel.StatusText, StringComparison.Ordinal);
         Assert.Equal("Saved to", viewModel.ProgressText);
@@ -75,7 +76,7 @@ public sealed class EncryptViewModelTests
         await runTask;
 
         Assert.False(viewModel.IsRunning);
-        Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
         Assert.True(viewModel.ShowReadyAction);
     }
 
@@ -91,6 +92,7 @@ public sealed class EncryptViewModelTests
         await viewModel.StartEncryptCommand.ExecuteAsync(null);
 
         Assert.Empty(viewModel.ResultPath);
+        Assert.Equal("secret", viewModel.Password);
         Assert.True(viewModel.HasError);
         Assert.Contains("Path error:", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("output directory is missing", viewModel.ErrorMessage, StringComparison.Ordinal);
@@ -129,15 +131,21 @@ public sealed class EncryptViewModelTests
             SourcePath = "/tmp/plain.txt",
             Password = "secret",
         };
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
 
         await viewModel.StartEncryptCommand.ExecuteAsync(null);
+        string progressTextAfterRun = viewModel.ProgressText;
         await viewModel.CopyResultCommand.ExecuteAsync(null);
 
         Assert.NotNull(clipboard.LastText);
         Assert.Contains("Encryption complete.", clipboard.LastText, StringComparison.Ordinal);
         Assert.Contains("Encrypted file: /tmp/plain.txt.encrypted", clipboard.LastText, StringComparison.Ordinal);
         Assert.Contains("Generated key file: /tmp/plain.key", clipboard.LastText, StringComparison.Ordinal);
-        Assert.Equal("Copied result details.", viewModel.ProgressText);
+        Assert.Equal(progressTextAfterRun, viewModel.ProgressText);
+        Assert.NotNull(toast);
+        Assert.Equal("Copied", toast.Title);
+        Assert.Equal("Copied result details.", toast.Message);
     }
 
     [Fact]

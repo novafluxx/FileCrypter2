@@ -43,6 +43,7 @@ public sealed class BatchViewModelTests
 
         await viewModel.StartBatchCommand.ExecuteAsync(null);
         Assert.True(viewModel.HasError);
+        Assert.Equal("secret", viewModel.Password);
 
         viewModel.Password = string.Empty;
 
@@ -250,6 +251,7 @@ public sealed class BatchViewModelTests
 
         Assert.NotNull(workflow.BatchRequest);
         Assert.True(workflow.BatchRequest!.NeverOverwriteExistingFiles);
+        Assert.Empty(viewModel.Password);
         Assert.Equal(2, viewModel.Results.Count);
         Assert.Contains("failure", viewModel.ResultSummary, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Missing input", viewModel.Results.Single(item => !item.Succeeded).DetailText, StringComparison.Ordinal);
@@ -276,6 +278,7 @@ public sealed class BatchViewModelTests
 
         Assert.NotNull(workflow.ArchiveEncryptRequest);
         Assert.Equal("project-docs", workflow.ArchiveEncryptRequest!.ArchiveName);
+        Assert.Empty(viewModel.Password);
         Assert.Single(viewModel.Results);
         Assert.Contains("bundled", viewModel.ResultSummary, StringComparison.OrdinalIgnoreCase);
         Assert.StartsWith("Archive created in ", viewModel.StatusText, StringComparison.Ordinal);
@@ -311,6 +314,7 @@ public sealed class BatchViewModelTests
 
         Assert.NotNull(workflow.ArchiveDecryptRequest);
         Assert.Equal("/tmp/archive.tar.zst.encrypted", workflow.ArchiveDecryptRequest!.SourcePath);
+        Assert.Empty(viewModel.Password);
         Assert.Equal(2, viewModel.Results.Count);
         Assert.All(viewModel.Results, item => Assert.True(item.Succeeded));
         Assert.Contains("extracted", viewModel.ResultSummary, StringComparison.OrdinalIgnoreCase);
@@ -347,8 +351,11 @@ public sealed class BatchViewModelTests
         };
         viewModel.SourcePaths.Add("/tmp/first.txt");
         viewModel.SourcePaths.Add("/tmp/missing.txt");
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
 
         await viewModel.StartBatchCommand.ExecuteAsync(null);
+        string progressTextAfterRun = viewModel.ProgressText;
         await viewModel.CopyResultsCommand.ExecuteAsync(null);
 
         Assert.NotNull(clipboard.LastText);
@@ -357,7 +364,10 @@ public sealed class BatchViewModelTests
         Assert.Contains("OUTPUT: ", clipboard.LastText, StringComparison.Ordinal);
         Assert.Contains("Failed: missing.txt", clipboard.LastText, StringComparison.Ordinal);
         Assert.Contains("ISSUE: Path error: Missing input.", clipboard.LastText, StringComparison.Ordinal);
-        Assert.Equal("Copied batch results.", viewModel.ProgressText);
+        Assert.Equal(progressTextAfterRun, viewModel.ProgressText);
+        Assert.NotNull(toast);
+        Assert.Equal("Copied", toast.Title);
+        Assert.Equal("Copied batch results.", toast.Message);
     }
 
     [Fact]
@@ -385,7 +395,7 @@ public sealed class BatchViewModelTests
         await runTask;
 
         Assert.False(viewModel.IsRunning);
-        Assert.True(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.False(viewModel.StartBatchCommand.CanExecute(null));
     }
 
     [Fact]
@@ -589,7 +599,7 @@ public sealed class BatchViewModelTests
 
         Assert.False(viewModel.HasResults);
         Assert.False(viewModel.HasResultSummary);
-        Assert.Equal(string.Empty, viewModel.ErrorMessage);
+        Assert.Contains("Enter a password", viewModel.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("3 files selected - first.txt + 2 more", viewModel.ProgressText);
     }
 

@@ -242,6 +242,62 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("v5.4.3 highlights", settingsPage.ChangelogHeading);
     }
 
+    [Fact]
+    public async Task WorkflowSuccess_ShowsDismissibleToast()
+    {
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService(),
+            toastDuration: TimeSpan.FromMinutes(1));
+        EncryptViewModel encryptPage = Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
+        encryptPage.SourcePath = "/tmp/plain.txt";
+        encryptPage.Password = "secret";
+
+        await encryptPage.StartEncryptCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsToastVisible);
+        Assert.True(viewModel.IsToastSuccess);
+        Assert.False(viewModel.IsToastWarning);
+        Assert.Equal("Encryption complete", viewModel.ToastTitle);
+        Assert.Equal("Encrypted file saved.", viewModel.ToastMessage);
+        Assert.Equal("unused.encrypted", viewModel.ToastDetail);
+        Assert.True(viewModel.HasToastDetail);
+
+        viewModel.DismissToastCommand.Execute(null);
+
+        Assert.False(viewModel.IsToastVisible);
+        Assert.Equal(string.Empty, viewModel.ToastTitle);
+    }
+
+    [Fact]
+    public async Task WorkflowSuccess_ReplacesPreviousToastWithNewestNotification()
+    {
+        var viewModel = new MainWindowViewModel(
+            new StubWorkflowService(),
+            new StubSettingsService(),
+            null,
+            new StubAppMetadataService(),
+            toastDuration: TimeSpan.FromMinutes(1));
+        EncryptViewModel encryptPage = Assert.IsType<EncryptViewModel>(viewModel.CurrentPage);
+        encryptPage.SourcePath = "/tmp/plain.txt";
+        encryptPage.Password = "secret";
+        await encryptPage.StartEncryptCommand.ExecuteAsync(null);
+        NavigationItemViewModel decryptItem = viewModel.PrimaryNavigationItems.Single(item => item.Key == "decrypt");
+
+        viewModel.SelectNavigationItemCommand.Execute(decryptItem);
+        DecryptViewModel decryptPage = Assert.IsType<DecryptViewModel>(viewModel.CurrentPage);
+        decryptPage.SourcePath = "/tmp/plain.txt.encrypted";
+        decryptPage.Password = "secret";
+        await decryptPage.StartDecryptCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.IsToastVisible);
+        Assert.Equal("Decryption complete", viewModel.ToastTitle);
+        Assert.Equal("Restored file saved.", viewModel.ToastMessage);
+        Assert.Equal("unused", viewModel.ToastDetail);
+    }
+
     private sealed class StubWorkflowService : IFileCrypterWorkflowService
     {
         public Task<EncryptFileResult> EncryptFileAsync(
@@ -249,7 +305,7 @@ public sealed class MainWindowViewModelTests
             IProgress<FileCrypter.Core.FileCrypterProgress>? progress,
             CancellationToken cancellationToken)
         {
-            return Task.FromResult(new EncryptFileResult("unused", null));
+            return Task.FromResult(new EncryptFileResult("unused.encrypted", null));
         }
 
         public Task<DecryptFileResult> DecryptFileAsync(

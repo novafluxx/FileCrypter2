@@ -18,6 +18,9 @@
                     <SolidColorBrush x:Key="SidebarBorderBrush" Color="#2A2838" />
                     <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#313045" />
                     <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#252435" />
+                    <SolidColorBrush x:Key="DisabledButtonBackgroundBrush" Color="#252637" />
+                    <SolidColorBrush x:Key="DisabledButtonBorderBrush" Color="#4E526C" />
+                    <SolidColorBrush x:Key="DisabledButtonForegroundBrush" Color="#D3D7EA" />
                     <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#8F92AF" />
                     <SolidColorBrush x:Key="MutedForegroundBrush" Color="#B5B8D2" />
                     <SolidColorBrush x:Key="AccentForegroundBrush" Color="#A78BFA" />
@@ -62,6 +65,9 @@
                     <SolidColorBrush x:Key="SidebarBorderBrush" Color="#2A2838" />
                     <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#313045" />
                     <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#252435" />
+                    <SolidColorBrush x:Key="DisabledButtonBackgroundBrush" Color="#252637" />
+                    <SolidColorBrush x:Key="DisabledButtonBorderBrush" Color="#4E526C" />
+                    <SolidColorBrush x:Key="DisabledButtonForegroundBrush" Color="#D3D7EA" />
                     <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#8F92AF" />
                     <SolidColorBrush x:Key="MutedForegroundBrush" Color="#B5B8D2" />
                     <SolidColorBrush x:Key="AccentForegroundBrush" Color="#A78BFA" />
@@ -106,6 +112,9 @@
                     <SolidColorBrush x:Key="SidebarBorderBrush" Color="#D2D8F0" />
                     <SolidColorBrush x:Key="SurfaceBorderBrush" Color="#DCE0F5" />
                     <SolidColorBrush x:Key="SurfaceAltBorderBrush" Color="#D9DFF3" />
+                    <SolidColorBrush x:Key="DisabledButtonBackgroundBrush" Color="#DDE3F2" />
+                    <SolidColorBrush x:Key="DisabledButtonBorderBrush" Color="#99A7C4" />
+                    <SolidColorBrush x:Key="DisabledButtonForegroundBrush" Color="#33405E" />
                     <SolidColorBrush x:Key="SectionLabelForegroundBrush" Color="#67708F" />
                     <SolidColorBrush x:Key="MutedForegroundBrush" Color="#4E5876" />
                     <SolidColorBrush x:Key="AccentForegroundBrush" Color="#6D5EEA" />
@@ -191,7 +200,10 @@
         </Style>
 
         <Style Selector="Button:disabled, ToggleButton:disabled">
-            <Setter Property="Opacity" Value="0.55" />
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="Background" Value="{DynamicResource DisabledButtonBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DisabledButtonBorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource DisabledButtonForegroundBrush}" />
         </Style>
 
         <Style Selector="Button.status-link">
@@ -224,6 +236,13 @@
             <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForegroundBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="MinHeight" Value="48" />
+        </Style>
+
+        <Style Selector="Button.aurora-primary:disabled">
+            <Setter Property="Background" Value="{DynamicResource DisabledButtonBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DisabledButtonBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource DisabledButtonForegroundBrush}" />
         </Style>
 
         <Style Selector="Button.aurora-secondary">
@@ -335,6 +354,39 @@
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Background" Value="{DynamicResource SurfaceAltBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
+        </Style>
+
+        <Style Selector="Border.workflow-toast">
+            <Setter Property="Background" Value="{DynamicResource SuccessBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="18,16" />
+            <Setter Property="BoxShadow" Value="0 14 34 #66000000" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource SuccessForegroundBrush}" />
+        </Style>
+
+        <Style Selector="Border.workflow-toast.warning">
+            <Setter Property="Background" Value="{DynamicResource WarningBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningBorderBrush}" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource WarningForegroundBrush}" />
+        </Style>
+
+        <Style Selector="TextBlock.workflow-toast-detail">
+            <Setter Property="Foreground" Value="{DynamicResource SectionLabelForegroundBrush}" />
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+            <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
+        </Style>
+
+        <Style Selector="Button.workflow-toast-dismiss">
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="{DynamicResource SurfaceBorderBrush}" />
         </Style>
 

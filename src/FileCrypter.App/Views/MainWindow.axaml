@@ -187,6 +187,37 @@
                         Margin="0" />
 
         <Border Grid.Column="1"
+                Grid.Row="0"
+                Classes="workflow-toast"
+                Classes.warning="{Binding IsToastWarning}"
+                Classes.success="{Binding IsToastSuccess}"
+                IsVisible="{Binding IsToastVisible}"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Margin="0,0,28,24">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="14"
+                  MaxWidth="460">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding ToastTitle}"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding ToastMessage}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding ToastDetail}"
+                               IsVisible="{Binding HasToastDetail}"
+                               Classes="workflow-toast-detail"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Classes="workflow-toast-dismiss"
+                        Content="x"
+                        Command="{Binding DismissToastCommand}"
+                        ToolTip.Tip="Dismiss notification" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Column="1"
                 Grid.Row="1"
                 Background="{DynamicResource WindowTopChromeBrush}"
                 BorderBrush="{DynamicResource SidebarBorderBrush}"

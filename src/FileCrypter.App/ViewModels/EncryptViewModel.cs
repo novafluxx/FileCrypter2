@@ -8,7 +8,7 @@ using System.Text;
 
 namespace FileCrypter.App.ViewModels;
 
-public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusViewModel
+public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusViewModel, IWorkflowToastSource
 {
     private int activeProgressRunId;
     private readonly IFileCrypterWorkflowService workflowService;
@@ -16,6 +16,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private readonly IClipboardService? clipboardService;
     private readonly IPathRevealService pathRevealService;
     private readonly IPasswordGeneratorService passwordGeneratorService;
+    private readonly object progressGate = new();
     private readonly Stopwatch runStopwatch = new();
     private string defaultOutputDirectory = string.Empty;
     private OutputPathOrigin outputPathOrigin;
@@ -140,6 +141,8 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         this.passwordGeneratorService = passwordGeneratorService ?? new PasswordGeneratorService();
         ApplySettings(initialSettings);
     }
+
+    public event EventHandler<WorkflowToastNotification>? ToastNotificationRequested;
 
     public string Title => "Encrypt a file";
 
@@ -517,25 +520,38 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
                 progress,
                 CancellationToken.None);
 
-            CompleteProgressRun(progressRunId);
-            runStopwatch.Stop();
-            ResultPath = result.OutputPath;
-            GeneratedKeyFileResultPath = result.GeneratedKeyFilePath ?? string.Empty;
-            ProgressPercent = 100;
-            ProgressText = "Saved to";
-            StatusText = $"Encrypted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}";
-            FooterActionText = result.OutputPath;
+            lock (progressGate)
+            {
+                CompleteProgressRun(progressRunId);
+                runStopwatch.Stop();
+                ResultPath = result.OutputPath;
+                GeneratedKeyFileResultPath = result.GeneratedKeyFilePath ?? string.Empty;
+                Password = string.Empty;
+                ProgressPercent = 100;
+                ProgressText = "Saved to";
+                StatusText = $"Encrypted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}";
+                FooterActionText = result.OutputPath;
+            }
+
+            RaiseToast(
+                WorkflowToastKind.Success,
+                "Encryption complete",
+                "Encrypted file saved.",
+                result.OutputPath);
         }
         catch (Exception exception)
         {
-            CompleteProgressRun(progressRunId);
-            runStopwatch.Stop();
-            string message = GetTroubleshootingMessage(exception);
-            ErrorMessage = message;
-            VisibleErrorMessage = message;
-            ProgressText = WorkflowStatusTextFormatter.SummarizeStatusDetail(message);
-            StatusText = "Encryption failed";
-            FooterActionText = string.Empty;
+            lock (progressGate)
+            {
+                CompleteProgressRun(progressRunId);
+                runStopwatch.Stop();
+                string message = GetTroubleshootingMessage(exception);
+                ErrorMessage = message;
+                VisibleErrorMessage = message;
+                ProgressText = WorkflowStatusTextFormatter.SummarizeStatusDetail(message);
+                StatusText = "Encryption failed";
+                FooterActionText = string.Empty;
+            }
         }
         finally
         {
@@ -697,21 +713,24 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     private void ReportProgress(int progressRunId, FileCrypterProgress progress)
     {
-        if (!IsActiveProgressRun(progressRunId))
+        lock (progressGate)
         {
-            return;
-        }
+            if (!IsActiveProgressRun(progressRunId))
+            {
+                return;
+            }
 
-        if (progress.TotalInputBytes is > 0)
-        {
-            ProgressPercent = Math.Clamp(
-                progress.InputBytes * 100d / progress.TotalInputBytes.Value,
-                0,
-                100);
-        }
+            if (progress.TotalInputBytes is > 0)
+            {
+                ProgressPercent = Math.Clamp(
+                    progress.InputBytes * 100d / progress.TotalInputBytes.Value,
+                    0,
+                    100);
+            }
 
-        ProgressText = WorkflowStatusTextFormatter.FormatByteProgress(progress.InputBytes, progress.TotalInputBytes);
-        FooterActionText = string.Empty;
+            ProgressText = WorkflowStatusTextFormatter.FormatByteProgress(progress.InputBytes, progress.TotalInputBytes);
+            FooterActionText = string.Empty;
+        }
     }
 
     private int BeginProgressRun()
@@ -729,7 +748,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         return Volatile.Read(ref activeProgressRunId) == progressRunId;
     }
 
-    private async Task CopyTextAsync(string text, string successProgressText)
+    private async Task CopyTextAsync(string text, string successMessage)
     {
         if (clipboardService is null || string.IsNullOrWhiteSpace(text))
         {
@@ -739,7 +758,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         try
         {
             await clipboardService.SetTextAsync(text, CancellationToken.None).ConfigureAwait(true);
-            ProgressText = successProgressText;
+            RaiseToast(WorkflowToastKind.Success, "Copied", successMessage);
         }
         catch (Exception exception)
         {
@@ -759,6 +778,11 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         }
 
         return builder.ToString().TrimEnd();
+    }
+
+    private void RaiseToast(WorkflowToastKind kind, string title, string message, string detail = "")
+    {
+        ToastNotificationRequested?.Invoke(this, new WorkflowToastNotification(kind, title, message, detail));
     }
 
     private void OnKeyFileChoiceStateChanged()

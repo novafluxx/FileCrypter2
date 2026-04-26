@@ -8,7 +8,7 @@ using System.Text;
 
 namespace FileCrypter.App.ViewModels;
 
-public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusViewModel
+public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusViewModel, IWorkflowToastSource
 {
     private const string DefaultEncryptedSuffix = ".encrypted";
     private const string DefaultDecryptedSuffix = ".decrypted";
@@ -111,6 +111,8 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         this.pathRevealService = pathRevealService ?? new NoOpPathRevealService();
         ApplySettings(initialSettings);
     }
+
+    public event EventHandler<WorkflowToastNotification>? ToastNotificationRequested;
 
     public string Title => "Decrypt a file";
 
@@ -375,10 +377,16 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
                 CompleteProgressRun(progressRunId);
                 runStopwatch.Stop();
                 ResultPath = result.OutputPath;
+                Password = string.Empty;
                 ProgressPercent = 100;
                 ProgressText = "Saved to";
                 StatusText = $"Decrypted in {WorkflowStatusTextFormatter.FormatElapsed(runStopwatch.Elapsed)}";
                 FooterActionText = result.OutputPath;
+                RaiseToast(
+                    WorkflowToastKind.Success,
+                    "Decryption complete",
+                    "Restored file saved.",
+                    result.OutputPath);
             }
         }
         catch (Exception exception)
@@ -586,7 +594,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         return Volatile.Read(ref activeProgressRunId) == progressRunId;
     }
 
-    private async Task CopyTextAsync(string text, string successProgressText)
+    private async Task CopyTextAsync(string text, string successMessage)
     {
         if (clipboardService is null || string.IsNullOrWhiteSpace(text))
         {
@@ -596,7 +604,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         try
         {
             await clipboardService.SetTextAsync(text, CancellationToken.None).ConfigureAwait(true);
-            ProgressText = successProgressText;
+            RaiseToast(WorkflowToastKind.Success, "Copied", successMessage);
         }
         catch (Exception exception)
         {
@@ -610,6 +618,11 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         builder.AppendLine("Decryption complete.");
         builder.AppendLine($"Decrypted file: {ResultPath}");
         return builder.ToString().TrimEnd();
+    }
+
+    private void RaiseToast(WorkflowToastKind kind, string title, string message, string detail = "")
+    {
+        ToastNotificationRequested?.Invoke(this, new WorkflowToastNotification(kind, title, message, detail));
     }
 
     private void ResetReadyFooter()

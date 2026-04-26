@@ -38,8 +38,9 @@ public sealed class DecryptViewModelTests
 
         Assert.Equal("/tmp/plain.txt", viewModel.ResultPath);
         Assert.True(viewModel.HasResult);
+        Assert.Empty(viewModel.Password);
         Assert.Empty(viewModel.ErrorMessage);
-        Assert.True(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
         Assert.True(viewModel.ShowReadyAction);
         Assert.StartsWith("Decrypted in ", viewModel.StatusText, StringComparison.Ordinal);
         Assert.Equal("Saved to", viewModel.ProgressText);
@@ -64,7 +65,7 @@ public sealed class DecryptViewModelTests
         await runTask;
 
         Assert.False(viewModel.IsRunning);
-        Assert.True(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
         Assert.True(viewModel.ShowReadyAction);
     }
 
@@ -82,6 +83,7 @@ public sealed class DecryptViewModelTests
         await viewModel.StartDecryptCommand.ExecuteAsync(null);
 
         Assert.Empty(viewModel.ResultPath);
+        Assert.Equal("secret", viewModel.Password);
         Assert.True(viewModel.HasError);
         Assert.Contains("Check the password and key file", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("Decryption failed", viewModel.StatusText);
@@ -123,13 +125,19 @@ public sealed class DecryptViewModelTests
             SourcePath = "/tmp/plain.txt.encrypted",
             Password = "secret",
         };
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
 
         await viewModel.StartDecryptCommand.ExecuteAsync(null);
+        string progressTextAfterFailure = viewModel.ProgressText;
         await viewModel.CopyErrorCommand.ExecuteAsync(null);
 
         Assert.NotNull(clipboard.LastText);
         Assert.Contains("Check the password and key file", clipboard.LastText, StringComparison.Ordinal);
-        Assert.Equal("Copied issue details.", viewModel.ProgressText);
+        Assert.Equal(progressTextAfterFailure, viewModel.ProgressText);
+        Assert.NotNull(toast);
+        Assert.Equal("Copied", toast.Title);
+        Assert.Equal("Copied issue details.", toast.Message);
     }
 
     [Fact]

@@ -10,8 +10,11 @@ namespace FileCrypter.App.ViewModels;
 
 public sealed partial class MainWindowViewModel : ViewModelBase
 {
+    private static readonly TimeSpan DefaultToastDuration = TimeSpan.FromSeconds(5);
+
     private readonly IAppMetadataService appMetadataService;
     private readonly IAppThemeService appThemeService;
+    private readonly TimeSpan toastDuration;
     private readonly EncryptViewModel encryptViewModel;
     private readonly DecryptViewModel decryptViewModel;
     private readonly BatchViewModel batchViewModel;
@@ -23,6 +26,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool isSidebarCollapsed;
+
+    [ObservableProperty]
+    private WorkflowToastNotification? currentToast;
+
+    private CancellationTokenSource? toastDismissalCancellation;
 
     public MainWindowViewModel()
         : this(new FileCrypterWorkflowService(), new FileCrypterSettingsService())
@@ -37,13 +45,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         IAppUpdateService? appUpdateService = null,
         IAppThemeService? appThemeService = null,
         IClipboardService? clipboardService = null,
-        IPathRevealService? pathRevealService = null)
+        IPathRevealService? pathRevealService = null,
+        TimeSpan? toastDuration = null)
     {
         this.appMetadataService = appMetadataService ?? new AppMetadataService();
         this.appThemeService = appThemeService
             ?? (Avalonia.Application.Current is null
                 ? new NoOpAppThemeService()
                 : new AvaloniaAppThemeService());
+        this.toastDuration = toastDuration ?? DefaultToastDuration;
         appUpdateService ??= new DevelopmentAppUpdateService();
         settingsService ??= new FileCrypterSettingsService();
         pathRevealService ??= new NoOpPathRevealService();
@@ -96,6 +106,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         SubscribeToWorkflowStatus(batchViewModel);
         SubscribeToWorkflowStatus(helpViewModel);
         SubscribeToWorkflowStatus(settingsViewModel);
+        SubscribeToWorkflowToast(encryptViewModel);
+        SubscribeToWorkflowToast(decryptViewModel);
+        SubscribeToWorkflowToast(batchViewModel);
     }
 
     public ObservableCollection<NavigationItemViewModel> PrimaryNavigationItems { get; }
@@ -126,6 +139,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     public bool HasFooterAction => CurrentPage is IWorkflowStatusViewModel workflowPage && workflowPage.HasFooterAction;
 
+    public bool IsToastVisible => CurrentToast is not null;
+
+    public bool IsToastWarning => CurrentToast?.Kind == WorkflowToastKind.Warning;
+
+    public bool IsToastSuccess => CurrentToast?.Kind == WorkflowToastKind.Success;
+
+    public bool HasToastDetail => !string.IsNullOrWhiteSpace(CurrentToast?.Detail);
+
+    public string ToastTitle => CurrentToast?.Title ?? string.Empty;
+
+    public string ToastMessage => CurrentToast?.Message ?? string.Empty;
+
+    public string ToastDetail => CurrentToast?.Detail ?? string.Empty;
+
     partial void OnCurrentPageChanged(ViewModelBase value)
     {
         OnPropertyChanged(nameof(StatusText));
@@ -139,6 +166,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsSidebarExpanded));
         OnPropertyChanged(nameof(SidebarToggleToolTip));
+    }
+
+    partial void OnCurrentToastChanged(WorkflowToastNotification? value)
+    {
+        OnPropertyChanged(nameof(IsToastVisible));
+        OnPropertyChanged(nameof(IsToastWarning));
+        OnPropertyChanged(nameof(IsToastSuccess));
+        OnPropertyChanged(nameof(HasToastDetail));
+        OnPropertyChanged(nameof(ToastTitle));
+        OnPropertyChanged(nameof(ToastMessage));
+        OnPropertyChanged(nameof(ToastDetail));
     }
 
     [RelayCommand]
@@ -166,9 +204,57 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         };
     }
 
+    [RelayCommand]
+    private void DismissToast()
+    {
+        toastDismissalCancellation?.Cancel();
+        CurrentToast = null;
+    }
+
     private void SubscribeToWorkflowStatus(ViewModelBase workflowPage)
     {
         workflowPage.PropertyChanged += OnWorkflowPagePropertyChanged;
+    }
+
+    private void SubscribeToWorkflowToast(IWorkflowToastSource workflowPage)
+    {
+        workflowPage.ToastNotificationRequested += OnWorkflowToastNotificationRequested;
+    }
+
+    private void OnWorkflowToastNotificationRequested(object? sender, WorkflowToastNotification notification)
+    {
+        ShowToast(notification);
+    }
+
+    private void ShowToast(WorkflowToastNotification notification)
+    {
+        toastDismissalCancellation?.Cancel();
+        toastDismissalCancellation = new CancellationTokenSource();
+        CurrentToast = notification;
+
+        if (toastDuration > TimeSpan.Zero)
+        {
+            _ = AutoDismissToastAsync(notification, toastDismissalCancellation.Token);
+        }
+    }
+
+    private async Task AutoDismissToastAsync(
+        WorkflowToastNotification notification,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(toastDuration, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(CurrentToast, notification))
+        {
+            CurrentToast = null;
+        }
     }
 
     private void OnWorkflowPagePropertyChanged(object? sender, PropertyChangedEventArgs args)
