@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="760"
         x:Class="FileCrypter.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/FileCrypter.ico"
         Title="FileCrypter"
         Width="1280"
         Height="820"
@@ -55,15 +55,14 @@
                         CornerRadius="18">
                     <Grid ColumnDefinitions="Auto,*"
                           ColumnSpacing="12">
-                        <Border Width="42"
-                                Height="42"
+                        <Border Width="46"
+                                Height="46"
                                 CornerRadius="14"
-                                Background="{DynamicResource AccentGradientBrush}">
-                            <TextBlock Text="FC"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource PrimaryButtonForegroundBrush}"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" />
+                                ClipToBounds="True">
+                            <Image Source="/Assets/FileCrypter.png"
+                                   Width="46"
+                                   Height="46"
+                                   Stretch="UniformToFill" />
                         </Border>
                         <StackPanel Grid.Column="1"
                                     VerticalAlignment="Center"

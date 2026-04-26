@@ -203,6 +203,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         batchViewModel.ApplySettings(settings);
     }
 
+    // Sidebar icon path data may include icons adapted from Fluent UI System Icons.
+    // See THIRD-PARTY-NOTICES.md for license details.
     private const string ClosedLockIconPathData =
         // Shackle (closed arch)
         "M8.5,10 V7.5 C8.5,5.57 10.07,4 12,4 C13.93,4 15.5,5.57 15.5,7.5 V10 " +

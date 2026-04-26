@@ -5,6 +5,7 @@
     <AssemblyName>FileCrypter.App</AssemblyName>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\FileCrypter.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <Version>0.1.0</Version>
     <MacBundleName>FileCrypter</MacBundleName>

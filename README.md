@@ -2,13 +2,11 @@
 
 FileCrypter is a local-first file encryption product for protecting files before storage, transfer, backup, or sharing. Sensitive operations happen on the local machine; there is no cloud service, account, or remote processing dependency.
 
-The current implementation is a reusable .NET crypto core, a command-line host, and the start of an Avalonia desktop UI.
+The current implementation is a reusable .NET crypto core, a command-line host, and an Avalonia desktop UI for the same local workflows.
 
-## Current Phase
+## Current Capabilities
 
-Phase 2: CLI and core encryption workflows.
-
-The repository currently supports:
+FileCrypter currently supports:
 
 - single-file encrypt and decrypt
 - optional Zstandard compression for single-file encryption
@@ -16,10 +14,10 @@ The repository currently supports:
 - generated key files for encryption
 - batch individual-file encrypt and decrypt
 - encrypted compressed tar archives with archive extraction
-- a persisted single-file compression default setting
+- shared local settings for compression, overwrite behavior, output directory, and desktop theme preference
 - safe staged writes, overwrite protection, auto-renamed outputs, and CLI progress reporting
 - a documented v1 encrypted file format in `docs/file-format.md`
-- an Avalonia 12 desktop app shell with sidebar navigation and a first single-file encrypt workflow
+- an Avalonia 12 desktop app with Encrypt, Decrypt, Batch, Settings, and Help workflows
 
 The CLI writes final output paths to stdout and progress, warnings, and errors to stderr.
 
@@ -40,7 +38,9 @@ FileCrypterDotNet/
     planning-brief.md
     file-format.md
     current-status.md
+    gui-plan.md
     security.md
+    security-todos.md
   product.md
 ```
 
@@ -185,7 +185,7 @@ dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set 
 
 ## Run The GUI
 
-The Avalonia desktop app is an early shell around the same core library:
+The Avalonia desktop app wraps the same core library:
 
 ```bash
 dotnet run --project src/FileCrypter.App/FileCrypter.App.csproj
@@ -196,9 +196,11 @@ Current GUI scope:
 - windowed Avalonia 12 app with persistent sidebar navigation
 - implemented Encrypt and Decrypt pages for single-file workflows
 - implemented Batch page for individual-file and encrypted-archive workflows
-- implemented Settings page for the shared local compression default
-- implemented Help page with recovery guidance, troubleshooting, and update-status messaging
-- view model tests for navigation, workflow validation, settings propagation, and help/update state
+- implemented Settings page for compression, overwrite, output-directory, and theme preferences
+- implemented Help page with recovery guidance, troubleshooting, version details, and update-status messaging
+- drag/drop source-file support for Encrypt, Decrypt, and Batch workflows
+- copy actions for visible issue text and result details
+- view model tests for navigation, workflow validation, settings propagation, clipboard behavior, and help/update state
 
 ## Package The macOS App
 
@@ -224,5 +226,6 @@ Notes:
 
 - this first macOS bundle flow is framework-dependent, so `.NET 10` must be installed on the launch machine
 - the bundle includes the GUI app and `FileCrypter.Core`, but not the CLI host
-- signing, notarization, icon conversion, and DMG packaging are intentionally deferred for a later slice
+- the script applies an ad-hoc code signature for local launch and verification
+- notarization, icon conversion, and DMG packaging are intentionally deferred for a later slice
 - Avalonia Parcel remains an optional later path if the project moves to richer macOS distribution automation
