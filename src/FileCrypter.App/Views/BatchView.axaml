@@ -11,7 +11,7 @@
                     Background="{DynamicResource ErrorBackgroundBrush}"
                     BorderBrush="{DynamicResource ErrorBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="18"
+                    CornerRadius="{StaticResource ControlCornerRadius}"
                     Padding="18,16">
                 <Grid ColumnDefinitions="*,Auto"
                       ColumnSpacing="16">
@@ -139,7 +139,7 @@
                                                 Spacing="10">
                                         <Border Width="82"
                                                 Height="82"
-                                                CornerRadius="24"
+                                                CornerRadius="{StaticResource ControlCornerRadius}"
                                                 Background="{DynamicResource NavigationSelectedBackgroundBrush}"
                                                 BorderBrush="{DynamicResource SurfaceBorderBrush}"
                                                 BorderThickness="1">
@@ -174,7 +174,7 @@
                                                               VerticalAlignment="Center">
                                                             <Border Width="38"
                                                                     Height="38"
-                                                                    CornerRadius="12"
+                                                                    CornerRadius="{StaticResource ControlCornerRadius}"
                                                                     Background="{DynamicResource NavigationSelectedBackgroundBrush}"
                                                                     BorderBrush="{DynamicResource SurfaceBorderBrush}"
                                                                     BorderThickness="1">

@@ -60,12 +60,12 @@
                 <Border Classes="aurora-card app-brand"
                         IsVisible="{Binding IsSidebarExpanded}"
                         Padding="16"
-                        CornerRadius="18">
+                        CornerRadius="{StaticResource ControlCornerRadius}">
                     <Grid ColumnDefinitions="Auto,*,Auto"
                           ColumnSpacing="12">
                         <Border Width="46"
                                 Height="46"
-                                CornerRadius="14"
+                                CornerRadius="{StaticResource ControlCornerRadius}"
                                 ClipToBounds="True">
                             <Image Source="/Assets/FileCrypter.png"
                                    Width="46"
@@ -104,7 +104,7 @@
                             HorizontalAlignment="Center">
                     <Border Width="46"
                             Height="46"
-                            CornerRadius="14"
+                            CornerRadius="{StaticResource ControlCornerRadius}"
                             ClipToBounds="True"
                             ToolTip.Tip="FileCrypter">
                         <Image Source="/Assets/FileCrypter.png"

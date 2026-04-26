@@ -21,7 +21,7 @@
             <Border Background="{DynamicResource WarningBackgroundBrush}"
                     BorderBrush="{DynamicResource WarningBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="18"
+                    CornerRadius="{StaticResource ControlCornerRadius}"
                     Padding="20,18">
                 <StackPanel Spacing="8">
                     <TextBlock Text="RECOVERY WARNING"

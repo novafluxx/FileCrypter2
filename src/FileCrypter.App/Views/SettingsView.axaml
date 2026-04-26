@@ -22,7 +22,7 @@
                     Background="{DynamicResource ErrorBackgroundBrush}"
                     BorderBrush="{DynamicResource ErrorBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="18"
+                    CornerRadius="{StaticResource ControlCornerRadius}"
                     Padding="18,16">
                 <TextBlock Text="{Binding ErrorMessage}"
                            Foreground="{DynamicResource ErrorForegroundBrush}"
@@ -34,7 +34,7 @@
                     Background="{DynamicResource SuccessBackgroundBrush}"
                     BorderBrush="{DynamicResource SuccessBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="18"
+                    CornerRadius="{StaticResource ControlCornerRadius}"
                     Padding="18,16">
                 <TextBlock Text="{Binding SuccessMessage}"
                            Foreground="{DynamicResource SuccessForegroundBrush}"

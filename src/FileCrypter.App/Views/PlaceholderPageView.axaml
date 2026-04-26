@@ -6,7 +6,7 @@
     <Border Background="{DynamicResource SurfaceBackgroundBrush}"
             BorderBrush="{DynamicResource SurfaceBorderBrush}"
             BorderThickness="1"
-            CornerRadius="8"
+            CornerRadius="{StaticResource ControlCornerRadius}"
             Padding="32"
             MaxWidth="900"
             HorizontalAlignment="Stretch">
