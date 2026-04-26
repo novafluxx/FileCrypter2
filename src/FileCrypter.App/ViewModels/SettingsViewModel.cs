@@ -126,7 +126,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
     {
         FileCrypterThemePreference.Light => "FileCrypter stays in light mode until you change this setting again.",
         FileCrypterThemePreference.Dark => "FileCrypter stays in dark mode until you change this setting again.",
-        _ => "FileCrypter follows the platform's default light or dark appearance when Avalonia can detect it.",
+        _ => "FileCrypter follows the platform's default light or dark appearance.",
     };
 
     public string CompressionDefaultDescription => EnableCompressionByDefault

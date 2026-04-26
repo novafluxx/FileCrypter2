@@ -1,21 +1,9 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace FileCrypter.Core.Settings;
 
 public sealed class FileCrypterSettingsStore
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true,
-        Converters =
-        {
-            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
-        },
-    };
-
     private readonly string settingsPath;
 
     public FileCrypterSettingsStore(string? settingsPath = null)
@@ -42,7 +30,7 @@ public sealed class FileCrypterSettingsStore
                 bufferSize: 4096,
                 FileOptions.SequentialScan);
             FileCrypterSettings? settings = await JsonSerializer
-                .DeserializeAsync<FileCrypterSettings>(input, SerializerOptions, cancellationToken)
+                .DeserializeAsync(input, FileCrypterSettingsJsonContext.Default.FileCrypterSettings, cancellationToken)
                 .ConfigureAwait(false);
             return (settings ?? new FileCrypterSettings()).Normalize();
         }
@@ -76,7 +64,7 @@ public sealed class FileCrypterSettingsStore
                 FileOptions.SequentialScan))
             {
                 await JsonSerializer
-                    .SerializeAsync(output, settings, SerializerOptions, cancellationToken)
+                    .SerializeAsync(output, settings, FileCrypterSettingsJsonContext.Default.FileCrypterSettings, cancellationToken)
                     .ConfigureAwait(false);
             }
 
