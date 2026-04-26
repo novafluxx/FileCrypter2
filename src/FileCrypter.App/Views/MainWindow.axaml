@@ -23,11 +23,7 @@
                          Stretch="Uniform">
                     <Path Classes="nav-item-icon"
                           Data="{Binding IconPathData}"
-                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
-                          StrokeThickness="1.5"
-                          StrokeLineCap="Round"
-                          StrokeJoin="Round"
-                          Fill="Transparent" />
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
                 </Viewbox>
                 <TextBlock Text="{Binding Title}"
                            VerticalAlignment="Center"
