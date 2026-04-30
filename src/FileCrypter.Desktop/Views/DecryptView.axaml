@@ -187,15 +187,10 @@
                         </Expander.Header>
                         <StackPanel Margin="0,14,0,0"
                                     Spacing="14">
-                            <Grid>
-                                <TextBox Text="{Binding Password}"
-                                         PasswordChar="*"
-                                         PlaceholderText="Enter the original password"
-                                         IsVisible="{Binding ShowMaskedPasswordInput}" />
-                                <TextBox Text="{Binding Password}"
-                                         PlaceholderText="Enter the original password"
-                                         IsVisible="{Binding ShowPassword}" />
-                            </Grid>
+                            <TextBox Text="{Binding Password}"
+                                     PasswordChar="*"
+                                     RevealPassword="{Binding ShowPassword}"
+                                     PlaceholderText="Enter the original password" />
                             <TextBlock Text="Compressed files are decompressed automatically after authenticated decryption."
                                        Foreground="{DynamicResource SectionLabelForegroundBrush}"
                                        TextWrapping="Wrap" />

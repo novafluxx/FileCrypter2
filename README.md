@@ -67,20 +67,22 @@ dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- --help
 General command shape:
 
 ```text
-filecrypter encrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path> | --generate-key-file <path>] [--compress] [--overwrite]
-filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
-filecrypter batch-encrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
-filecrypter batch-decrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
-filecrypter archive-encrypt <output-archive-or-directory> <input>... [--archive-name <name>] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
-filecrypter archive-decrypt <input-archive> <output-directory> [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+filecrypter encrypt <input> [output] [--password-stdin | --password <password>] [--key-file <path> | --generate-key-file <path>] [--compress] [--overwrite]
+filecrypter decrypt <input> [output] [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+filecrypter batch-encrypt <output-directory> <input>... [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+filecrypter batch-decrypt <output-directory> <input>... [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+filecrypter archive-encrypt <output-archive-or-directory> <input>... [--archive-name <name>] [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+filecrypter archive-decrypt <input-archive> <output-directory> [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
 filecrypter settings show
 filecrypter settings set compression-default <on|off>
 ```
 
+If no password option is supplied, the CLI prompts interactively without echoing the password. For automation, pipe one password line to `--password-stdin`. Avoid `--password <password>` when possible because command-line arguments can be exposed through shell history, process listings, logs, terminal scrollback, and crash reports; FileCrypter prints a warning when it is used.
+
 When using `dotnet run`, put the FileCrypter arguments after `--`:
 
 ```bash
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- encrypt <input> [output] --password <password>
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- encrypt <input> [output] --password-stdin
 ```
 
 ## Quick Smoke Tests
@@ -90,13 +92,13 @@ Single-file round trip:
 ```bash
 printf "hello from FileCrypter\n" > /tmp/filecrypter-demo.txt
 
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
   encrypt /tmp/filecrypter-demo.txt /tmp/filecrypter-demo.txt.encrypted \
-  --password demo --overwrite
+  --password-stdin --overwrite
 
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
   decrypt /tmp/filecrypter-demo.txt.encrypted /tmp/filecrypter-demo-restored.txt \
-  --password demo --overwrite
+  --password-stdin --overwrite
 
 cmp /tmp/filecrypter-demo.txt /tmp/filecrypter-demo-restored.txt
 ```
@@ -104,21 +106,21 @@ cmp /tmp/filecrypter-demo.txt /tmp/filecrypter-demo-restored.txt
 Compressed single-file encryption:
 
 ```bash
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
   encrypt /tmp/filecrypter-demo.txt /tmp/filecrypter-demo.compressed.encrypted \
-  --password demo --compress --overwrite
+  --password-stdin --compress --overwrite
 ```
 
 Generated key-file round trip:
 
 ```bash
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
   encrypt /tmp/filecrypter-demo.txt /tmp/filecrypter-demo.keyed.encrypted \
-  --password demo --generate-key-file /tmp/filecrypter-demo.key --overwrite
+  --password-stdin --generate-key-file /tmp/filecrypter-demo.key --overwrite
 
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
   decrypt /tmp/filecrypter-demo.keyed.encrypted /tmp/filecrypter-demo-keyed-restored.txt \
-  --password demo --key-file /tmp/filecrypter-demo.key --overwrite
+  --password-stdin --key-file /tmp/filecrypter-demo.key --overwrite
 
 cmp /tmp/filecrypter-demo.txt /tmp/filecrypter-demo-keyed-restored.txt
 ```
@@ -130,17 +132,17 @@ mkdir -p /tmp/filecrypter-batch/input /tmp/filecrypter-batch/encrypted /tmp/file
 printf "first\n" > /tmp/filecrypter-batch/input/first.txt
 printf "second\n" > /tmp/filecrypter-batch/input/second.txt
 
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
   batch-encrypt /tmp/filecrypter-batch/encrypted \
   /tmp/filecrypter-batch/input/first.txt \
   /tmp/filecrypter-batch/input/second.txt \
-  --password demo
+  --password-stdin
 
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
   batch-decrypt /tmp/filecrypter-batch/restored \
   /tmp/filecrypter-batch/encrypted/first.txt.encrypted \
   /tmp/filecrypter-batch/encrypted/second.txt.encrypted \
-  --password demo
+  --password-stdin
 
 cmp /tmp/filecrypter-batch/input/first.txt /tmp/filecrypter-batch/restored/first.txt
 cmp /tmp/filecrypter-batch/input/second.txt /tmp/filecrypter-batch/restored/second.txt
@@ -153,15 +155,15 @@ mkdir -p /tmp/filecrypter-archive/input /tmp/filecrypter-archive/archives /tmp/f
 printf "first\n" > /tmp/filecrypter-archive/input/first.txt
 printf "second\n" > /tmp/filecrypter-archive/input/second.txt
 
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
   archive-encrypt /tmp/filecrypter-archive/archives \
   /tmp/filecrypter-archive/input/first.txt \
   /tmp/filecrypter-archive/input/second.txt \
-  --archive-name demo --password demo
+  --archive-name demo --password-stdin
 
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
   archive-decrypt /tmp/filecrypter-archive/archives/demo.tar.zst.encrypted \
-  /tmp/filecrypter-archive/restored --password demo
+  /tmp/filecrypter-archive/restored --password-stdin
 
 cmp /tmp/filecrypter-archive/input/first.txt /tmp/filecrypter-archive/restored/first.txt
 cmp /tmp/filecrypter-archive/input/second.txt /tmp/filecrypter-archive/restored/second.txt
@@ -178,6 +180,7 @@ dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set 
 ## Safety Notes
 
 - Keep passwords and key files. FileCrypter cannot recover forgotten passwords or lost or changed key files.
+- Prefer the hidden interactive prompt or `--password-stdin`; `--password <password>` is supported for compatibility but can expose secrets outside FileCrypter.
 - Existing key files are capped at 16 MiB to avoid accidental large-file selection.
 - Original input files are left unchanged.
 - Existing output files are not overwritten unless `--overwrite` is supplied; otherwise FileCrypter auto-renames the new output.

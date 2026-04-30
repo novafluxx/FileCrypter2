@@ -577,6 +577,50 @@ public sealed class FileCrypterTests
     }
 
     [Fact]
+    public async Task EncryptFileAsync_WhenKeyFilePathIsSymbolicLink_ThrowsAndDoesNotCreateOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFileTargetPath = Path.Combine(directory.Path, "filecrypter.key");
+        string keyFileLinkPath = Path.Combine(directory.Path, "filecrypter-link.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        await File.WriteAllBytesAsync(keyFileTargetPath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        if (!TryCreateFileSymbolicLink(keyFileLinkPath, keyFileTargetPath))
+        {
+            return;
+        }
+
+        IOException exception = await Assert.ThrowsAsync<IOException>(
+            () => FileCrypter.EncryptFileAsync(
+                plaintextPath,
+                encryptedPath,
+                Password,
+                keyFileLinkPath,
+                CreateFastOptions()));
+
+        Assert.Contains("symbolic link", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(encryptedPath));
+        Assert.Empty(Directory.GetFiles(directory.Path, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task ReadKeyFileBytesForTestsAsync_WhenReadIsIncomplete_ZeroesAllocatedBuffer()
+    {
+        byte[]? observedFailedReadBuffer = null;
+        using var keyFile = new IncompleteKeyFileReadStream([0xA1, 0xB2], declaredLength: 4);
+
+        IOException exception = await Assert.ThrowsAsync<IOException>(
+            () => FileCrypter.ReadKeyFileBytesForTestsAsync(
+                keyFile,
+                buffer => observedFailedReadBuffer = buffer));
+
+        Assert.Contains("could not be read completely", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(observedFailedReadBuffer);
+        Assert.All(observedFailedReadBuffer, value => Assert.Equal(0, value));
+    }
+
+    [Fact]
     public async Task EncryptFileAsync_WhenOutputExistsWithoutOverwrite_AutoRenamesOutput()
     {
         using var directory = new TemporaryDirectory();
@@ -906,6 +950,12 @@ public sealed class FileCrypterTests
         await FileCrypter.DecryptAsync(encrypted, decrypted, Password, CreateFastOptions());
 
         Assert.Equal(plaintextBytes, decrypted.ToArray());
+    }
+
+    [Fact]
+    public async Task ChunkStreamsDispose_ZeroesInternalBuffers()
+    {
+        Assert.True(await FileCrypter.ChunkStreamBuffersAreZeroedAfterDisposeForTestsAsync());
     }
 
     [Fact]
@@ -1625,6 +1675,84 @@ public sealed class FileCrypterTests
         public void Report(FileCrypterProgress value)
         {
             callback(value);
+        }
+    }
+
+    private sealed class IncompleteKeyFileReadStream : Stream
+    {
+        private readonly byte[] firstReadBytes;
+        private readonly long declaredLength;
+        private bool readFirstBytes;
+        private long position;
+
+        public IncompleteKeyFileReadStream(byte[] firstReadBytes, long declaredLength)
+        {
+            this.firstReadBytes = firstReadBytes;
+            this.declaredLength = declaredLength;
+        }
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => declaredLength;
+
+        public override long Position
+        {
+            get => position;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            return Read(buffer.AsSpan(offset, count));
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            if (readFirstBytes)
+            {
+                return 0;
+            }
+
+            int bytesToCopy = Math.Min(firstReadBytes.Length, buffer.Length);
+            firstReadBytes.AsSpan(0, bytesToCopy).CopyTo(buffer);
+            readFirstBytes = true;
+            position += bytesToCopy;
+            return bytesToCopy;
+        }
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return ValueTask.FromCanceled<int>(cancellationToken);
+            }
+
+            return ValueTask.FromResult(Read(buffer.Span));
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
         }
     }
 

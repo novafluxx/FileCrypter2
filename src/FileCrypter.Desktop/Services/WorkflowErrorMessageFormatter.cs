@@ -4,6 +4,12 @@ namespace FileCrypter.Desktop.Services;
 
 internal static class WorkflowErrorMessageFormatter
 {
+    public const string ClipboardCopyFailureMessage = "Clipboard copy failed.";
+
+    public const string PathRevealFailureMessage = "Could not reveal that path.";
+
+    public const string PickerFailureMessage = "Could not open the file picker.";
+
     public static string GetTroubleshootingMessage(Exception exception)
     {
         if (exception is FileCrypterFormatException formatException)
@@ -26,9 +32,22 @@ internal static class WorkflowErrorMessageFormatter
 
         if (exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            return $"Path error: {exception.Message}";
+            return "FileCrypter could not access one of the selected paths. Check that the file or folder exists and that you have permission to use it.";
         }
 
-        return exception.Message;
+        return "The operation failed. Check the selected files and settings, then try again.";
+    }
+
+    public static string GetSettingsFailureMessage(Exception exception)
+    {
+        return exception is DirectoryNotFoundException
+            ? "Settings error: The default output directory does not exist. Choose an existing folder."
+            : "Settings error: FileCrypter could not save or load settings. Check that the settings file is available and writable.";
+    }
+
+    public static string GetUpdateFailureDetail(Exception exception)
+    {
+        _ = exception;
+        return "The update status could not be refreshed. Check the configured update channel and try again.";
     }
 }

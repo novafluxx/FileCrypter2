@@ -295,7 +295,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
         catch (Exception exception)
         {
-            settingsErrorMessage = $"Settings error: {exception.Message}";
+            settingsErrorMessage = WorkflowErrorMessageFormatter.GetSettingsFailureMessage(exception);
             return new FileCrypterSettings();
         }
     }

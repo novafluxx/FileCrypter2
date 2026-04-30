@@ -86,11 +86,13 @@ public sealed class DecryptViewModelTests
         await viewModel.StartDecryptCommand.ExecuteAsync(null);
 
         Assert.Empty(viewModel.ResultPath);
-        Assert.Equal("secret", viewModel.Password);
+        Assert.Empty(viewModel.Password);
         Assert.True(viewModel.HasError);
         Assert.Contains("Check the password and key file", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("Decryption failed", viewModel.StatusText);
         Assert.Contains("Check the password and key file", viewModel.ProgressText, StringComparison.Ordinal);
+        Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
+        Assert.False(viewModel.ShowReadyAction);
     }
 
     [Fact]
@@ -165,6 +167,62 @@ public sealed class DecryptViewModelTests
         await viewModel.RevealFooterPathCommand.ExecuteAsync(null);
 
         Assert.Equal("/tmp/plain.txt", revealService.LastPath);
+    }
+
+    [Fact]
+    public async Task RevealFooterPathCommand_WhenRevealFails_ShowsSanitizedWarningToast()
+    {
+        var revealService = new RecordingPathRevealService
+        {
+            Result = false,
+        };
+        var workflow = new RecordingWorkflowService
+        {
+            Result = new DecryptFileResult("/tmp/plain.txt"),
+        };
+        var viewModel = new DecryptViewModel(
+            workflow,
+            filePickerService: null,
+            clipboardService: null,
+            pathRevealService: revealService)
+        {
+            SourcePath = "/tmp/plain.txt.encrypted",
+            Password = "secret",
+        };
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
+
+        await viewModel.StartDecryptCommand.ExecuteAsync(null);
+        await viewModel.RevealFooterPathCommand.ExecuteAsync(null);
+
+        Assert.Equal("Could not reveal that path.", viewModel.ProgressText);
+        Assert.NotNull(toast);
+        Assert.Equal(WorkflowToastKind.Warning, toast.Kind);
+        Assert.Equal("Could not reveal that path.", toast.Message);
+    }
+
+    [Fact]
+    public async Task BrowseKeyFileCommand_WhenPickerFails_ShowsSanitizedStatusAndToast()
+    {
+        var picker = new RecordingFilePickerService
+        {
+            OpenException = new InvalidOperationException("native picker crashed at C:/secret/key.file"),
+        };
+        var viewModel = new DecryptViewModel(new RecordingWorkflowService(), picker)
+        {
+            SourcePath = "/tmp/plain.txt.encrypted",
+            Password = "secret",
+        };
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
+
+        await viewModel.BrowseKeyFileCommand.ExecuteAsync(null);
+
+        Assert.Equal("Could not open the file picker.", viewModel.ProgressText);
+        Assert.DoesNotContain("secret", viewModel.ProgressText, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(toast);
+        Assert.Equal(WorkflowToastKind.Warning, toast.Kind);
+        Assert.Equal("Could not open the file picker.", toast.Message);
     }
 
     [Fact]
@@ -457,6 +515,8 @@ public sealed class DecryptViewModelTests
 
         public string? SaveResult { get; init; }
 
+        public Exception? OpenException { get; init; }
+
         public string? LastOpenTitle { get; private set; }
 
         public string? LastSaveTitle { get; private set; }
@@ -466,6 +526,11 @@ public sealed class DecryptViewModelTests
         public Task<string?> PickOpenFileAsync(string title, CancellationToken cancellationToken)
         {
             LastOpenTitle = title;
+            if (OpenException is not null)
+            {
+                return Task.FromException<string?>(OpenException);
+            }
+
             return Task.FromResult(OpenResult);
         }
 

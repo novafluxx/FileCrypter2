@@ -6,10 +6,12 @@ internal sealed class RecordingPathRevealService : IPathRevealService
 {
     public string? LastPath { get; private set; }
 
-    public Task TryRevealPathAsync(string path, CancellationToken cancellationToken)
+    public bool Result { get; init; } = true;
+
+    public Task<bool> TryRevealPathAsync(string path, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         LastPath = path;
-        return Task.CompletedTask;
+        return Task.FromResult(Result);
     }
 }

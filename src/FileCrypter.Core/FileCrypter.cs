@@ -970,9 +970,9 @@ public static class FileCrypter
             throw new IOException("The input path points to a directory.");
         }
 
-        if (IsSymbolicLink(fullInputPath))
+        if (IsSymbolicLinkOrReparsePoint(fullInputPath))
         {
-            throw new IOException("The input path must not be a symbolic link.");
+            throw new IOException("The input path must not be a symbolic link or reparse point.");
         }
     }
 
@@ -1309,9 +1309,9 @@ public static class FileCrypter
             throw new IOException("The key file path points to a directory.");
         }
 
-        if (IsSymbolicLink(fullKeyFilePath))
+        if (IsSymbolicLinkOrReparsePoint(fullKeyFilePath))
         {
-            throw new IOException("The key file path must not be a symbolic link.");
+            throw new IOException("The key file path must not be a symbolic link or reparse point.");
         }
     }
 
@@ -1335,9 +1335,9 @@ public static class FileCrypter
             throw new IOException("The output path points to a directory.");
         }
 
-        if (overwrite && IsSymbolicLink(fullOutputPath))
+        if (overwrite && IsSymbolicLinkOrReparsePoint(fullOutputPath))
         {
-            throw new IOException("The output path must not be a symbolic link.");
+            throw new IOException("The output path must not be a symbolic link or reparse point.");
         }
     }
 
@@ -1418,6 +1418,22 @@ public static class FileCrypter
             bufferSize: 81920,
             FileOptions.SequentialScan);
 
+        return await ReadKeyFileBytesAsync(keyFile, failedReadBufferObserver: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal static Task<byte[]> ReadKeyFileBytesForTestsAsync(
+        Stream keyFile,
+        Action<byte[]>? failedReadBufferObserver,
+        CancellationToken cancellationToken = default)
+    {
+        return ReadKeyFileBytesAsync(keyFile, failedReadBufferObserver, cancellationToken);
+    }
+
+    private static async Task<byte[]> ReadKeyFileBytesAsync(
+        Stream keyFile,
+        Action<byte[]>? failedReadBufferObserver,
+        CancellationToken cancellationToken)
+    {
         if (keyFile.Length > FileCrypterFormatConstants.MaximumKeyFileSizeBytes)
         {
             throw new IOException(
@@ -1425,34 +1441,57 @@ public static class FileCrypter
         }
 
         byte[] keyFileBytes = new byte[checked((int)keyFile.Length)];
-        int bytesRead = await ReadChunkAsync(keyFile, keyFileBytes, cancellationToken).ConfigureAwait(false);
-        if (bytesRead != keyFileBytes.Length)
-        {
-            throw new IOException("The key file could not be read completely.");
-        }
-
         byte[] trailingByte = new byte[1];
-        int trailingBytesRead = await keyFile.ReadAsync(trailingByte, cancellationToken).ConfigureAwait(false);
-        if (trailingBytesRead != 0)
-        {
-            CryptographicOperations.ZeroMemory(keyFileBytes);
-            throw new IOException(
-                $"The key file is too large. The maximum supported key file size is {FileCrypterFormatConstants.MaximumKeyFileSizeBytes} bytes.");
-        }
+        bool completed = false;
 
-        return keyFileBytes;
+        try
+        {
+            int bytesRead = await ReadChunkAsync(keyFile, keyFileBytes, cancellationToken).ConfigureAwait(false);
+            if (bytesRead != keyFileBytes.Length)
+            {
+                throw new IOException("The key file could not be read completely.");
+            }
+
+            int trailingBytesRead = await keyFile.ReadAsync(trailingByte, cancellationToken).ConfigureAwait(false);
+            if (trailingBytesRead != 0)
+            {
+                throw new IOException(
+                    $"The key file is too large. The maximum supported key file size is {FileCrypterFormatConstants.MaximumKeyFileSizeBytes} bytes.");
+            }
+
+            completed = true;
+            return keyFileBytes;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(trailingByte);
+
+            if (!completed)
+            {
+                CryptographicOperations.ZeroMemory(keyFileBytes);
+                failedReadBufferObserver?.Invoke(keyFileBytes);
+            }
+        }
     }
 
-    private static bool IsSymbolicLink(string path)
+    private static bool IsSymbolicLinkOrReparsePoint(string path)
     {
-        var fileInfo = new FileInfo(path);
-        if (fileInfo.LinkTarget is not null)
+        return IsSymbolicLinkOrReparsePoint(new FileInfo(path)) ||
+            IsSymbolicLinkOrReparsePoint(new DirectoryInfo(path));
+    }
+
+    private static bool IsSymbolicLinkOrReparsePoint(FileSystemInfo fileSystemInfo)
+    {
+        try
+        {
+            return fileSystemInfo.LinkTarget is not null ||
+                (fileSystemInfo.Exists && (fileSystemInfo.Attributes & FileAttributes.ReparsePoint) != 0);
+        }
+        catch (Exception exception) when (
+            exception is FileNotFoundException or DirectoryNotFoundException or IOException or UnauthorizedAccessException)
         {
             return true;
         }
-
-        var directoryInfo = new DirectoryInfo(path);
-        return directoryInfo.LinkTarget is not null;
     }
 
     private static void ValidateEncryptionOptions(FileCrypterOptions options)
@@ -1551,7 +1590,7 @@ public static class FileCrypter
 
     private static bool PathExistsOrSymbolicLink(string path)
     {
-        return File.Exists(path) || Directory.Exists(path) || IsSymbolicLink(path);
+        return File.Exists(path) || Directory.Exists(path) || IsSymbolicLinkOrReparsePoint(path);
     }
 
     private static string ResolvePathForCollision(string fullPath)
@@ -1924,6 +1963,83 @@ public static class FileCrypter
         BinaryPrimitives.WriteUInt16LittleEndian(destination.Slice(6, sizeof(ushort)), 0);
     }
 
+    internal static async Task<bool> ChunkStreamBuffersAreZeroedAfterDisposeForTestsAsync()
+    {
+        FileCrypterOptions options = new()
+        {
+            ChunkSize = (int)FileCrypterFormatConstants.MinimumChunkSize,
+            Argon2MemoryKiB = (int)FileCrypterFormatConstants.MinimumArgon2MemoryKiB,
+            Argon2Iterations = (int)FileCrypterFormatConstants.MinimumArgon2Iterations,
+            Argon2Parallelism = (int)FileCrypterFormatConstants.MinimumArgon2Parallelism,
+        };
+        byte[] headerBytes = new byte[FileCrypterFormatConstants.HeaderLength];
+        byte[] salt = Enumerable.Range(1, FileCrypterFormatConstants.SaltLength).Select(value => (byte)value).ToArray();
+        byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
+        byte[] key = Enumerable.Range(201, 32).Select(value => (byte)value).ToArray();
+        byte[] plaintext = [0x64, 0x69, 0x73, 0x70, 0x6F, 0x73, 0x65, 0x20, 0x7A, 0x65, 0x72, 0x6F];
+
+        try
+        {
+            FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, options, salt, noncePrefix);
+            FileCrypterHeader header = FileCrypterHeaderParser.Parse(headerBytes);
+            using var encryptedChunks = new MemoryStream();
+
+            using (var encryptorAesGcm = new AesGcm(key, FileCrypterFormatConstants.AesGcmTagLength))
+            {
+                var chunkWriter = new ChunkEncryptingStream(encryptedChunks, headerBytes, header, encryptorAesGcm, options);
+                chunkWriter.Write(plaintext);
+                await chunkWriter.CompleteAsync(CancellationToken.None).ConfigureAwait(false);
+
+                byte[][] writerBuffers = chunkWriter.SensitiveBuffersForTests();
+                chunkWriter.Dispose();
+
+                if (!AllBuffersAreZero(writerBuffers))
+                {
+                    return false;
+                }
+            }
+
+            encryptedChunks.Position = 0;
+            byte[] decrypted = new byte[plaintext.Length];
+            using (var decryptorAesGcm = new AesGcm(key, FileCrypterFormatConstants.AesGcmTagLength))
+            {
+                var chunkReader = new ChunkDecryptingStream(encryptedChunks, headerBytes, header, decryptorAesGcm, options);
+                int bytesRead = await chunkReader.ReadAsync(decrypted, CancellationToken.None).ConfigureAwait(false);
+
+                byte[][] readerBuffers = chunkReader.SensitiveBuffersForTests();
+                chunkReader.Dispose();
+
+                return bytesRead == plaintext.Length &&
+                    decrypted.SequenceEqual(plaintext) &&
+                    AllBuffersAreZero(readerBuffers);
+            }
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(headerBytes);
+            CryptographicOperations.ZeroMemory(salt);
+            CryptographicOperations.ZeroMemory(noncePrefix);
+            CryptographicOperations.ZeroMemory(key);
+            CryptographicOperations.ZeroMemory(plaintext);
+        }
+    }
+
+    private static bool AllBuffersAreZero(IEnumerable<byte[]> buffers)
+    {
+        foreach (byte[] buffer in buffers)
+        {
+            foreach (byte value in buffer)
+            {
+                if (value != 0)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     private sealed class ChunkEncryptingStream : Stream
     {
         private readonly Stream output;
@@ -1942,6 +2058,7 @@ public static class FileCrypter
         private long inputBytes;
         private long outputBytes;
         private bool completed;
+        private bool disposed;
 
         public ChunkEncryptingStream(
             Stream output,
@@ -1965,7 +2082,7 @@ public static class FileCrypter
 
         public override bool CanSeek => false;
 
-        public override bool CanWrite => !completed;
+        public override bool CanWrite => !completed && !disposed;
 
         public override long Length => throw new NotSupportedException();
 
@@ -1977,6 +2094,8 @@ public static class FileCrypter
 
         public async ValueTask CompleteAsync(CancellationToken cancellationToken)
         {
+            ThrowIfDisposed();
+
             if (completed)
             {
                 return;
@@ -1987,13 +2106,28 @@ public static class FileCrypter
             completed = true;
         }
 
+        internal byte[][] SensitiveBuffersForTests()
+        {
+            return
+            [
+                plaintextBuffer,
+                ciphertextBuffer,
+                tag,
+                prefix,
+                nonce,
+                associatedData,
+            ];
+        }
+
         public override void Flush()
         {
+            ThrowIfDisposed();
             output.Flush();
         }
 
         public override Task FlushAsync(CancellationToken cancellationToken)
         {
+            ThrowIfDisposed();
             return output.FlushAsync(cancellationToken);
         }
 
@@ -2121,6 +2255,32 @@ public static class FileCrypter
             {
                 throw new ObjectDisposedException(nameof(ChunkEncryptingStream));
             }
+
+            ThrowIfDisposed();
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (disposed)
+            {
+                throw new ObjectDisposedException(nameof(ChunkEncryptingStream));
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (!disposed)
+            {
+                CryptographicOperations.ZeroMemory(plaintextBuffer);
+                CryptographicOperations.ZeroMemory(ciphertextBuffer);
+                CryptographicOperations.ZeroMemory(tag);
+                CryptographicOperations.ZeroMemory(prefix);
+                CryptographicOperations.ZeroMemory(nonce);
+                CryptographicOperations.ZeroMemory(associatedData);
+                disposed = true;
+            }
+
+            base.Dispose(disposing);
         }
     }
 
@@ -2144,6 +2304,7 @@ public static class FileCrypter
         private long inputBytes;
         private long outputBytes;
         private bool completed;
+        private bool disposed;
 
         public ChunkDecryptingStream(
             Stream input,
@@ -2164,7 +2325,7 @@ public static class FileCrypter
             header.NoncePrefix.CopyTo(nonce);
         }
 
-        public override bool CanRead => true;
+        public override bool CanRead => !disposed;
 
         public override bool CanSeek => false;
 
@@ -2180,6 +2341,21 @@ public static class FileCrypter
 
         public override void Flush()
         {
+            ThrowIfDisposed();
+        }
+
+        internal byte[][] SensitiveBuffersForTests()
+        {
+            return
+            [
+                prefix,
+                nonce,
+                associatedData,
+                trailingByte,
+                ciphertextBuffer,
+                plaintextBuffer,
+                tag,
+            ];
         }
 
         public override int Read(byte[] buffer, int offset, int count)
@@ -2193,6 +2369,8 @@ public static class FileCrypter
             {
                 return 0;
             }
+
+            ThrowIfDisposed();
 
             if (!EnsurePlaintextAvailable())
             {
@@ -2213,6 +2391,8 @@ public static class FileCrypter
             {
                 return 0;
             }
+
+            ThrowIfDisposed();
 
             if (!await EnsurePlaintextAvailableAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -2415,6 +2595,31 @@ public static class FileCrypter
                     FileCrypterFormatErrorCode.TrailingData,
                     "The FileCrypter payload contains trailing data after the final chunk.");
             }
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (disposed)
+            {
+                throw new ObjectDisposedException(nameof(ChunkDecryptingStream));
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (!disposed)
+            {
+                CryptographicOperations.ZeroMemory(prefix);
+                CryptographicOperations.ZeroMemory(nonce);
+                CryptographicOperations.ZeroMemory(associatedData);
+                CryptographicOperations.ZeroMemory(trailingByte);
+                CryptographicOperations.ZeroMemory(ciphertextBuffer);
+                CryptographicOperations.ZeroMemory(plaintextBuffer);
+                CryptographicOperations.ZeroMemory(tag);
+                disposed = true;
+            }
+
+            base.Dispose(disposing);
         }
     }
 

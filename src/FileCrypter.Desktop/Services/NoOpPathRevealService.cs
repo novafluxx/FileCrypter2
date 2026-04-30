@@ -2,9 +2,9 @@ namespace FileCrypter.Desktop.Services;
 
 public sealed class NoOpPathRevealService : IPathRevealService
 {
-    public Task TryRevealPathAsync(string path, CancellationToken cancellationToken)
+    public Task<bool> TryRevealPathAsync(string path, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 }

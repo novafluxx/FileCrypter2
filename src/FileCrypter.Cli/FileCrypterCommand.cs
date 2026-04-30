@@ -51,17 +51,21 @@ internal sealed class FileCrypterCommand
         {
             return WriteFormatError(args[0], exception);
         }
-        catch (InvalidDataException exception)
+        catch (InvalidDataException)
         {
-            return WriteSettingsError(exception.Message);
+            return WriteSettingsError();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return WritePathError(exception.Message);
+            return WritePathError(exception);
         }
         catch (ArgumentException exception)
         {
-            return WritePathError(exception.Message);
+            return WritePathError(exception);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException or PlatformNotSupportedException)
+        {
+            return WriteOperationError();
         }
     }
 
@@ -92,6 +96,7 @@ internal sealed class FileCrypterCommand
                     }
 
                     password = args[index];
+                    WritePasswordArgumentWarning();
                     break;
 
                 case "--password-stdin":
@@ -167,7 +172,16 @@ internal sealed class FileCrypterCommand
 
         if (!File.Exists(inputPath))
         {
-            return WriteError($"Input file does not exist: {inputPath}");
+            return WritePathError("The input file does not exist.");
+        }
+
+        if (keyFilePath is not null)
+        {
+            int keyFileValidationResult = ValidateExistingKeyFilePath(keyFilePath);
+            if (keyFileValidationResult != 0)
+            {
+                return keyFileValidationResult;
+            }
         }
 
         outputPath ??= encrypt ? inputPath + DefaultEncryptedSuffix : GetDefaultDecryptedPath(inputPath);
@@ -267,6 +281,7 @@ internal sealed class FileCrypterCommand
                     }
 
                     password = args[index];
+                    WritePasswordArgumentWarning();
                     break;
 
                 case "--password-stdin":
@@ -318,6 +333,15 @@ internal sealed class FileCrypterCommand
         if (string.IsNullOrEmpty(password))
         {
             return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
+        }
+
+        if (keyFilePath is not null)
+        {
+            int keyFileValidationResult = ValidateExistingKeyFilePath(keyFilePath);
+            if (keyFileValidationResult != 0)
+            {
+                return keyFileValidationResult;
+            }
         }
 
         FileCrypterBatchResult result = encrypt
@@ -395,6 +419,7 @@ internal sealed class FileCrypterCommand
                     }
 
                     password = args[index];
+                    WritePasswordArgumentWarning();
                     break;
 
                 case "--password-stdin":
@@ -450,6 +475,15 @@ internal sealed class FileCrypterCommand
         if (string.IsNullOrEmpty(password))
         {
             return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
+        }
+
+        if (keyFilePath is not null)
+        {
+            int keyFileValidationResult = ValidateExistingKeyFilePath(keyFilePath);
+            if (keyFileValidationResult != 0)
+            {
+                return keyFileValidationResult;
+            }
         }
 
         if (Directory.Exists(outputArchivePath))
@@ -517,6 +551,7 @@ internal sealed class FileCrypterCommand
                     }
 
                     password = args[index];
+                    WritePasswordArgumentWarning();
                     break;
 
                 case "--password-stdin":
@@ -551,6 +586,15 @@ internal sealed class FileCrypterCommand
         if (string.IsNullOrEmpty(password))
         {
             return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
+        }
+
+        if (keyFilePath is not null)
+        {
+            int keyFileValidationResult = ValidateExistingKeyFilePath(keyFilePath);
+            if (keyFileValidationResult != 0)
+            {
+                return keyFileValidationResult;
+            }
         }
 
         FileCrypterOptions archiveOptions = CreateArchiveOptionsWithProgress();
@@ -668,6 +712,37 @@ internal sealed class FileCrypterCommand
             : StringComparison.Ordinal;
 
         return string.Equals(left, right, comparison);
+    }
+
+    private int ValidateExistingKeyFilePath(string keyFilePath)
+    {
+        string fullKeyFilePath;
+        try
+        {
+            fullKeyFilePath = Path.GetFullPath(keyFilePath);
+        }
+        catch (Exception exception) when (exception is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return WritePathError("The key file path is invalid or inaccessible.");
+        }
+
+        string? keyFileDirectory = Path.GetDirectoryName(fullKeyFilePath);
+        if (!string.IsNullOrEmpty(keyFileDirectory) && !Directory.Exists(keyFileDirectory))
+        {
+            return WritePathError("The key file directory does not exist.");
+        }
+
+        if (Directory.Exists(fullKeyFilePath))
+        {
+            return WritePathError("The key file path points to a directory.");
+        }
+
+        if (!File.Exists(fullKeyFilePath))
+        {
+            return WritePathError("The key file does not exist.");
+        }
+
+        return 0;
     }
 
     private (FileCrypterOptions Options, CliProgressReporter Reporter) CreateTransformOptionsWithProgress(
@@ -882,10 +957,73 @@ internal sealed class FileCrypterCommand
         return 1;
     }
 
-    private int WriteSettingsError(string message)
+    private int WritePathError(Exception exception)
     {
-        console.Error.WriteLine($"Settings error: {message}");
+        return WritePathError(GetSafePathErrorMessage(exception));
+    }
+
+    private static string GetSafePathErrorMessage(Exception exception)
+    {
+        if (exception is FileNotFoundException)
+        {
+            return "The input file does not exist.";
+        }
+
+        if (exception is DirectoryNotFoundException)
+        {
+            return "The output directory does not exist.";
+        }
+
+        if (exception is UnauthorizedAccessException)
+        {
+            return "FileCrypter does not have permission to access one of the requested paths.";
+        }
+
+        string message = StripArgumentParameterSuffix(exception.Message);
+        return IsSafePathErrorMessage(message)
+            ? message
+            : "FileCrypter could not access one of the requested paths.";
+    }
+
+    private static string StripArgumentParameterSuffix(string message)
+    {
+        int parameterIndex = message.IndexOf(" (Parameter '", StringComparison.Ordinal);
+        return parameterIndex >= 0 ? message[..parameterIndex] : message;
+    }
+
+    private static bool IsSafePathErrorMessage(string message)
+    {
+        return message is
+            "The input and output paths must be different." or
+            "The key file and output paths must be different." or
+            "The input path points to a directory." or
+            "The input path must not be a symbolic link or reparse point." or
+            "The input path must include a file name." or
+            "The batch output directory path points to a file." or
+            "The key file path points to a directory." or
+            "The key file path must not be a symbolic link or reparse point." or
+            "The key file could not be read completely." or
+            "The output path must include a file name." or
+            "The output path points to a directory." or
+            "The output path must not be a symbolic link or reparse point." or
+            "At least one input file is required." or
+            "No available archive entry name could be found." or
+            "No available auto-renamed output path could be found." ||
+            message.StartsWith("A single batch run supports up to ", StringComparison.Ordinal) ||
+            message.StartsWith("The key file is too large.", StringComparison.Ordinal);
+    }
+
+    private int WriteSettingsError()
+    {
+        console.Error.WriteLine("Settings error: FileCrypter could not read or write the local settings file.");
         console.Error.WriteLine("Run 'filecrypter settings set compression-default on' or 'off' to recreate the settings file.");
+        return 1;
+    }
+
+    private int WriteOperationError()
+    {
+        console.Error.WriteLine("Operation error: FileCrypter could not complete the requested operation.");
+        console.Error.WriteLine("Try again with accessible input and output paths, or use --help to verify the command shape.");
         return 1;
     }
 
@@ -895,13 +1033,23 @@ internal sealed class FileCrypterCommand
         FileCrypterFormatException? formatError = exception as FileCrypterFormatException;
         string message = formatError is not null
             ? $"{formatError.Message} ({formatError.Code})"
-            : exception.Message;
+            : GetSafePathErrorMessage(exception);
         console.Error.WriteLine($"Failed: {item.InputPath}");
         console.Error.WriteLine(message);
         if (formatError is not null)
         {
             console.Error.WriteLine(GetFormatTroubleshootingHint(command, formatError.Code));
         }
+        else
+        {
+            console.Error.WriteLine("Check that this input path is a file you can access and that the output directory already exists.");
+        }
+    }
+
+    private void WritePasswordArgumentWarning()
+    {
+        console.Error.WriteLine(
+            "Warning: --password can expose secrets in shell history or process listings. Prefer the hidden prompt or --password-stdin.");
     }
 
     private void WriteUsage()
@@ -909,16 +1057,18 @@ internal sealed class FileCrypterCommand
         console.Out.WriteLine(
             """
             Usage:
-              filecrypter encrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path> | --generate-key-file <path>] [--compress] [--overwrite]
-              filecrypter decrypt <input> [output] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
-              filecrypter batch-encrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
-              filecrypter batch-decrypt <output-directory> <input>... [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
-              filecrypter archive-encrypt <output-archive-or-directory> <input>... [--archive-name <name>] [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
-              filecrypter archive-decrypt <input-archive> <output-directory> [--password <password> | --password-stdin] [--key-file <path>] [--overwrite]
+              filecrypter encrypt <input> [output] [--password-stdin | --password <password>] [--key-file <path> | --generate-key-file <path>] [--compress] [--overwrite]
+              filecrypter decrypt <input> [output] [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+              filecrypter batch-encrypt <output-directory> <input>... [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+              filecrypter batch-decrypt <output-directory> <input>... [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+              filecrypter archive-encrypt <output-archive-or-directory> <input>... [--archive-name <name>] [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+              filecrypter archive-decrypt <input-archive> <output-directory> [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
               filecrypter settings show
               filecrypter settings set compression-default <on|off>
 
             If no password option is supplied, FileCrypter prompts without echoing the password when run interactively.
+            For automation, pipe one password line to --password-stdin. Avoid --password when possible because command-line
+            arguments can be exposed through shell history, process listings, logs, terminal scrollback, and crash reports.
             If output is omitted, encryption appends .encrypted and decryption removes .encrypted when present.
             Use --compress during encryption to reduce compatible payloads before encryption. Decryption detects compressed files automatically.
             Set compression-default on to compress single-file encryption by default.

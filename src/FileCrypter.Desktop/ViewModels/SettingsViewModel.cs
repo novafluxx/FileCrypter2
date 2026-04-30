@@ -252,13 +252,26 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
             return;
         }
 
-        string? selectedPath = await filePickerService.PickOpenFolderAsync(
-            "Choose default output directory",
-            CancellationToken.None);
-        if (!string.IsNullOrWhiteSpace(selectedPath))
+        try
         {
-            saveDefaultOutputDirectoryImmediately = true;
-            DefaultOutputDirectory = NormalizeDirectoryValue(Path.GetFullPath(selectedPath));
+            string? selectedPath = await filePickerService.PickOpenFolderAsync(
+                "Choose default output directory",
+                CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                saveDefaultOutputDirectoryImmediately = true;
+                DefaultOutputDirectory = NormalizeDirectoryValue(Path.GetFullPath(selectedPath));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            _ = exception;
+            ErrorMessage = WorkflowErrorMessageFormatter.PickerFailureMessage;
+            StatusText = "Ready";
+            ProgressText = WorkflowErrorMessageFormatter.PickerFailureMessage;
         }
     }
 
@@ -432,7 +445,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
         }
         catch (Exception exception)
         {
-            ErrorMessage = $"Settings error: {exception.Message}";
+            ErrorMessage = WorkflowErrorMessageFormatter.GetSettingsFailureMessage(exception);
             StatusText = "Ready";
             ProgressText = "Settings update failed.";
         }
@@ -459,7 +472,7 @@ public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusVi
             invalidateInFlightSave: true,
             restoreLastSavedSettings: restorePersistedSettingsAfterFailure);
         ApplyPersistedSettings(lastSavedSettings, notifySettingsSaved: false);
-        ErrorMessage = $"Settings error: {exception.Message}";
+        ErrorMessage = WorkflowErrorMessageFormatter.GetSettingsFailureMessage(exception);
         SuccessMessage = string.Empty;
         StatusText = "Ready";
         ProgressText = "Settings update failed.";

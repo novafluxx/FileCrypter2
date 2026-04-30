@@ -6,9 +6,11 @@ FileCrypter v1 uses AES-256-GCM with a 16-byte Argon2id salt, an 8-byte per-file
 
 Argon2id parameters are bounded on both encryption and decryption. Memory must be `19456..1048576` KiB, iterations must be `2..64`, and parallelism must be `1..16`. Headers outside those ranges are rejected before key derivation.
 
-Staged output files are created with private permissions: Unix uses `0600`, and Windows creates files with an explicit ACL for the current user. Settings writes reject symlinked destinations before replacing `settings.json`.
+Staged output files are created with private permissions: Unix uses `0600`, and Windows creates files with an explicit ACL for the current user. Input, key-file, and overwrite-output paths reject BCL-detectable symbolic links and reparse points before use.
+
+Chunk encryption/decryption streams zero their internal plaintext, ciphertext, tag, nonce, prefix, and AAD buffers on disposal. Key-file byte arrays are zeroed after use, and failed key-file reads zero any allocated key-file buffer before surfacing the read error.
 
 ## Accepted Residual Risks
 
-- Path validation still has a bounded TOCTOU window between pre-open symlink/path checks and later `FileStream` opens. Users should choose input, key-file, output, and settings paths inside directories they control. Output staging still uses randomized `CreateNew` temp files and final moves to reduce pre-existing symlink attacks.
+- Path validation still has a bounded TOCTOU window between BCL pre-open symlink/reparse checks and later `FileStream` opens. The current implementation intentionally avoids native interop, so it does not use platform-specific atomic no-follow/open-by-handle APIs. Users should choose input, key-file, output, and settings paths inside directories they control. Output staging still uses randomized `CreateNew` temp files and final moves to reduce pre-existing symlink attacks.
 - Passwords are accepted as `string` values. The core zeroes UTF-8 password byte copies, credential preimages, derived keys, and key-file buffers, but the original managed `string` cannot be reliably zeroed on the .NET heap.

@@ -4,77 +4,79 @@ namespace FileCrypter.Desktop.Services;
 
 public sealed class DesktopPathRevealService : IPathRevealService
 {
-    public Task TryRevealPathAsync(string path, CancellationToken cancellationToken)
+    public Task<bool> TryRevealPathAsync(string path, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         if (string.IsNullOrWhiteSpace(path))
         {
-            return Task.CompletedTask;
+            return Task.FromResult(false);
         }
 
         try
         {
             string fullPath = Path.GetFullPath(path);
 
-            if (OperatingSystem.IsWindows())
-            {
-                RevealOnWindows(fullPath);
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                RevealOnMac(fullPath);
-            }
-            else
-            {
-                RevealOnLinux(fullPath);
-            }
+            bool revealed = OperatingSystem.IsWindows()
+                ? RevealOnWindows(fullPath)
+                : OperatingSystem.IsMacOS()
+                    ? RevealOnMac(fullPath)
+                    : RevealOnLinux(fullPath);
+
+            return Task.FromResult(revealed);
         }
         catch
         {
-            // Reveal is best-effort. Keep failures quiet so the workflow status stays focused.
+            return Task.FromResult(false);
         }
-
-        return Task.CompletedTask;
     }
 
-    private static void RevealOnWindows(string fullPath)
+    private static bool RevealOnWindows(string fullPath)
     {
         if (File.Exists(fullPath))
         {
             StartProcess("explorer.exe", $"/select,\"{fullPath}\"");
-            return;
+            return true;
         }
 
         string targetDirectory = ResolveDirectoryTarget(fullPath);
         if (!string.IsNullOrWhiteSpace(targetDirectory))
         {
             StartProcess("explorer.exe", $"\"{targetDirectory}\"");
+            return true;
         }
+
+        return false;
     }
 
-    private static void RevealOnMac(string fullPath)
+    private static bool RevealOnMac(string fullPath)
     {
         if (File.Exists(fullPath))
         {
             StartProcess("open", $"-R \"{fullPath}\"");
-            return;
+            return true;
         }
 
         string targetDirectory = ResolveDirectoryTarget(fullPath);
         if (!string.IsNullOrWhiteSpace(targetDirectory))
         {
             StartProcess("open", $"\"{targetDirectory}\"");
+            return true;
         }
+
+        return false;
     }
 
-    private static void RevealOnLinux(string fullPath)
+    private static bool RevealOnLinux(string fullPath)
     {
         string targetDirectory = ResolveDirectoryTarget(fullPath);
         if (!string.IsNullOrWhiteSpace(targetDirectory))
         {
             StartProcess("xdg-open", $"\"{targetDirectory}\"");
+            return true;
         }
+
+        return false;
     }
 
     private static string ResolveDirectoryTarget(string fullPath)

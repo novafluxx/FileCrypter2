@@ -197,15 +197,10 @@
                         </Expander.Header>
                         <StackPanel Margin="0,14,0,0"
                                     Spacing="14">
-                            <Grid>
-                                <TextBox Text="{Binding Password}"
-                                         PasswordChar="*"
-                                         PlaceholderText="Enter a passphrase"
-                                         IsVisible="{Binding ShowMaskedPasswordInput}" />
-                                <TextBox Text="{Binding Password}"
-                                         PlaceholderText="Enter a passphrase"
-                                         IsVisible="{Binding ShowPassword}" />
-                            </Grid>
+                            <TextBox Text="{Binding Password}"
+                                     PasswordChar="*"
+                                     RevealPassword="{Binding ShowPassword}"
+                                     PlaceholderText="Enter a passphrase" />
 
                             <StackPanel Spacing="6">
                                 <ProgressBar Classes="aurora-progress"

@@ -400,12 +400,22 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             return;
         }
 
-        string? selectedPath = await filePickerService.PickOpenFileAsync(
-            "Choose a file to encrypt",
-            CancellationToken.None);
-        if (!string.IsNullOrWhiteSpace(selectedPath))
+        try
         {
-            SourcePath = Path.GetFullPath(selectedPath);
+            string? selectedPath = await filePickerService.PickOpenFileAsync(
+                "Choose a file to encrypt",
+                CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                SourcePath = Path.GetFullPath(selectedPath);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            HandlePickerFailure(exception);
         }
     }
 
@@ -423,13 +433,23 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             return;
         }
 
-        string? selectedPath = await filePickerService.PickSaveFileAsync(
-            "Choose encrypted output file",
-            GetSuggestedOutputFileName(),
-            CancellationToken.None);
-        if (!string.IsNullOrWhiteSpace(selectedPath))
+        try
         {
-            OutputPath = selectedPath;
+            string? selectedPath = await filePickerService.PickSaveFileAsync(
+                "Choose encrypted output file",
+                GetSuggestedOutputFileName(),
+                CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                OutputPath = selectedPath;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            HandlePickerFailure(exception);
         }
     }
 
@@ -441,12 +461,22 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             return;
         }
 
-        string? selectedPath = await filePickerService.PickOpenFileAsync(
-            "Choose an existing key file",
-            CancellationToken.None);
-        if (!string.IsNullOrWhiteSpace(selectedPath))
+        try
         {
-            KeyFilePath = selectedPath;
+            string? selectedPath = await filePickerService.PickOpenFileAsync(
+                "Choose an existing key file",
+                CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                KeyFilePath = selectedPath;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            HandlePickerFailure(exception);
         }
     }
 
@@ -469,13 +499,23 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             return;
         }
 
-        string? selectedPath = await filePickerService.PickSaveFileAsync(
-            "Choose where to save a new key file",
-            "filecrypter.key",
-            CancellationToken.None);
-        if (!string.IsNullOrWhiteSpace(selectedPath))
+        try
         {
-            GenerateKeyFilePath = selectedPath;
+            string? selectedPath = await filePickerService.PickSaveFileAsync(
+                "Choose where to save a new key file",
+                "filecrypter.key",
+                CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                GenerateKeyFilePath = selectedPath;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            HandlePickerFailure(exception);
         }
     }
 
@@ -550,6 +590,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
                 string message = GetTroubleshootingMessage(exception);
                 ErrorMessage = message;
                 VisibleErrorMessage = message;
+                Password = string.Empty;
                 ProgressText = WorkflowStatusTextFormatter.SummarizeStatusDetail(message);
                 StatusText = "Encryption failed";
                 FooterActionText = string.Empty;
@@ -574,9 +615,13 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     }
 
     [RelayCommand(CanExecute = nameof(CanRevealFooterPath))]
-    private Task RevealFooterPathAsync()
+    private async Task RevealFooterPathAsync()
     {
-        return pathRevealService.TryRevealPathAsync(FooterActionText, CancellationToken.None);
+        bool revealed = await pathRevealService.TryRevealPathAsync(FooterActionText, CancellationToken.None).ConfigureAwait(true);
+        if (!revealed)
+        {
+            ReportPathRevealFailure();
+        }
     }
 
     private bool CanBrowse()
@@ -767,9 +812,13 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             await clipboardService.SetTextAsync(text, CancellationToken.None).ConfigureAwait(true);
             RaiseToast(WorkflowToastKind.Success, "Copied", successMessage);
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            ProgressText = $"Clipboard copy failed: {exception.Message}";
+            ProgressText = WorkflowErrorMessageFormatter.ClipboardCopyFailureMessage;
+            RaiseToast(
+                WorkflowToastKind.Warning,
+                "Copy failed",
+                WorkflowErrorMessageFormatter.ClipboardCopyFailureMessage);
         }
     }
 
@@ -790,6 +839,22 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private void RaiseToast(WorkflowToastKind kind, string title, string message, string detail = "")
     {
         ToastNotificationRequested?.Invoke(this, new WorkflowToastNotification(kind, title, message, detail));
+    }
+
+    private void HandlePickerFailure(Exception exception)
+    {
+        _ = exception;
+        string message = WorkflowErrorMessageFormatter.PickerFailureMessage;
+        ProgressText = message;
+        StatusText = "Ready";
+        RaiseToast(WorkflowToastKind.Warning, "Picker unavailable", message);
+    }
+
+    private void ReportPathRevealFailure()
+    {
+        string message = WorkflowErrorMessageFormatter.PathRevealFailureMessage;
+        ProgressText = message;
+        RaiseToast(WorkflowToastKind.Warning, "Reveal failed", message);
     }
 
     private void OnKeyFileChoiceStateChanged()

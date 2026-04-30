@@ -34,7 +34,7 @@ public partial class DecryptView : UserControl
         e.Handled = true;
     }
 
-    private void OnSourcePointerReleased(object? sender, PointerReleasedEventArgs e)
+    private async void OnSourcePointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (e.InitialPressMouseButton != MouseButton.Left || IsInteractiveChildClick(e.Source))
         {
@@ -43,8 +43,16 @@ public partial class DecryptView : UserControl
 
         if (DataContext is DecryptViewModel viewModel && viewModel.BrowseSourceCommand.CanExecute(null))
         {
-            _ = viewModel.BrowseSourceCommand.ExecuteAsync(null);
             e.Handled = true;
+            try
+            {
+                await viewModel.BrowseSourceCommand.ExecuteAsync(null);
+            }
+            catch (Exception)
+            {
+                viewModel.ProgressText = WorkflowErrorMessageFormatter.PickerFailureMessage;
+                viewModel.StatusText = "Ready";
+            }
         }
     }
 

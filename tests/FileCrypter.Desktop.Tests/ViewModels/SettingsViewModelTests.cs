@@ -141,7 +141,8 @@ public sealed class SettingsViewModelTests
         Assert.Equal(FileCrypterThemePreference.Dark, viewModel.ThemePreference);
         Assert.Equal(FileCrypterThemePreference.Dark, themeService.LastAppliedThemePreference);
         Assert.True(viewModel.HasError);
-        Assert.Contains("Access denied", viewModel.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("could not save or load settings", viewModel.ErrorMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("Access denied", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("Settings update failed.", viewModel.ProgressText);
     }
 
@@ -171,7 +172,29 @@ public sealed class SettingsViewModelTests
         Assert.Equal(outputDirectory.Path, viewModel.DefaultOutputDirectory);
         Assert.Equal(outputDirectory.Path, settingsService.LoadedSettings.DefaultOutputDirectory);
         Assert.True(viewModel.HasError);
-        Assert.Contains("does not exist", viewModel.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("default output directory does not exist", viewModel.ErrorMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain(missingDirectory, viewModel.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BrowseDefaultOutputDirectoryCommand_WhenPickerFails_ShowsSanitizedFailure()
+    {
+        var filePickerService = new RecordingFilePickerService
+        {
+            OpenFolderException = new InvalidOperationException("picker failed at C:/secret/output"),
+        };
+        var viewModel = new SettingsViewModel(
+            new RecordingSettingsService(),
+            new FileCrypterSettings(),
+            new RecordingAppThemeService(),
+            filePickerService);
+
+        await viewModel.BrowseDefaultOutputDirectoryCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.HasError);
+        Assert.Equal("Could not open the file picker.", viewModel.ErrorMessage);
+        Assert.Equal("Could not open the file picker.", viewModel.ProgressText);
+        Assert.DoesNotContain("secret", viewModel.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -333,6 +356,8 @@ public sealed class SettingsViewModelTests
     {
         public string? OpenFolderResult { get; init; }
 
+        public Exception? OpenFolderException { get; init; }
+
         public Task<string?> PickOpenFileAsync(string title, CancellationToken cancellationToken)
         {
             return Task.FromResult<string?>(null);
@@ -345,6 +370,11 @@ public sealed class SettingsViewModelTests
 
         public Task<string?> PickOpenFolderAsync(string title, CancellationToken cancellationToken)
         {
+            if (OpenFolderException is not null)
+            {
+                return Task.FromException<string?>(OpenFolderException);
+            }
+
             return Task.FromResult(OpenFolderResult);
         }
 

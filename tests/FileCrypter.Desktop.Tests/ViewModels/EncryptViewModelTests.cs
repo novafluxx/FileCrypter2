@@ -95,12 +95,14 @@ public sealed class EncryptViewModelTests
         await viewModel.StartEncryptCommand.ExecuteAsync(null);
 
         Assert.Empty(viewModel.ResultPath);
-        Assert.Equal("secret", viewModel.Password);
+        Assert.Empty(viewModel.Password);
         Assert.True(viewModel.HasError);
-        Assert.Contains("Path error:", viewModel.ErrorMessage, StringComparison.Ordinal);
-        Assert.Contains("output directory is missing", viewModel.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("could not access one of the selected paths", viewModel.ErrorMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("output directory is missing", viewModel.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("Encryption failed", viewModel.StatusText);
-        Assert.Contains("Path error:", viewModel.ProgressText, StringComparison.Ordinal);
+        Assert.Contains("could not access one of the selected paths", viewModel.ProgressText, StringComparison.Ordinal);
+        Assert.False(viewModel.StartEncryptCommand.CanExecute(null));
+        Assert.False(viewModel.ShowReadyAction);
     }
 
     [Fact]
@@ -173,6 +175,87 @@ public sealed class EncryptViewModelTests
         await viewModel.RevealFooterPathCommand.ExecuteAsync(null);
 
         Assert.Equal("/tmp/plain.txt.encrypted", revealService.LastPath);
+    }
+
+    [Fact]
+    public async Task RevealFooterPathCommand_WhenRevealFails_ShowsSanitizedWarningToast()
+    {
+        var revealService = new RecordingPathRevealService
+        {
+            Result = false,
+        };
+        var workflow = new RecordingWorkflowService
+        {
+            Result = new EncryptFileResult("/tmp/plain.txt.encrypted", null),
+        };
+        var viewModel = new EncryptViewModel(
+            workflow,
+            filePickerService: null,
+            clipboardService: null,
+            pathRevealService: revealService)
+        {
+            SourcePath = "/tmp/plain.txt",
+            Password = "secret",
+        };
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
+
+        await viewModel.StartEncryptCommand.ExecuteAsync(null);
+        await viewModel.RevealFooterPathCommand.ExecuteAsync(null);
+
+        Assert.Equal("Could not reveal that path.", viewModel.ProgressText);
+        Assert.NotNull(toast);
+        Assert.Equal(WorkflowToastKind.Warning, toast.Kind);
+        Assert.Equal("Could not reveal that path.", toast.Message);
+    }
+
+    [Fact]
+    public async Task BrowseSourceCommand_WhenPickerFails_ShowsSanitizedStatusAndToast()
+    {
+        var picker = new RecordingFilePickerService
+        {
+            OpenException = new InvalidOperationException("native picker crashed at C:/secret/plain.txt"),
+        };
+        var viewModel = new EncryptViewModel(new RecordingWorkflowService(), picker);
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
+
+        await viewModel.BrowseSourceCommand.ExecuteAsync(null);
+
+        Assert.Equal("Could not open the file picker.", viewModel.ProgressText);
+        Assert.DoesNotContain("secret", viewModel.ProgressText, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(toast);
+        Assert.Equal(WorkflowToastKind.Warning, toast.Kind);
+        Assert.Equal("Could not open the file picker.", toast.Message);
+    }
+
+    [Fact]
+    public async Task CopyErrorCommand_WhenClipboardFails_ShowsSanitizedWarning()
+    {
+        var clipboard = new RecordingClipboardService
+        {
+            SetTextException = new InvalidOperationException("clipboard denied C:/secret/plain.txt"),
+        };
+        var workflow = new RecordingWorkflowService
+        {
+            Error = new IOException("The output directory is missing."),
+        };
+        var viewModel = new EncryptViewModel(workflow, filePickerService: null, clipboardService: clipboard)
+        {
+            SourcePath = "/tmp/plain.txt",
+            Password = "secret",
+        };
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
+
+        await viewModel.StartEncryptCommand.ExecuteAsync(null);
+        await viewModel.CopyErrorCommand.ExecuteAsync(null);
+
+        Assert.Equal("Clipboard copy failed.", viewModel.ProgressText);
+        Assert.DoesNotContain("secret", viewModel.ProgressText, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(toast);
+        Assert.Equal(WorkflowToastKind.Warning, toast.Kind);
+        Assert.Equal("Clipboard copy failed.", toast.Message);
     }
 
     [Fact]
@@ -600,6 +683,8 @@ public sealed class EncryptViewModelTests
 
         public string? SaveResult { get; init; }
 
+        public Exception? OpenException { get; init; }
+
         public string? LastOpenTitle { get; private set; }
 
         public string? LastSaveTitle { get; private set; }
@@ -609,6 +694,11 @@ public sealed class EncryptViewModelTests
         public Task<string?> PickOpenFileAsync(string title, CancellationToken cancellationToken)
         {
             LastOpenTitle = title;
+            if (OpenException is not null)
+            {
+                return Task.FromException<string?>(OpenException);
+            }
+
             return Task.FromResult(OpenResult);
         }
 

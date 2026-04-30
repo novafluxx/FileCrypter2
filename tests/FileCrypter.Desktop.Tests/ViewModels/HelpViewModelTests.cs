@@ -20,7 +20,8 @@ public sealed class HelpViewModelTests
         Assert.Equal("v9.8.7", viewModel.CurrentVersion);
         Assert.Equal("Encrypted file format v4", viewModel.FormatVersionText);
         Assert.Contains("local-first", viewModel.AboutSummaryText, StringComparison.Ordinal);
-        Assert.Contains("record it before sealing the file", viewModel.RecoveryWarningText, StringComparison.Ordinal);
+        Assert.Contains("record it before starting the run", viewModel.RecoveryWarningText, StringComparison.Ordinal);
+        Assert.Contains("clears it after the attempt", viewModel.RecoveryWarningText, StringComparison.Ordinal);
         Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeSummary, StringComparison.Ordinal);
         Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
         Assert.Contains("Copyright (c) Microsoft Corporation", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
@@ -50,12 +51,14 @@ public sealed class HelpViewModelTests
         Assert.Contains("random password", generatorTopic.Description, StringComparison.Ordinal);
         Assert.Contains("maximum entropy", generatorTopic.Description, StringComparison.Ordinal);
         Assert.Contains("memorable passphrase", generatorTopic.Description, StringComparison.Ordinal);
-        Assert.Contains("record them before encrypting", generatorTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("temporary", generatorTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("cleared after an encrypt or batch attempt", generatorTopic.Description, StringComparison.Ordinal);
 
         HelpTopicViewModel recoveryTopic = Assert.Single(
             viewModel.SafetyTopics,
             topic => topic.Title == "Recovery limits");
         Assert.Contains("Generated passwords and passphrases are not saved", recoveryTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("retained after a run", recoveryTopic.Description, StringComparison.Ordinal);
         Assert.Contains("unless you record them yourself", recoveryTopic.Description, StringComparison.Ordinal);
     }
 
@@ -95,7 +98,8 @@ public sealed class HelpViewModelTests
         await viewModel.CheckForUpdatesCommand.ExecuteAsync(null);
 
         Assert.Equal("FileCrypter could not check for updates.", viewModel.UpdateSummaryText);
-        Assert.Contains("Network unavailable.", viewModel.UpdateDetailText, StringComparison.Ordinal);
+        Assert.Contains("could not be refreshed", viewModel.UpdateDetailText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Network unavailable", viewModel.UpdateDetailText, StringComparison.Ordinal);
         Assert.True(viewModel.HasLastCheckedText);
     }
 

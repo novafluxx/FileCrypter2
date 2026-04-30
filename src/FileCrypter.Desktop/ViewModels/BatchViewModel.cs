@@ -484,24 +484,34 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             return;
         }
 
-        if (ArchiveMode && !EncryptMode)
+        try
         {
-            string? selectedPath = await filePickerService.PickOpenFileAsync(
-                "Choose an encrypted archive to extract",
-                CancellationToken.None);
-            if (!string.IsNullOrWhiteSpace(selectedPath))
+            if (ArchiveMode && !EncryptMode)
             {
-                SetSourcePaths([selectedPath]);
+                string? selectedPath = await filePickerService.PickOpenFileAsync(
+                    "Choose an encrypted archive to extract",
+                    CancellationToken.None);
+                if (!string.IsNullOrWhiteSpace(selectedPath))
+                {
+                    SetSourcePaths([selectedPath]);
+                }
+
+                return;
             }
 
-            return;
+            IReadOnlyList<string> selectedPaths = await filePickerService.PickOpenFilesAsync(
+                ArchiveMode ? "Choose files to include in the encrypted archive" : EncryptMode ? "Choose files to encrypt" : "Choose files to decrypt",
+                CancellationToken.None);
+
+            AddSourcePaths(selectedPaths);
         }
-
-        IReadOnlyList<string> selectedPaths = await filePickerService.PickOpenFilesAsync(
-            ArchiveMode ? "Choose files to include in the encrypted archive" : EncryptMode ? "Choose files to encrypt" : "Choose files to decrypt",
-            CancellationToken.None);
-
-        AddSourcePaths(selectedPaths);
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            HandlePickerFailure(exception);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanBrowseOutputDirectory))]
@@ -512,12 +522,22 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             return;
         }
 
-        string? selectedPath = await filePickerService.PickOpenFolderAsync(
-            OutputFolderPickerTitle,
-            CancellationToken.None);
-        if (!string.IsNullOrWhiteSpace(selectedPath))
+        try
         {
-            SetOutputDirectory(Path.GetFullPath(selectedPath), OutputDirectoryOrigin.Manual);
+            string? selectedPath = await filePickerService.PickOpenFolderAsync(
+                OutputFolderPickerTitle,
+                CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                SetOutputDirectory(Path.GetFullPath(selectedPath), OutputDirectoryOrigin.Manual);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            HandlePickerFailure(exception);
         }
     }
 
@@ -529,18 +549,28 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             return;
         }
 
-        string? selectedPath = await filePickerService.PickOpenFileAsync(
-            ArchiveMode
-                ? EncryptMode
-                    ? "Choose an existing key file for the archive"
-                    : "Choose the matching key file for the archive"
-                : EncryptMode
-                    ? "Choose an existing key file for the batch"
-                    : "Choose the matching key file for the batch",
-            CancellationToken.None);
-        if (!string.IsNullOrWhiteSpace(selectedPath))
+        try
         {
-            KeyFilePath = selectedPath;
+            string? selectedPath = await filePickerService.PickOpenFileAsync(
+                ArchiveMode
+                    ? EncryptMode
+                        ? "Choose an existing key file for the archive"
+                        : "Choose the matching key file for the archive"
+                    : EncryptMode
+                        ? "Choose an existing key file for the batch"
+                        : "Choose the matching key file for the batch",
+                CancellationToken.None);
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                KeyFilePath = selectedPath;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            HandlePickerFailure(exception);
         }
     }
 
@@ -611,6 +641,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             string message = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
             ErrorMessage = message;
             VisibleErrorMessage = message;
+            Password = string.Empty;
             ProgressText = WorkflowStatusTextFormatter.SummarizeStatusDetail(message);
             StatusText = GetFailureStatusText();
             FooterActionText = string.Empty;
@@ -634,9 +665,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     }
 
     [RelayCommand(CanExecute = nameof(CanRevealFooterPath))]
-    private Task RevealFooterPathAsync()
+    private async Task RevealFooterPathAsync()
     {
-        return pathRevealService.TryRevealPathAsync(FooterActionText, CancellationToken.None);
+        bool revealed = await pathRevealService.TryRevealPathAsync(FooterActionText, CancellationToken.None).ConfigureAwait(true);
+        if (!revealed)
+        {
+            ReportPathRevealFailure();
+        }
     }
 
     private bool CanBrowseFiles()
@@ -1360,9 +1395,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             await clipboardService.SetTextAsync(text, CancellationToken.None).ConfigureAwait(true);
             RaiseToast(WorkflowToastKind.Success, "Copied", successMessage);
         }
-        catch (Exception exception)
+        catch (Exception)
         {
-            ProgressText = $"Clipboard copy failed: {exception.Message}";
+            ProgressText = WorkflowErrorMessageFormatter.ClipboardCopyFailureMessage;
+            RaiseToast(
+                WorkflowToastKind.Warning,
+                "Copy failed",
+                WorkflowErrorMessageFormatter.ClipboardCopyFailureMessage);
         }
     }
 
@@ -1403,6 +1442,22 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private void RaiseToast(WorkflowToastKind kind, string title, string message, string detail = "")
     {
         ToastNotificationRequested?.Invoke(this, new WorkflowToastNotification(kind, title, message, detail));
+    }
+
+    private void HandlePickerFailure(Exception exception)
+    {
+        _ = exception;
+        string message = WorkflowErrorMessageFormatter.PickerFailureMessage;
+        ProgressText = message;
+        StatusText = "Ready";
+        RaiseToast(WorkflowToastKind.Warning, "Picker unavailable", message);
+    }
+
+    private void ReportPathRevealFailure()
+    {
+        string message = WorkflowErrorMessageFormatter.PathRevealFailureMessage;
+        ProgressText = message;
+        RaiseToast(WorkflowToastKind.Warning, "Reveal failed", message);
     }
 
     private enum OutputDirectoryOrigin

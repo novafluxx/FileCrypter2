@@ -106,9 +106,11 @@ public sealed class BatchViewModelTests
 
         await viewModel.StartBatchCommand.ExecuteAsync(null);
         Assert.True(viewModel.HasError);
-        Assert.Equal("secret", viewModel.Password);
+        Assert.Empty(viewModel.Password);
+        Assert.Contains("could not access one of the selected paths", viewModel.ErrorMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("output directory is missing", viewModel.ErrorMessage, StringComparison.Ordinal);
 
-        viewModel.Password = string.Empty;
+        viewModel.OutputDirectory = string.Empty;
 
         Assert.False(viewModel.HasError);
         Assert.Contains("Enter a password", viewModel.ErrorMessage, StringComparison.OrdinalIgnoreCase);
@@ -317,7 +319,7 @@ public sealed class BatchViewModelTests
         Assert.Empty(viewModel.Password);
         Assert.Equal(2, viewModel.Results.Count);
         Assert.Contains("failure", viewModel.ResultSummary, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Missing input", viewModel.Results.Single(item => !item.Succeeded).DetailText, StringComparison.Ordinal);
+        Assert.Contains("could not access one of the selected paths", viewModel.Results.Single(item => !item.Succeeded).DetailText, StringComparison.Ordinal);
         Assert.Equal("Batch encryption completed with failures", viewModel.StatusText);
         Assert.Equal("1 succeeded, 1 failed - Output folder", viewModel.ProgressText);
         Assert.Equal(outputDirectory.Path, viewModel.FooterActionText);
@@ -426,11 +428,69 @@ public sealed class BatchViewModelTests
         Assert.Contains("Succeeded: first.txt", clipboard.LastText, StringComparison.Ordinal);
         Assert.Contains("OUTPUT: ", clipboard.LastText, StringComparison.Ordinal);
         Assert.Contains("Failed: missing.txt", clipboard.LastText, StringComparison.Ordinal);
-        Assert.Contains("ISSUE: Path error: Missing input.", clipboard.LastText, StringComparison.Ordinal);
+        Assert.Contains("ISSUE: FileCrypter could not access one of the selected paths.", clipboard.LastText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Missing input.", clipboard.LastText, StringComparison.Ordinal);
         Assert.Equal(progressTextAfterRun, viewModel.ProgressText);
         Assert.NotNull(toast);
         Assert.Equal("Copied", toast.Title);
         Assert.Equal("Copied batch results.", toast.Message);
+    }
+
+    [Fact]
+    public async Task BrowseFilesCommand_WhenPickerFails_ShowsSanitizedStatusAndToast()
+    {
+        var picker = new RecordingFilePickerService
+        {
+            OpenFilesException = new InvalidOperationException("native picker crashed at C:/secret/source.txt"),
+        };
+        var viewModel = new BatchViewModel(new RecordingWorkflowService(), picker);
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
+
+        await viewModel.BrowseFilesCommand.ExecuteAsync(null);
+
+        Assert.Equal("Could not open the file picker.", viewModel.ProgressText);
+        Assert.DoesNotContain("secret", viewModel.ProgressText, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(toast);
+        Assert.Equal(WorkflowToastKind.Warning, toast.Kind);
+        Assert.Equal("Could not open the file picker.", toast.Message);
+    }
+
+    [Fact]
+    public async Task RevealFooterPathCommand_WhenRevealFails_ShowsSanitizedWarningToast()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var revealService = new RecordingPathRevealService
+        {
+            Result = false,
+        };
+        var workflow = new RecordingWorkflowService
+        {
+            BatchResult = new BatchTransformResult(
+            [
+                new BatchTransformItemResult(
+                    "/tmp/first.txt",
+                    Path.Combine(outputDirectory.Path, "first.txt.encrypted"),
+                    Path.Combine(outputDirectory.Path, "first.txt.encrypted"),
+                    null),
+            ]),
+        };
+        var viewModel = new BatchViewModel(workflow, pathRevealService: revealService)
+        {
+            OutputDirectory = outputDirectory.Path,
+            Password = "secret",
+        };
+        viewModel.SourcePaths.Add("/tmp/first.txt");
+        WorkflowToastNotification? toast = null;
+        viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
+
+        await viewModel.StartBatchCommand.ExecuteAsync(null);
+        await viewModel.RevealFooterPathCommand.ExecuteAsync(null);
+
+        Assert.Equal("Could not reveal that path.", viewModel.ProgressText);
+        Assert.NotNull(toast);
+        Assert.Equal(WorkflowToastKind.Warning, toast.Kind);
+        Assert.Equal("Could not reveal that path.", toast.Message);
     }
 
     [Fact]
@@ -873,6 +933,8 @@ public sealed class BatchViewModelTests
 
         public string? SaveResult { get; init; }
 
+        public Exception? OpenFilesException { get; init; }
+
         public string? LastOpenTitle { get; private set; }
 
         public string? LastOpenFilesTitle { get; private set; }
@@ -892,6 +954,11 @@ public sealed class BatchViewModelTests
         public Task<IReadOnlyList<string>> PickOpenFilesAsync(string title, CancellationToken cancellationToken)
         {
             LastOpenFilesTitle = title;
+            if (OpenFilesException is not null)
+            {
+                return Task.FromException<IReadOnlyList<string>>(OpenFilesException);
+            }
+
             return Task.FromResult(OpenFilesResult);
         }
 

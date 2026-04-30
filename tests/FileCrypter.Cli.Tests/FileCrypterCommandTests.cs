@@ -38,6 +38,78 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task EncryptAndDecrypt_WithPasswordStdin_SucceedsWithoutPasswordWarning()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(directory.Path, "plain.txt.decrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("cli stdin round trip");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var encryptConsole = TestConsole.CreateRedirected(Password + Environment.NewLine);
+        var decryptConsole = TestConsole.CreateRedirected(Password + Environment.NewLine);
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password-stdin"]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["decrypt", encryptedPath, decryptedPath, "--password-stdin"]);
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(Path.GetFullPath(encryptedPath) + Environment.NewLine, encryptConsole.Output);
+        Assert.Equal(Path.GetFullPath(decryptedPath) + Environment.NewLine, decryptConsole.Output);
+        Assert.DoesNotContain("Warning: --password", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("Warning: --password", decryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
+    public async Task BatchEncryptAndBatchDecrypt_WithPasswordStdin_Succeeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        string decryptedDirectory = Path.Combine(directory.Path, "decrypted");
+        Directory.CreateDirectory(encryptedDirectory);
+        Directory.CreateDirectory(decryptedDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(encryptedDirectory, "plain.txt.encrypted");
+        string decryptedPath = Path.Combine(decryptedDirectory, "plain.txt");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("batch stdin password");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var encryptConsole = TestConsole.CreateRedirected(Password + Environment.NewLine);
+        var decryptConsole = TestConsole.CreateRedirected(Password + Environment.NewLine);
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["batch-encrypt", encryptedDirectory, plaintextPath, "--password-stdin"]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["batch-decrypt", decryptedDirectory, encryptedPath, "--password-stdin"]);
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(Path.GetFullPath(encryptedPath) + Environment.NewLine, encryptConsole.Output);
+        Assert.Equal(Path.GetFullPath(decryptedPath) + Environment.NewLine, decryptConsole.Output);
+        Assert.DoesNotContain("Warning: --password", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("Warning: --password", decryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WithPasswordArgument_Warns()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Warning: --password can expose secrets", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Prefer the hidden prompt or --password-stdin", console.ErrorOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task EncryptAndDecrypt_WithKeyFile_Succeeds()
     {
         using var directory = new TemporaryDirectory();
@@ -293,6 +365,34 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task ArchiveEncryptAndArchiveDecrypt_WithPasswordStdin_SucceedsWithoutPasswordWarning()
+    {
+        using var directory = new TemporaryDirectory();
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(outputDirectory);
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        string extractedPath = Path.Combine(outputDirectory, "plain.txt");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("archive stdin password");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var encryptConsole = TestConsole.CreateRedirected(Password + Environment.NewLine);
+        var decryptConsole = TestConsole.CreateRedirected(Password + Environment.NewLine);
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["archive-encrypt", encryptedArchivePath, plaintextPath, "--password-stdin"]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["archive-decrypt", encryptedArchivePath, outputDirectory, "--password-stdin"]);
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(Path.GetFullPath(encryptedArchivePath) + Environment.NewLine, encryptConsole.Output);
+        Assert.Equal(Path.GetFullPath(extractedPath) + Environment.NewLine, decryptConsole.Output);
+        Assert.DoesNotContain("Warning: --password", encryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("Warning: --password", decryptConsole.ErrorOutput, StringComparison.Ordinal);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(extractedPath));
+    }
+
+    [Fact]
     public async Task ArchiveEncryptAndArchiveDecrypt_WithKeyFile_Succeeds()
     {
         using var directory = new TemporaryDirectory();
@@ -473,6 +573,30 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task BatchEncrypt_WhenTooManyInputs_FailsWithBatchLimit()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedDirectory = Path.Combine(directory.Path, "encrypted");
+        Directory.CreateDirectory(encryptedDirectory);
+        string[] inputPaths = Enumerable
+            .Range(0, FileCrypter.Core.FileCrypter.MaximumBatchFileCount + 1)
+            .Select(index => Path.Combine(directory.Path, $"plain-{index}.txt"))
+            .ToArray();
+        string[] args = ["batch-encrypt", encryptedDirectory, ..inputPaths, "--password-stdin"];
+        var console = TestConsole.CreateRedirected(Password + Environment.NewLine);
+
+        int exitCode = await CreateCommand(console).RunAsync(args);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains(
+            $"A single batch run supports up to {FileCrypter.Core.FileCrypter.MaximumBatchFileCount} files.",
+            console.ErrorOutput,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("FileCrypter could not access one of the requested paths.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
     public async Task BatchDecrypt_WithArchivePayload_FailsItemWithArchiveDecryptHint()
     {
         using var directory = new TemporaryDirectory();
@@ -541,6 +665,36 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task Encrypt_WhenPasswordStdinIsEmpty_Fails()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var console = TestConsole.CreateRedirected(Environment.NewLine);
+
+        int exitCode = await CreateCommand(console).RunAsync(["encrypt", plaintextPath, "--password-stdin"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("A password is required.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.False(File.Exists(plaintextPath + ".encrypted"));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenPasswordStdinIsEof_Fails()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["encrypt", plaintextPath, "--password-stdin"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("A password is required.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.False(File.Exists(plaintextPath + ".encrypted"));
+    }
+
+    [Fact]
     public async Task Help_IncludesKeyFileRecoveryAndSizeWarnings()
     {
         var console = TestConsole.CreateRedirected();
@@ -562,6 +716,9 @@ public sealed class FileCrypterCommandTests
         Assert.Contains("creates a timestamped .tar.zst.encrypted archive", console.Output, StringComparison.Ordinal);
         Assert.Contains("Use archive-decrypt for .tar.zst.encrypted archives", console.Output, StringComparison.Ordinal);
         Assert.Contains("settings set compression-default", console.Output, StringComparison.Ordinal);
+        Assert.Contains("prompts without echoing the password", console.Output, StringComparison.Ordinal);
+        Assert.Contains("For automation, pipe one password line to --password-stdin", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Avoid --password when possible", console.Output, StringComparison.Ordinal);
         Assert.Empty(console.ErrorOutput);
     }
 
@@ -663,7 +820,9 @@ public sealed class FileCrypterCommandTests
 
         Assert.Equal(1, exitCode);
         Assert.Contains("Settings error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("could not read or write the local settings file", console.ErrorOutput, StringComparison.Ordinal);
         Assert.Contains("settings set compression-default", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("invalid json", console.ErrorOutput, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(console.Output);
         Assert.False(File.Exists(encryptedPath));
     }
@@ -705,7 +864,9 @@ public sealed class FileCrypterCommandTests
         int exitCode = await CreateCommand(console).RunAsync(["encrypt", plaintextPath, "--password", Password]);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("Input file does not exist:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The input file does not exist.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain(plaintextPath, console.ErrorOutput, StringComparison.Ordinal);
         Assert.Empty(console.Output);
     }
 
@@ -918,7 +1079,7 @@ public sealed class FileCrypterCommandTests
 
         Assert.Equal(1, exitCode);
         Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
-        Assert.Contains("output directory already exists", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The output directory does not exist.", console.ErrorOutput, StringComparison.Ordinal);
         Assert.Empty(console.Output);
         Assert.False(File.Exists(encryptedPath));
     }
@@ -943,7 +1104,51 @@ public sealed class FileCrypterCommandTests
 
         Assert.Equal(1, exitCode);
         Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
-        Assert.Contains("key file is too large", console.ErrorOutput, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("The key file is too large.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain(keyFilePath, console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(encryptedPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenKeyFileIsMissing_FailsWithKeyFileTroubleshooting()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "missing.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--key-file", keyFilePath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The key file does not exist.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain(keyFilePath, console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(encryptedPath));
+    }
+
+    [Fact]
+    public async Task Encrypt_WhenKeyFileDirectoryIsMissing_FailsWithKeyFileTroubleshooting()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string missingDirectory = Path.Combine(directory.Path, "missing");
+        string keyFilePath = Path.Combine(missingDirectory, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--key-file", keyFilePath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The key file directory does not exist.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain(missingDirectory, console.ErrorOutput, StringComparison.Ordinal);
         Assert.Empty(console.Output);
         Assert.False(File.Exists(encryptedPath));
     }
@@ -964,7 +1169,8 @@ public sealed class FileCrypterCommandTests
 
         Assert.Equal(1, exitCode);
         Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
-        Assert.Contains("output directory already exists", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The output directory does not exist.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain(missingDirectory, console.ErrorOutput, StringComparison.Ordinal);
         Assert.Empty(console.Output);
         Assert.False(File.Exists(encryptedPath));
         Assert.False(Directory.Exists(missingDirectory));
@@ -1078,7 +1284,8 @@ public sealed class FileCrypterCommandTests
 
         Assert.Equal(1, exitCode);
         Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
-        Assert.Contains("input and output paths must be different", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The input and output paths must be different.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain(plaintextPath, console.ErrorOutput, StringComparison.Ordinal);
         Assert.Empty(console.Output);
         Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(plaintextPath));
     }

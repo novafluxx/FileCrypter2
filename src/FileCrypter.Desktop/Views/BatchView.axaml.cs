@@ -34,7 +34,7 @@ public partial class BatchView : UserControl
         e.Handled = true;
     }
 
-    private void OnSourcePointerReleased(object? sender, PointerReleasedEventArgs e)
+    private async void OnSourcePointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (e.InitialPressMouseButton != MouseButton.Left || IsInteractiveChildClick(e.Source))
         {
@@ -43,8 +43,16 @@ public partial class BatchView : UserControl
 
         if (DataContext is BatchViewModel viewModel && viewModel.BrowseFilesCommand.CanExecute(null))
         {
-            _ = viewModel.BrowseFilesCommand.ExecuteAsync(null);
             e.Handled = true;
+            try
+            {
+                await viewModel.BrowseFilesCommand.ExecuteAsync(null);
+            }
+            catch (Exception)
+            {
+                viewModel.ProgressText = WorkflowErrorMessageFormatter.PickerFailureMessage;
+                viewModel.StatusText = "Ready";
+            }
         }
     }
 

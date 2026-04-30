@@ -36,7 +36,7 @@ public sealed partial class HelpViewModel : ViewModelBase, IWorkflowStatusViewMo
         AboutSummaryText =
             "FileCrypter is a local-first file encryption tool. Passwords, key-file bytes, and file contents stay on this device.";
         RecoveryWarningText =
-            "Keep the password and any key file together in a way you trust. If you generate a random password or memorable passphrase on Encrypt, record it before sealing the file. FileCrypter cannot recover forgotten passwords or lost or changed key files.";
+            "Keep the password and any key file together in a way you trust. If you generate a random password or memorable passphrase, record it before starting the run because FileCrypter clears it after the attempt. FileCrypter cannot recover forgotten passwords or lost or changed key files.";
         ThirdPartyNoticeSummary =
             "Sidebar icons use path data adapted from Fluent UI System Icons, licensed under the MIT License.";
 
@@ -47,7 +47,7 @@ public sealed partial class HelpViewModel : ViewModelBase, IWorkflowStatusViewMo
                 "Choose one source file, use a strong password or generated passphrase, and leave the output blank if you want FileCrypter to suggest a safe .encrypted destination."),
             new HelpTopicViewModel(
                 "Password generator",
-                "Use a random password when you want maximum entropy and can store the value exactly. Use a memorable passphrase when you need something easier to type. Generated values are shown once so you can record them before encrypting."),
+                "Use a random password when you want maximum entropy and can store the value exactly. Use a memorable passphrase when you need something easier to type. Generated values are temporary and are cleared after an encrypt or batch attempt, including failures."),
             new HelpTopicViewModel(
                 "Decrypt one file",
                 "Choose the encrypted file, keep the original password handy, and supply the matching key file only if that file was protected with one."),
@@ -85,7 +85,7 @@ public sealed partial class HelpViewModel : ViewModelBase, IWorkflowStatusViewMo
         [
             new HelpTopicViewModel(
                 "Recovery limits",
-                "FileCrypter cannot recover forgotten passwords or lost or changed key files. Generated passwords and passphrases are not saved, logged, or reusable unless you record them yourself."),
+                "FileCrypter cannot recover forgotten passwords or lost or changed key files. Generated passwords and passphrases are not saved, logged, or retained after a run unless you record them yourself."),
             new HelpTopicViewModel(
                 "Local-only handling",
                 "Passwords, key-file bytes, and file contents stay on this device. The app stores only local settings such as the compression default."),
@@ -156,7 +156,7 @@ public sealed partial class HelpViewModel : ViewModelBase, IWorkflowStatusViewMo
             ApplyUpdateStatus(new AppUpdateCheckResult(
                 AppUpdateStatus.Failed,
                 "FileCrypter could not check for updates.",
-                $"The update status could not be refreshed: {exception.Message}",
+                WorkflowErrorMessageFormatter.GetUpdateFailureDetail(exception),
                 DateTimeOffset.Now));
         }
         finally
