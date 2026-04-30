@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using Avalonia.Controls;
-using FileCrypter.App.ViewModels;
+using FileCrypter.Desktop.ViewModels;
 
-namespace FileCrypter.App.Views;
+namespace FileCrypter.Desktop.Views;
 
 public partial class MainWindow : Window
 {

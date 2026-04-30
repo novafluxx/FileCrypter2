@@ -1,5 +1,5 @@
-using FileCrypter.App.Services;
-using FileCrypter.App.ViewModels;
+using FileCrypter.Desktop.Services;
+using FileCrypter.Desktop.ViewModels;
 using FileCrypter.Core.Settings;
 
 namespace FileCrypter.Desktop.Tests.ViewModels;

@@ -1,6 +1,6 @@
-using FileCrypter.App.Services;
+using FileCrypter.Desktop.Services;
 using FileCrypter.Desktop.Tests.TestDoubles;
-using FileCrypter.App.ViewModels;
+using FileCrypter.Desktop.ViewModels;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
 

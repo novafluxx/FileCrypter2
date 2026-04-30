@@ -1,6 +1,6 @@
 using FileCrypter.Core;
 
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 public interface IFileCrypterWorkflowService
 {

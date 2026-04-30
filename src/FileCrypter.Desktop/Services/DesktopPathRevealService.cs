@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 public sealed class DesktopPathRevealService : IPathRevealService
 {

@@ -4,11 +4,11 @@ using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using Avalonia.Markup.Xaml;
-using FileCrypter.App.Services;
-using FileCrypter.App.ViewModels;
-using FileCrypter.App.Views;
+using FileCrypter.Desktop.Services;
+using FileCrypter.Desktop.ViewModels;
+using FileCrypter.Desktop.Views;
 
-namespace FileCrypter.App;
+namespace FileCrypter.Desktop;
 
 public partial class App : Application
 {

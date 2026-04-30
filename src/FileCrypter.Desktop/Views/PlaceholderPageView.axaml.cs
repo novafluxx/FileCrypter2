@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace FileCrypter.App.Views;
+namespace FileCrypter.Desktop.Views;
 
 public partial class PlaceholderPageView : UserControl
 {

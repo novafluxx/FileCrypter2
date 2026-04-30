@@ -1,9 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using FileCrypter.App.ViewModels;
-using FileCrypter.App.Views;
+using FileCrypter.Desktop.ViewModels;
+using FileCrypter.Desktop.Views;
 
-namespace FileCrypter.App;
+namespace FileCrypter.Desktop;
 
 /// <summary>
 /// Given a view model, returns the corresponding view if possible.

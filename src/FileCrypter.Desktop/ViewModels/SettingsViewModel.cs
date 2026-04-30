@@ -1,9 +1,9 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FileCrypter.App.Services;
+using FileCrypter.Desktop.Services;
 using FileCrypter.Core.Settings;
 
-namespace FileCrypter.App.ViewModels;
+namespace FileCrypter.Desktop.ViewModels;
 
 public sealed partial class SettingsViewModel : ViewModelBase, IWorkflowStatusViewModel
 {

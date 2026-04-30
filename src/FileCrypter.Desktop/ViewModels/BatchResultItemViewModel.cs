@@ -1,4 +1,4 @@
-namespace FileCrypter.App.ViewModels;
+namespace FileCrypter.Desktop.ViewModels;
 
 public sealed class BatchResultItemViewModel
 {

@@ -3,7 +3,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using FileCrypter.Core.Settings;
 
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 public sealed class AvaloniaAppThemeService : IAppThemeService
 {

@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:FileCrypter.App.ViewModels"
-             x:Class="FileCrypter.App.Views.DecryptView"
+             xmlns:vm="using:FileCrypter.Desktop.ViewModels"
+             x:Class="FileCrypter.Desktop.Views.DecryptView"
              x:DataType="vm:DecryptViewModel">
     <ScrollViewer>
         <StackPanel Margin="36,30,36,36"

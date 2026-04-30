@@ -1,4 +1,4 @@
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 internal static class WorkflowStatusTextFormatter
 {

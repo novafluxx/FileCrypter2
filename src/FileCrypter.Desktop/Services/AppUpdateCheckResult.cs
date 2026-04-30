@@ -1,4 +1,4 @@
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 public sealed record AppUpdateCheckResult(
     AppUpdateStatus Status,

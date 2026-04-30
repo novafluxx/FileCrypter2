@@ -2,12 +2,14 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <AssemblyName>FileCrypter.App</AssemblyName>
-    <RootNamespace>FileCrypter.App</RootNamespace>
+    <AssemblyName>FileCrypter.Desktop</AssemblyName>
+    <RootNamespace>FileCrypter.Desktop</RootNamespace>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\FileCrypter.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <UsedAvaloniaProducts></UsedAvaloniaProducts>
+    <UseAppHost Condition="'$(Configuration)' == 'Debug'">false</UseAppHost>
     <Version>0.1.0</Version>
     <MacBundleName>FileCrypter</MacBundleName>
     <MacBundleDisplayName>FileCrypter</MacBundleDisplayName>

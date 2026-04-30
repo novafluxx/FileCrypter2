@@ -1,4 +1,4 @@
-using FileCrypter.App.Services;
+using FileCrypter.Desktop.Services;
 
 namespace FileCrypter.Desktop.Tests.Services;
 

@@ -1,12 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FileCrypter.App.Services;
+using FileCrypter.Desktop.Services;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
 using System.Diagnostics;
 using System.Text;
 
-namespace FileCrypter.App.ViewModels;
+namespace FileCrypter.Desktop.ViewModels;
 
 public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusViewModel, IWorkflowToastSource
 {

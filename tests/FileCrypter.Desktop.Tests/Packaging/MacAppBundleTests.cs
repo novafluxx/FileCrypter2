@@ -17,7 +17,7 @@ public sealed class MacAppBundleTests
         string bundlePath = Path.Combine(repoRoot, "artifacts", "macos", "FileCrypter.app");
         string infoPlistPath = Path.Combine(bundlePath, "Contents", "Info.plist");
         string macOsPath = Path.Combine(bundlePath, "Contents", "MacOS");
-        string executablePath = Path.Combine(macOsPath, "FileCrypter.App");
+        string executablePath = Path.Combine(macOsPath, "FileCrypter.Desktop");
 
         Assert.True(File.Exists(scriptPath), $"Expected packaging script at {scriptPath}");
 
@@ -52,7 +52,7 @@ public sealed class MacAppBundleTests
         UnixFileMode executableMode = File.GetUnixFileMode(executablePath);
         UnixFileMode executeBits = UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute;
         Assert.True((executableMode & executeBits) != 0, "Expected the apphost to be executable.");
-        Assert.True(File.Exists(Path.Combine(macOsPath, "FileCrypter.App.dll")));
+        Assert.True(File.Exists(Path.Combine(macOsPath, "FileCrypter.Desktop.dll")));
         Assert.True(File.Exists(Path.Combine(macOsPath, "FileCrypter.Core.dll")));
         Assert.True(File.Exists(Path.Combine(macOsPath, "Avalonia.dll")));
         Assert.False(File.Exists(Path.Combine(macOsPath, "FileCrypter.Cli")));
@@ -61,7 +61,7 @@ public sealed class MacAppBundleTests
         string infoPlist = File.ReadAllText(infoPlistPath);
 
         Assert.Contains("<string>FileCrypter</string>", infoPlist, StringComparison.Ordinal);
-        Assert.Contains("<string>FileCrypter.App</string>", infoPlist, StringComparison.Ordinal);
+        Assert.Contains("<string>FileCrypter.Desktop</string>", infoPlist, StringComparison.Ordinal);
         Assert.Contains("<string>com.novafluxx.filecrypter</string>", infoPlist, StringComparison.Ordinal);
         Assert.Contains("<string>0.1.0</string>", infoPlist, StringComparison.Ordinal);
         Assert.Contains("<string>13.0</string>", infoPlist, StringComparison.Ordinal);

@@ -1,7 +1,7 @@
 ﻿using Avalonia;
 using System;
 
-namespace FileCrypter.App;
+namespace FileCrypter.Desktop;
 
 sealed class Program
 {

@@ -86,18 +86,17 @@ Later UI layout options:
 
 ```text
 src/
-  FileCrypter.App/
-    FileCrypter.App.csproj
+  FileCrypter.Desktop/
+    FileCrypter.Desktop.csproj
 ```
 
 or, if platform-specific host projects become useful:
 
 ```text
 src/
-  FileCrypter.App/
-  FileCrypter.App.Desktop/
-  FileCrypter.App.Android/
-  FileCrypter.App.iOS/
+  FileCrypter.Desktop/
+  FileCrypter.Android/
+  FileCrypter.iOS/
 ```
 
 The exact UI project shape should wait until the core and CLI establish the application model.
@@ -173,7 +172,7 @@ FileCrypter.Core
   |
   +-- FileCrypter.Core.Tests
   |
-  +-- FileCrypter.App later
+  +-- FileCrypter.Desktop
 ```
 
 Rules:

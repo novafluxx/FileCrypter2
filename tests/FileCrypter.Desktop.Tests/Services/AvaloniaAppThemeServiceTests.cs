@@ -1,6 +1,6 @@
 using Avalonia;
 using Avalonia.Styling;
-using FileCrypter.App.Services;
+using FileCrypter.Desktop.Services;
 using FileCrypter.Core.Settings;
 
 namespace FileCrypter.Desktop.Tests.Services;

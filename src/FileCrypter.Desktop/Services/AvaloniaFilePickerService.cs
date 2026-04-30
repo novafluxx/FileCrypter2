@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 public sealed class AvaloniaFilePickerService : IFilePickerService
 {

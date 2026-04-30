@@ -1,5 +1,5 @@
 using System.Text;
-using FileCrypter.App.Services;
+using FileCrypter.Desktop.Services;
 using FileCrypter.Core;
 
 namespace FileCrypter.Desktop.Tests.Services;

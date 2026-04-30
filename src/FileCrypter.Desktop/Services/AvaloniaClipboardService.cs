@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
 
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 public sealed class AvaloniaClipboardService : IClipboardService
 {

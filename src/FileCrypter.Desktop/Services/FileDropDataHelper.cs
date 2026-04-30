@@ -1,7 +1,7 @@
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
 
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 internal static class FileDropDataHelper
 {

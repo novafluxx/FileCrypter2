@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 internal static class ArchiveFileNameHelper
 {

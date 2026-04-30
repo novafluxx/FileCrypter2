@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace FileCrypter.App.ViewModels;
+namespace FileCrypter.Desktop.ViewModels;
 
 public sealed partial class NavigationItemViewModel : ObservableObject
 {

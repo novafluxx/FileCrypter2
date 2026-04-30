@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace FileCrypter.App.ViewModels;
+namespace FileCrypter.Desktop.ViewModels;
 
 public abstract class ViewModelBase : ObservableObject
 {

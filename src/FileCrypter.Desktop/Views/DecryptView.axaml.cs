@@ -1,9 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Input;
-using FileCrypter.App.Services;
-using FileCrypter.App.ViewModels;
+using FileCrypter.Desktop.Services;
+using FileCrypter.Desktop.ViewModels;
 
-namespace FileCrypter.App.Views;
+namespace FileCrypter.Desktop.Views;
 
 public partial class DecryptView : UserControl
 {

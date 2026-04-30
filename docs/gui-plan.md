@@ -16,7 +16,7 @@ The app is a normal desktop window with persistent left sidebar navigation and a
 The initial app lives in:
 
 ```text
-src/FileCrypter.App/
+src/FileCrypter.Desktop/
 ```
 
 The GUI references `FileCrypter.Core` directly and does not reference `FileCrypter.Cli`. The CLI and GUI are peer hosts over the same core.

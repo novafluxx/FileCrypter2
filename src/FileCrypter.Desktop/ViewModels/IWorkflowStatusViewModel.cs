@@ -1,6 +1,6 @@
 using System.Windows.Input;
 
-namespace FileCrypter.App.ViewModels;
+namespace FileCrypter.Desktop.ViewModels;
 
 public interface IWorkflowStatusViewModel
 {

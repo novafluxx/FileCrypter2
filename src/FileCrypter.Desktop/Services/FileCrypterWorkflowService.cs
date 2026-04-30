@@ -1,7 +1,7 @@
 using FileCrypter.Core;
 using CoreFileCrypter = FileCrypter.Core.FileCrypter;
 
-namespace FileCrypter.App.Services;
+namespace FileCrypter.Desktop.Services;
 
 public sealed class FileCrypterWorkflowService : IFileCrypterWorkflowService
 {
