@@ -139,6 +139,7 @@ This checklist captures the security, quality, documentation, and dependency fol
   - `src/FileCrypter.Core/FileCrypterProgress.cs:3`
   - `src/FileCrypter.Core/Format/FileCrypterFormatException.cs:3`
   - `src/FileCrypter.Core/Format/FileCrypterFormatErrorCode.cs:3`
+- Status: completed 2026-05-01. Public Core APIs now include XML documentation for behavior, password/key-file handling, overwrite and compression behavior, progress, exceptions, and security caveats.
 - Problem: public crypto APIs lack XML summaries for behavior, parameter expectations, and security caveats.
 - Fix:
   - Document API purpose, password/key-file handling, overwrite behavior, compression behavior, and exception shapes.
@@ -147,6 +148,7 @@ This checklist captures the security, quality, documentation, and dependency fol
 ### 12. Refresh stale security TODOs
 
 - File: `docs/security-todos.md:7`
+- Status: completed 2026-05-01. Resolved audit findings were moved into a dated archive, and the only current entries are accepted residual risks with present-tense guidance.
 - Problem: resolved historical issues still read like active vulnerable behavior.
 - Fix:
   - Convert resolved items into a dated changelog/archive section, or remove them.
@@ -170,17 +172,40 @@ This checklist captures the security, quality, documentation, and dependency fol
   - `docs/UI-plan.md:144`
   - `docs/UI-plan.md:163`
   - `docs/security-todos.md:1`
+- Status: completed 2026-05-01. `docs/UI-plan.md` is now an archive, active UI work was moved below, and `docs/security-todos.md` no longer presents resolved audit findings as live work.
 - Problem: no source-code `TODO`, `FIXME`, or `HACK` markers were found, but docs contain open planning/TODO markers.
 - Fix:
   - Decide whether these are still actionable.
   - Move active work into this file or issue tracker, and archive stale planning notes.
 
+## UI Backlog Moved From UI Plan
+
+These items remain active but are no longer tracked as planning markers in `docs/UI-plan.md`.
+
+### Sidebar recent files or drop target
+
+- Former source: `docs/UI-plan.md` Slice 8.
+- Problem: the sidebar still has a large unused vertical gap between Batch and Help.
+- Fix:
+  - Add an opt-in recent encrypted/output files list, or a sidebar-wide drop target that defaults to the Encrypt flow.
+  - Avoid storing plaintext paths by default; prefer encrypted output paths or explicit opt-in.
+  - Persist only minimal local metadata needed for the chosen behavior.
+
+### Checkbox visibility polish
+
+- Former source: `docs/UI-plan.md` Slice 9.
+- Problem: unchecked checkboxes can be hard to see against the dark background.
+- Fix:
+  - Increase unchecked border contrast and thickness while preserving the checked state.
+  - Verify the unchecked border reaches WCAG AA 3:1 contrast for UI components.
+
 ## Dependency Cleanup
 
 ### 15. Patch `ZstdSharp.Port`
 
-- File: `src/FileCrypter.Core/FileCrypter.Core.csproj:9`
-- Current: `ZstdSharp.Port 0.8.7`
+- File: `Directory.Packages.props:15`
+- Status: completed 2026-05-01. `ZstdSharp.Port` is centrally pinned and locked at `0.8.8`.
+- Current: `ZstdSharp.Port 0.8.8`
 - Latest reported by NuGet: `0.8.8`
 - Fix:
   - Update the package.
@@ -199,6 +224,7 @@ This checklist captures the security, quality, documentation, and dependency fol
   - `Microsoft.ApplicationInsights`
   - `Microsoft.Testing.Platform*`
   - `Newtonsoft.Json`
+- Status: completed 2026-05-01. Direct package updates were reviewed; no additional direct pins or risky upgrades were added because only transitive packages remained outdated after the Zstd patch update.
 - Fix:
   - Check whether updating direct Avalonia and test packages moves these transitives.
   - Validate desktop launch and tests after any package updates.
@@ -206,8 +232,10 @@ This checklist captures the security, quality, documentation, and dependency fol
 ### 17. Consider central package management and lock files
 
 - Files:
-  - No `Directory.Packages.props`
-  - No `packages.lock.json`
+  - `Directory.Packages.props`
+  - `src/*/packages.lock.json`
+  - `tests/*/packages.lock.json`
+- Status: completed 2026-05-01. Central package management is enabled and all projects have NuGet lock files.
 - Problem: package versions are pinned directly in project files, but restores are not locked for reproducible crypto-app builds.
 - Fix:
   - Add `Directory.Packages.props` if central management fits the repo.
@@ -216,6 +244,7 @@ This checklist captures the security, quality, documentation, and dependency fol
 ### 18. Keep dependency notices aligned
 
 - File: `THIRD-PARTY-NOTICES.md:1`
+- Status: completed 2026-05-01. The root notices file remains canonical, and `docs/THIRD-PARTY-NOTICES.md` now points to it.
 - Problem: the audit request referenced `docs/THIRD-PARTY-NOTICES`, but the repo stores notices at the root. The root file matches production dependencies reasonably well.
 - Fix:
   - Decide whether to keep notices at the root or mirror/link them under `docs/`.

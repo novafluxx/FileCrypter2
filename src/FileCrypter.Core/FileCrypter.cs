@@ -10,21 +10,64 @@ using ZstdSharp;
 
 namespace FileCrypter.Core;
 
+/// <summary>
+/// Provides the public FileCrypter v1 encryption, decryption, key-file, batch, and archive APIs.
+/// </summary>
+/// <remarks>
+/// FileCrypter derives AES-256-GCM keys with Argon2id from a password and, when supplied, key-file bytes. Path-based
+/// APIs read key files into memory only for the duration of the operation and zero those temporary buffers before
+/// returning. Passwords are .NET strings and cannot be reliably cleared by this API, so callers should avoid logging,
+/// persisting, or keeping them longer than necessary.
+/// </remarks>
 public static class FileCrypter
 {
+    /// <summary>
+    /// Defines the default generated key-file size, in bytes.
+    /// </summary>
     public const int DefaultGeneratedKeyFileSizeBytes = 32;
+
+    /// <summary>
+    /// Defines the maximum number of files accepted by one batch or archive operation.
+    /// </summary>
     public const int MaximumBatchFileCount = 1000;
+
+    /// <summary>
+    /// Defines the conventional encrypted archive suffix used by host applications.
+    /// </summary>
     public const string DefaultArchiveEncryptedSuffix = ".tar.zst.encrypted";
 
     private const UnixFileMode PrivateFileMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
     private const int ZstdCompressionLevel = 3;
     private const string DefaultEncryptedSuffix = ".encrypted";
 
+    /// <summary>
+    /// Generates random bytes suitable for use as a FileCrypter key file.
+    /// </summary>
+    /// <param name="options">Optional operation settings.</param>
+    /// <returns>A new byte array containing <see cref="DefaultGeneratedKeyFileSizeBytes"/> random bytes.</returns>
+    /// <remarks>
+    /// The returned bytes are secret key material. Callers that store them in memory after use should clear their own
+    /// buffers when possible.
+    /// </remarks>
     public static byte[] GenerateKeyFileBytes(FileCrypterOptions? options = null)
     {
         return GenerateKeyFileBytes(DefaultGeneratedKeyFileSizeBytes, options);
     }
 
+    /// <summary>
+    /// Generates a caller-sized random byte array suitable for use as a FileCrypter key file.
+    /// </summary>
+    /// <param name="byteCount">The number of random bytes to generate.</param>
+    /// <param name="options">Optional operation settings.</param>
+    /// <returns>A new byte array containing random key-file material.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="byteCount"/> is smaller than <see cref="DefaultGeneratedKeyFileSizeBytes"/> or larger than the
+    /// FileCrypter key-file size limit.
+    /// </exception>
+    /// <remarks>
+    /// The returned bytes are secret key material. Callers that store them in memory after use should clear their own
+    /// buffers when possible.
+    /// </remarks>
     public static byte[] GenerateKeyFileBytes(int byteCount, FileCrypterOptions? options = null)
     {
         ValidateGeneratedKeyFileByteCount(byteCount);
@@ -34,6 +77,19 @@ public static class FileCrypter
         return keyFileBytes;
     }
 
+    /// <summary>
+    /// Generates a default-sized key file at the requested path.
+    /// </summary>
+    /// <param name="keyFilePath">The file path where the generated key file should be written.</param>
+    /// <param name="options">Optional operation settings.</param>
+    /// <param name="overwrite">Whether to replace an existing file at <paramref name="keyFilePath"/>.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous write.</param>
+    /// <returns>The full path to the written key file. When <paramref name="overwrite"/> is false, this may be an auto-renamed path.</returns>
+    /// <remarks>
+    /// The key file is written through a staging file and moved into place after the write completes. If overwrite is
+    /// false and the requested path exists, a " (n)" suffix is added to find an available output path. Generated key
+    /// bytes are zeroed from the temporary write buffer after the operation.
+    /// </remarks>
     public static Task<string> GenerateKeyFileAsync(
         string keyFilePath,
         FileCrypterOptions? options = null,
@@ -48,6 +104,24 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Generates a key file of the requested size at the requested path.
+    /// </summary>
+    /// <param name="keyFilePath">The file path where the generated key file should be written.</param>
+    /// <param name="byteCount">The number of random key-file bytes to write.</param>
+    /// <param name="options">Optional operation settings.</param>
+    /// <param name="overwrite">Whether to replace an existing file at <paramref name="keyFilePath"/>.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous write.</param>
+    /// <returns>The full path to the written key file. When <paramref name="overwrite"/> is false, this may be an auto-renamed path.</returns>
+    /// <exception cref="ArgumentException"><paramref name="keyFilePath"/> is null, empty, or does not include a file name.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="byteCount"/> is outside the supported key-file size range.</exception>
+    /// <exception cref="DirectoryNotFoundException">The output directory does not exist.</exception>
+    /// <exception cref="IOException">The output path points to a directory or cannot be safely written.</exception>
+    /// <remarks>
+    /// The key file is written through a staging file and moved into place after the write completes. If overwrite is
+    /// false and the requested path exists, a " (n)" suffix is added to find an available output path. Generated key
+    /// bytes are zeroed from the temporary write buffer after the operation.
+    /// </remarks>
     public static async Task<string> GenerateKeyFileAsync(
         string keyFilePath,
         int byteCount,
@@ -91,6 +165,21 @@ public static class FileCrypter
         }
     }
 
+    /// <summary>
+    /// Encrypts one plaintext file with a password.
+    /// </summary>
+    /// <param name="plaintextPath">The plaintext file to read.</param>
+    /// <param name="encryptedPath">The requested encrypted output file path.</param>
+    /// <param name="password">The password used to derive the encryption key.</param>
+    /// <param name="options">Optional encryption settings, including compression and progress reporting.</param>
+    /// <param name="overwrite">Whether to replace an existing file at <paramref name="encryptedPath"/>.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>The full encrypted output path. When <paramref name="overwrite"/> is false, this may be an auto-renamed path.</returns>
+    /// <remarks>
+    /// The output is written to a private staging file and moved into place only after encryption completes. The password
+    /// is combined with a random salt and the selected Argon2id settings; because it is a string, callers should avoid
+    /// retaining or exposing it after the call.
+    /// </remarks>
     public static Task<string> EncryptFileAsync(
         string plaintextPath,
         string encryptedPath,
@@ -110,6 +199,22 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Encrypts one plaintext file with a password and key file.
+    /// </summary>
+    /// <param name="plaintextPath">The plaintext file to read.</param>
+    /// <param name="encryptedPath">The requested encrypted output file path.</param>
+    /// <param name="password">The password used with the key-file bytes to derive the encryption key.</param>
+    /// <param name="keyFilePath">The key file to read and require for future decryption.</param>
+    /// <param name="options">Optional encryption settings, including compression and progress reporting.</param>
+    /// <param name="overwrite">Whether to replace an existing file at <paramref name="encryptedPath"/>.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>The full encrypted output path. When <paramref name="overwrite"/> is false, this may be an auto-renamed path.</returns>
+    /// <remarks>
+    /// The output is written to a private staging file and moved into place only after encryption completes. The key file
+    /// is read into a temporary buffer and zeroed before returning. Losing either the password or the key file makes the
+    /// encrypted file unrecoverable.
+    /// </remarks>
     public static Task<string> EncryptFileAsync(
         string plaintextPath,
         string encryptedPath,
@@ -130,6 +235,23 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Decrypts one encrypted file with a password.
+    /// </summary>
+    /// <param name="encryptedPath">The encrypted file to read.</param>
+    /// <param name="plaintextPath">The requested plaintext output file path.</param>
+    /// <param name="password">The password used to derive the decryption key.</param>
+    /// <param name="options">Optional decryption settings, including progress reporting.</param>
+    /// <param name="overwrite">Whether to replace an existing file at <paramref name="plaintextPath"/>.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>The full plaintext output path. When <paramref name="overwrite"/> is false, this may be an auto-renamed path.</returns>
+    /// <exception cref="FileCrypterFormatException">
+    /// The encrypted payload is unsupported, malformed, unauthenticated, compressed incorrectly, or requires a key file.
+    /// </exception>
+    /// <remarks>
+    /// Decryption reads compression and Argon2id settings from the authenticated FileCrypter header. The output is staged
+    /// and moved into place only after decryption completes.
+    /// </remarks>
     public static Task<string> DecryptFileAsync(
         string encryptedPath,
         string plaintextPath,
@@ -149,6 +271,25 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Decrypts one encrypted file with a password and key file.
+    /// </summary>
+    /// <param name="encryptedPath">The encrypted file to read.</param>
+    /// <param name="plaintextPath">The requested plaintext output file path.</param>
+    /// <param name="password">The password used with the key-file bytes to derive the decryption key.</param>
+    /// <param name="keyFilePath">The key file required by the encrypted payload.</param>
+    /// <param name="options">Optional decryption settings, including progress reporting.</param>
+    /// <param name="overwrite">Whether to replace an existing file at <paramref name="plaintextPath"/>.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>The full plaintext output path. When <paramref name="overwrite"/> is false, this may be an auto-renamed path.</returns>
+    /// <exception cref="FileCrypterFormatException">
+    /// The encrypted payload is unsupported, malformed, unauthenticated, compressed incorrectly, or does not match the
+    /// supplied key-file requirement.
+    /// </exception>
+    /// <remarks>
+    /// The key file is read into a temporary buffer and zeroed before returning. Authentication failures intentionally do
+    /// not distinguish between a wrong password, wrong key file, or corrupted ciphertext.
+    /// </remarks>
     public static Task<string> DecryptFileAsync(
         string encryptedPath,
         string plaintextPath,
@@ -169,6 +310,21 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Encrypts a batch of plaintext files with a password.
+    /// </summary>
+    /// <param name="plaintextPaths">The plaintext files to encrypt.</param>
+    /// <param name="outputDirectory">The existing directory where encrypted files should be written.</param>
+    /// <param name="password">The password used to derive each encryption key.</param>
+    /// <param name="options">Optional encryption settings and progress reporting.</param>
+    /// <param name="overwrite">Whether each requested output path may replace an existing file.</param>
+    /// <param name="cancellationToken">A token that can cancel the batch between or during files.</param>
+    /// <returns>A per-file batch result containing output paths for successes and exceptions for failures.</returns>
+    /// <remarks>
+    /// Batch encryption writes one encrypted file per input using the input file name plus the ".encrypted" suffix. It
+    /// enables compression for encrypted outputs. Individual file failures are captured in the result; cancellation is
+    /// propagated to the caller.
+    /// </remarks>
     public static Task<FileCrypterBatchResult> EncryptFilesAsync(
         IEnumerable<string> plaintextPaths,
         string outputDirectory,
@@ -188,6 +344,22 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Encrypts a batch of plaintext files with a password and key file.
+    /// </summary>
+    /// <param name="plaintextPaths">The plaintext files to encrypt.</param>
+    /// <param name="outputDirectory">The existing directory where encrypted files should be written.</param>
+    /// <param name="password">The password used with the key-file bytes to derive each encryption key.</param>
+    /// <param name="keyFilePath">The key file to read and require for future decryption of each output.</param>
+    /// <param name="options">Optional encryption settings and progress reporting.</param>
+    /// <param name="overwrite">Whether each requested output path may replace an existing file.</param>
+    /// <param name="cancellationToken">A token that can cancel the batch between or during files.</param>
+    /// <returns>A per-file batch result containing output paths for successes and exceptions for failures.</returns>
+    /// <remarks>
+    /// Batch encryption writes one encrypted file per input using the input file name plus the ".encrypted" suffix. It
+    /// enables compression for encrypted outputs. The key file is read separately for each item and temporary key-file
+    /// buffers are zeroed before each item completes.
+    /// </remarks>
     public static Task<FileCrypterBatchResult> EncryptFilesAsync(
         IEnumerable<string> plaintextPaths,
         string outputDirectory,
@@ -208,6 +380,21 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Decrypts a batch of encrypted files with a password.
+    /// </summary>
+    /// <param name="encryptedPaths">The encrypted files to decrypt.</param>
+    /// <param name="outputDirectory">The existing directory where plaintext files should be written.</param>
+    /// <param name="password">The password used to derive each decryption key.</param>
+    /// <param name="options">Optional decryption settings and progress reporting.</param>
+    /// <param name="overwrite">Whether each requested output path may replace an existing file.</param>
+    /// <param name="cancellationToken">A token that can cancel the batch between or during files.</param>
+    /// <returns>A per-file batch result containing output paths for successes and exceptions for failures.</returns>
+    /// <remarks>
+    /// If an input file name ends with ".encrypted", that suffix is removed for the requested plaintext output name;
+    /// otherwise ".decrypted" is appended. Individual format failures, including authentication failure, are captured in
+    /// the result; cancellation is propagated to the caller.
+    /// </remarks>
     public static Task<FileCrypterBatchResult> DecryptFilesAsync(
         IEnumerable<string> encryptedPaths,
         string outputDirectory,
@@ -227,6 +414,22 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Decrypts a batch of encrypted files with a password and key file.
+    /// </summary>
+    /// <param name="encryptedPaths">The encrypted files to decrypt.</param>
+    /// <param name="outputDirectory">The existing directory where plaintext files should be written.</param>
+    /// <param name="password">The password used with the key-file bytes to derive each decryption key.</param>
+    /// <param name="keyFilePath">The key file required by the encrypted payloads.</param>
+    /// <param name="options">Optional decryption settings and progress reporting.</param>
+    /// <param name="overwrite">Whether each requested output path may replace an existing file.</param>
+    /// <param name="cancellationToken">A token that can cancel the batch between or during files.</param>
+    /// <returns>A per-file batch result containing output paths for successes and exceptions for failures.</returns>
+    /// <remarks>
+    /// The key file is read separately for each item and temporary key-file buffers are zeroed before each item
+    /// completes. Authentication failures do not distinguish between a wrong password, wrong key file, or corrupted
+    /// ciphertext.
+    /// </remarks>
     public static Task<FileCrypterBatchResult> DecryptFilesAsync(
         IEnumerable<string> encryptedPaths,
         string outputDirectory,
@@ -247,6 +450,21 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Packs plaintext files into a tar archive, compresses it, and encrypts it with a password.
+    /// </summary>
+    /// <param name="plaintextPaths">The plaintext files to include in the encrypted archive.</param>
+    /// <param name="encryptedArchivePath">The requested encrypted archive output file path.</param>
+    /// <param name="password">The password used to derive the archive encryption key.</param>
+    /// <param name="options">Optional encryption settings and archive progress reporting.</param>
+    /// <param name="overwrite">Whether to replace an existing file at <paramref name="encryptedArchivePath"/>.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous archive operation.</param>
+    /// <returns>The full encrypted archive path. When <paramref name="overwrite"/> is false, this may be an auto-renamed path.</returns>
+    /// <remarks>
+    /// Archive encryption creates a temporary tar file, then encrypts it as a FileCrypter archive payload with
+    /// compression enabled. Only regular file entries are created, and duplicate input file names are renamed within the
+    /// archive. Temporary archive and encrypted staging files are removed on failure when possible.
+    /// </remarks>
     public static Task<string> EncryptArchiveAsync(
         IEnumerable<string> plaintextPaths,
         string encryptedArchivePath,
@@ -265,6 +483,22 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Packs plaintext files into a tar archive, compresses it, and encrypts it with a password and key file.
+    /// </summary>
+    /// <param name="plaintextPaths">The plaintext files to include in the encrypted archive.</param>
+    /// <param name="encryptedArchivePath">The requested encrypted archive output file path.</param>
+    /// <param name="password">The password used with the key-file bytes to derive the archive encryption key.</param>
+    /// <param name="keyFilePath">The key file to read and require for future archive decryption.</param>
+    /// <param name="options">Optional encryption settings and archive progress reporting.</param>
+    /// <param name="overwrite">Whether to replace an existing file at <paramref name="encryptedArchivePath"/>.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous archive operation.</param>
+    /// <returns>The full encrypted archive path. When <paramref name="overwrite"/> is false, this may be an auto-renamed path.</returns>
+    /// <remarks>
+    /// Archive encryption creates a temporary tar file, then encrypts it as a FileCrypter archive payload with
+    /// compression enabled. The key file is read into a temporary buffer and zeroed before returning. Losing either the
+    /// password or the key file makes the archive unrecoverable.
+    /// </remarks>
     public static Task<string> EncryptArchiveAsync(
         IEnumerable<string> plaintextPaths,
         string encryptedArchivePath,
@@ -284,6 +518,25 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Decrypts an encrypted archive with a password and extracts its files to a directory.
+    /// </summary>
+    /// <param name="encryptedArchivePath">The encrypted FileCrypter archive to read.</param>
+    /// <param name="outputDirectory">The existing directory where extracted files should be written.</param>
+    /// <param name="password">The password used to derive the archive decryption key.</param>
+    /// <param name="options">Optional decryption settings and archive progress reporting.</param>
+    /// <param name="overwrite">Whether extracted files may replace existing files.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous archive operation.</param>
+    /// <returns>The full paths to the extracted files.</returns>
+    /// <exception cref="FileCrypterFormatException">
+    /// The encrypted payload is unsupported, malformed, unauthenticated, compressed incorrectly, requires a key file, or
+    /// contains an unsafe archive entry.
+    /// </exception>
+    /// <remarks>
+    /// The encrypted payload must be a FileCrypter archive payload, not a single-file payload. Extraction rejects unsafe
+    /// tar paths and unsupported entry types, writes each file through a staging path, and auto-renames extraction outputs
+    /// when <paramref name="overwrite"/> is false.
+    /// </remarks>
     public static Task<IReadOnlyList<string>> DecryptArchiveAsync(
         string encryptedArchivePath,
         string outputDirectory,
@@ -302,6 +555,25 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Decrypts an encrypted archive with a password and key file, then extracts its files to a directory.
+    /// </summary>
+    /// <param name="encryptedArchivePath">The encrypted FileCrypter archive to read.</param>
+    /// <param name="outputDirectory">The existing directory where extracted files should be written.</param>
+    /// <param name="password">The password used with the key-file bytes to derive the archive decryption key.</param>
+    /// <param name="keyFilePath">The key file required by the encrypted archive.</param>
+    /// <param name="options">Optional decryption settings and archive progress reporting.</param>
+    /// <param name="overwrite">Whether extracted files may replace existing files.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous archive operation.</param>
+    /// <returns>The full paths to the extracted files.</returns>
+    /// <exception cref="FileCrypterFormatException">
+    /// The encrypted payload is unsupported, malformed, unauthenticated, compressed incorrectly, or contains an unsafe
+    /// archive entry.
+    /// </exception>
+    /// <remarks>
+    /// The encrypted payload must be a FileCrypter archive payload, not a single-file payload. The key file is read into
+    /// a temporary buffer and zeroed before returning. Extraction rejects unsafe tar paths and unsupported entry types.
+    /// </remarks>
     public static Task<IReadOnlyList<string>> DecryptArchiveAsync(
         string encryptedArchivePath,
         string outputDirectory,
@@ -321,6 +593,20 @@ public static class FileCrypter
             cancellationToken);
     }
 
+    /// <summary>
+    /// Encrypts plaintext from one stream into a FileCrypter single-file payload on another stream.
+    /// </summary>
+    /// <param name="plaintext">The readable plaintext stream.</param>
+    /// <param name="encrypted">The writable stream that receives the encrypted payload.</param>
+    /// <param name="password">The password used to derive the encryption key.</param>
+    /// <param name="options">Optional encryption settings, including compression and progress reporting.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>A task that completes when the encrypted payload has been written.</returns>
+    /// <remarks>
+    /// This method does not close either caller-supplied stream. If <see cref="FileCrypterOptions.EnableCompression"/> is
+    /// true, plaintext is compressed before encryption. The derived key and internal chunk buffers are cleared when the
+    /// operation completes or fails.
+    /// </remarks>
     public static async Task EncryptAsync(
         Stream plaintext,
         Stream encrypted,
@@ -338,6 +624,20 @@ public static class FileCrypter
             cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Encrypts plaintext from one stream into a FileCrypter single-file payload using a password and key-file bytes.
+    /// </summary>
+    /// <param name="plaintext">The readable plaintext stream.</param>
+    /// <param name="encrypted">The writable stream that receives the encrypted payload.</param>
+    /// <param name="password">The password used with <paramref name="keyFileBytes"/> to derive the encryption key.</param>
+    /// <param name="keyFileBytes">The key-file bytes required for future decryption.</param>
+    /// <param name="options">Optional encryption settings, including compression and progress reporting.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>A task that completes when the encrypted payload has been written.</returns>
+    /// <remarks>
+    /// This method does not close either caller-supplied stream and does not clear the caller-owned
+    /// <paramref name="keyFileBytes"/> memory. The encrypted header records that a key file is required.
+    /// </remarks>
     public static async Task EncryptAsync(
         Stream plaintext,
         Stream encrypted,
@@ -421,6 +721,23 @@ public static class FileCrypter
         }
     }
 
+    /// <summary>
+    /// Decrypts a FileCrypter single-file payload from one stream into plaintext on another stream.
+    /// </summary>
+    /// <param name="encrypted">The readable encrypted payload stream.</param>
+    /// <param name="plaintext">The writable stream that receives decrypted plaintext.</param>
+    /// <param name="password">The password used to derive the decryption key.</param>
+    /// <param name="options">Optional decryption settings, including progress reporting.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>A task that completes when the plaintext has been written.</returns>
+    /// <exception cref="FileCrypterFormatException">
+    /// The encrypted payload is unsupported, malformed, unauthenticated, compressed incorrectly, requires a key file, or
+    /// is not a single-file payload.
+    /// </exception>
+    /// <remarks>
+    /// This method does not close either caller-supplied stream. Compression settings are read from the encrypted header,
+    /// and AES-GCM authentication is verified before plaintext from each chunk is released.
+    /// </remarks>
     public static async Task DecryptAsync(
         Stream encrypted,
         Stream plaintext,
@@ -438,6 +755,25 @@ public static class FileCrypter
             cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Decrypts a FileCrypter single-file payload from one stream using a password and key-file bytes.
+    /// </summary>
+    /// <param name="encrypted">The readable encrypted payload stream.</param>
+    /// <param name="plaintext">The writable stream that receives decrypted plaintext.</param>
+    /// <param name="password">The password used with <paramref name="keyFileBytes"/> to derive the decryption key.</param>
+    /// <param name="keyFileBytes">The key-file bytes required by the encrypted payload.</param>
+    /// <param name="options">Optional decryption settings, including progress reporting.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>A task that completes when the plaintext has been written.</returns>
+    /// <exception cref="FileCrypterFormatException">
+    /// The encrypted payload is unsupported, malformed, unauthenticated, compressed incorrectly, or is not a single-file
+    /// payload.
+    /// </exception>
+    /// <remarks>
+    /// This method does not close either caller-supplied stream and does not clear the caller-owned
+    /// <paramref name="keyFileBytes"/> memory. Authentication failures do not distinguish between a wrong password,
+    /// wrong key-file bytes, or corrupted ciphertext.
+    /// </remarks>
     public static async Task DecryptAsync(
         Stream encrypted,
         Stream plaintext,

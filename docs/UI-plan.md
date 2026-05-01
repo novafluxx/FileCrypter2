@@ -1,6 +1,6 @@
-# FileCrypter UI Plan
+# FileCrypter UI Plan Archive
 
-A set of discrete, independently shippable UI improvements. Slices are ordered by impact — tackle top-down, but each is self-contained and can ship alone.
+A set of discrete, independently shippable UI improvements from the first UI polish pass. Completed slices are retained here for context. Remaining active work from Slice 8 and Slice 9 is tracked in `docs/cleanup-todos.md` under "UI Backlog Moved From UI Plan."
 
 ---
 
@@ -141,7 +141,7 @@ A set of discrete, independently shippable UI improvements. Slices are ordered b
 
 ## Slice 8 — Use the sidebar's empty vertical space
 
-`[ ] TODO:`
+`[~] MOVED TO CLEANUP BACKLOG:`
 
 **Problem.** Between "Batch" and "Help" there's a large dead zone in the sidebar.
 
@@ -160,7 +160,7 @@ Alternative if recents feel too heavy: a sidebar-wide drop target ("Drop files h
 
 ## Slice 9 — Checkbox visibility polish
 
-`[ ] TODO:`
+`[~] MOVED TO CLEANUP BACKLOG:`
 
 **Problem.** Unchecked checkboxes nearly disappear against the near-black background.
 

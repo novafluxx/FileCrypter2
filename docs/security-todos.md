@@ -1,66 +1,48 @@
-# Security TODOs
+# Security Audit Follow-ups
 
-Findings from the 2026-04-23 audit of `src/FileCrypter.Core/`, ranked by severity. Items are actionable and map to specific files/lines.
+Findings from the 2026-04-23 audit of `src/FileCrypter.Core/`, ranked by the original severity labels. Current implementation notes live in `docs/security.md`; format-level constraints live in `docs/file-format.md`.
 
-Implementation status: H1, M1, M3, L2, and L3 have been addressed in code. M2 and L1 are documented as accepted residual risks in `docs/security.md`.
+## Open Residual Risks
 
-## H1 — Decryption trusts attacker-controlled Argon2 cost parameters (DoS)
+### M2 — TOCTOU on symlink / path checks
 
-`Format/FileCrypterHeaderParser.cs:93-101` only rejects 0 for `argon2MemoryKiB` / `Iterations` / `Parallelism`. `FileCrypter.cs:1650-1657` (`ValidateSupportedPayload`) only rejects values > `int.MaxValue`. A maliciously crafted header can declare e.g. `MemorySize = 2,147,483,647` KiB (~2 TiB) or extremely high iterations/parallelism, and `FileCrypterKeyDeriver.DeriveKey` runs Argon2 with those values before AEAD ever gets a chance to reject the file. Allocation will eventually throw, but realistic values like 4 GiB memory or millions of iterations will exhaust RAM / burn CPU first.
+`ValidateInputPath`, `ValidateKeyFilePath`, and `ValidateOutputPath` reject BCL-detectable symbolic links and reparse points before later `FileStream` opens, and staged output files still use randomized `CreateNew` temp names plus final moves. A bounded race remains if an attacker can mutate a parent directory between validation and use.
 
-**Fix:** clamp on decrypt — e.g. `MemoryKiB ≤ 1_048_576` (1 GiB), `Iterations ≤ 64`, `Parallelism ≤ 16`. Reject larger values with `InvalidArgon2Parameters` before calling `Argon2id`.
+**Current stance:** accepted residual risk. Keep input, key-file, output, and settings paths inside directories the user controls. Revisit only if the project adopts platform-specific open-time no-follow or open-by-handle primitives.
 
-## M1 — `ValidateEncryptionOptions` allows trivially weak Argon2 parameters
+### L1 — Password bytes: only the UTF-8 copy is zeroed
 
-`FileCrypter.cs:1436-1439` only checks `> 0`. Callers can encrypt with `Argon2MemoryKiB=1, Iterations=1, Parallelism=1` and produce files with essentially no password-stretching. No floor is enforced in the core library.
+`FileCrypterKeyDeriver` zeroes UTF-8 password byte copies, credential preimages, derived keys, and key-file buffers. The original `string password` can remain in the managed heap, which is a known .NET limitation.
 
-**Fix:** enforce minimums — e.g. `MemoryKiB ≥ 19_456` (OWASP 2023 Argon2id floor), `Iterations ≥ 2`, `Parallelism ≥ 1`. Mirror these bounds in H1's decrypt-side clamp.
+**Current stance:** accepted residual risk. Consider byte-buffer or span-based password overloads if callers need to provide pre-zeroable password material.
 
-## M2 — TOCTOU on symlink / path checks
+## Resolved Archive
 
-`ValidateInputPath`, `ValidateKeyFilePath`, `ValidateOutputPath` call `IsSymbolicLink` (`FileCrypter.cs:1415-1425`) and `Directory.Exists` before the subsequent `FileStream` open. Between check and open, an attacker with write access to any parent directory can swap the target. Impact is bounded (input is read-only; output staging uses randomized `.<name>.<guid>.tmp` + `CreateNew`) but the pattern is worth hardening.
+### 2026-04 — H1, M1: Argon2 bounds
 
-**Fix:** open with a pre-stat'd `FileInfo`, or use `File.OpenHandle` + `FileStream(SafeFileHandle,…)` and re-verify link metadata via the open handle. At minimum, document that input/key-file paths must live in a directory the user controls.
+Decryption now rejects Argon2 parameters outside the v1 valid ranges before key derivation, and encryption enforces matching minimums and maximums. Current ranges are `MemoryKiB = 19456..1048576`, `Iterations = 2..64`, and `Parallelism = 1..16`.
 
-## M3 — Windows output files have no ACL tightening
+### 2026-04 — M3: Windows output file ACLs
 
-`CreateOutputFileStreamOptions` (`FileCrypter.cs:1347-1364`) sets `UnixCreateMode = 0600` on Unix but does nothing on Windows, so staged ciphertext / key-file inherit the parent directory's ACL (often readable by "Authenticated Users" in a default profile).
+Staged output files now use private permissions on supported platforms: Unix creates files with `0600`, and Windows creates files with an explicit ACL for the current user.
 
-**Fix:** on Windows, set an explicit `FileSecurity` granting only the current user, at minimum for the `GenerateKeyFileAsync` output path.
+### 2026-04 — L2: Settings store symlink protection
 
-## L1 — Password bytes: only the UTF-8 copy is zeroed
+Settings saves now align with ciphertext output behavior by rejecting symlinked or reparse-point destinations before replacing `settings.json`.
 
-`FileCrypterKeyDeriver.cs:24,42` zeroes `passwordBytes` but the `string password` remains in the managed heap. Known .NET limitation.
+### 2026-04 — L3: Non-final chunk length validation
 
-**Fix (optional):** expose `byte[]` / `ReadOnlySpan<byte>` password overloads so callers can provide pre-zero-able buffers and skip the string allocation.
+Decrypt now requires non-final chunks to have plaintext length exactly equal to the header chunk size. Final chunks must remain shorter than the chunk size, with a zero-length final chunk allowed for empty files and exact-boundary files.
 
-## L2 — Settings store writes without symlink protection
+### L4 — Nonce-prefix width
 
-`Settings/FileCrypterSettingsStore.cs:83` does `File.Move(stagingPath, settingsPath, overwrite: true)` unconditionally. If an attacker replaces `settings.json` with a symlink, a subsequent save overwrites the link target. Low impact (settings are non-secret) but inconsistent with the ciphertext path, which blocks symlinked output when `overwrite=true`.
+The 8-byte random nonce prefix remains informational only. Because each file derives an independent key from a fresh 16-byte salt, a prefix collision does not cause AES-GCM key+nonce reuse.
 
-**Fix:** reject the move when the destination is a symlink, matching the ciphertext path behavior.
+## What's Working
 
-## L3 — Non-final chunks with plaintext length 0 are accepted on decrypt
-
-`FileCrypter.cs:2278-2283` only rejects `length > ChunkSize` or `(isFinal && length == ChunkSize)`. An authenticated but malicious file can contain many zero-length non-final chunks, each adding 8+16 bytes of overhead. Not exploitable without the key (AEAD blocks unauthenticated input), so informational.
-
-**Fix (optional):** require non-final chunks to equal `ChunkSize`, since the encryptor only emits full chunks except the final one.
-
-## L4 — Nonce-prefix width (informational, no action)
-
-The 8-byte random prefix gives a birthday bound of ~2³² files before prefix collision. Because each file derives an independent key from a fresh 16-byte salt, a prefix collision does not cause AES-GCM key+nonce reuse. Safe as designed.
-
-## Recommended priority
-
-1. **H1** — only finding an unauthenticated attacker can trigger with just a crafted `.encrypted` file.
-2. **M1** — fix alongside H1 so encrypt/decrypt share the same min/max.
-3. **M2 / M3** — address if FileCrypter is used in multi-user environments.
-
-## What's working (keep as-is)
-
-- AAD = full header ‖ chunk prefix binds every format field (algorithm IDs, flags, chunk size, Argon2 params, salt, nonce prefix, payload kind) to the ciphertext — prevents downgrade / parameter-swap.
-- Final-chunk flag + `EnsureNoTrailingData` closes truncation and append attacks.
-- Credential preimage uses a fixed domain string and length-prefixed fields; password + key-file can't be confused across variants.
-- Tar extraction path validation (`CreateArchiveExtractionOutputPath`) rejects separators, `.`/`..`, absolute paths, and re-verifies the resolved absolute path stays under the output directory with a trailing separator.
-- Staged writes + `CreateNew` + `FileShare.None` + randomized temp names make pre-existing-symlink attacks on the output path very hard.
-- `CryptographicOperations.ZeroMemory` is consistently applied to derived keys, key-file bytes, and preimage buffers.
+- AAD = full header and chunk prefix, binding every format field to ciphertext.
+- Final-chunk validation plus `EnsureNoTrailingData` closes truncation and append attacks.
+- Credential preimages use a fixed domain string and length-prefixed fields, so password and key-file credentials cannot be confused across variants.
+- Tar extraction path validation rejects separators, `.`/`..`, absolute paths, and paths resolving outside the output directory.
+- Staged writes, `CreateNew`, `FileShare.None`, and randomized temp names reduce pre-existing symlink attacks on output paths.
+- Sensitive buffers are zeroed on ordinary and failure paths documented in `docs/security.md`.
