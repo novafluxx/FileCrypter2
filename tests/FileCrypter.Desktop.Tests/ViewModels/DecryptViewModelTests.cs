@@ -61,6 +61,9 @@ public sealed class DecryptViewModelTests
         await workflow.Started.Task;
 
         Assert.True(viewModel.IsRunning);
+        Assert.Empty(viewModel.Password);
+        Assert.NotNull(workflow.Request);
+        Assert.Equal("secret", workflow.Request.Password);
         Assert.False(viewModel.StartDecryptCommand.CanExecute(null));
         Assert.False(viewModel.ShowReadyAction);
 
@@ -429,6 +432,8 @@ public sealed class DecryptViewModelTests
 
         public TaskCompletionSource Started { get; } = new();
 
+        public DecryptFileRequest? Request { get; private set; }
+
         public Task<EncryptFileResult> EncryptFileAsync(
             EncryptFileRequest request,
             IProgress<FileCrypterProgress>? progress,
@@ -442,6 +447,7 @@ public sealed class DecryptViewModelTests
             IProgress<FileCrypterProgress>? progress,
             CancellationToken cancellationToken)
         {
+            Request = request;
             Started.SetResult();
             return completion.Task;
         }

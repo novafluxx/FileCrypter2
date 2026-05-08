@@ -389,7 +389,7 @@
                         <StackPanel Margin="0,14,0,0"
                                     Spacing="14">
 
-                            <TextBox Text="{Binding Password}"
+                            <TextBox Text="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      PasswordChar="*"
                                      RevealPassword="{Binding ShowPassword}"
                                      PlaceholderText="Enter the batch passphrase" />

@@ -824,10 +824,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     private async Task RunIndividualBatchAsync(int progressRunId)
     {
+        string password = Password;
+        Password = string.Empty;
+
         BatchTransformRequest request = new(
             SourcePaths.ToArray(),
             OutputDirectory,
-            Password,
+            password,
             NeverOverwriteExistingFiles,
             string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath);
 
@@ -868,10 +871,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     private async Task RunArchiveEncryptAsync(int progressRunId)
     {
+        string password = Password;
+        Password = string.Empty;
+
         ArchiveEncryptRequest request = new(
             SourcePaths.ToArray(),
             OutputDirectory,
-            Password,
+            password,
             NeverOverwriteExistingFiles,
             string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath,
             string.IsNullOrWhiteSpace(ArchiveName) ? null : ArchiveName);
@@ -909,10 +915,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
     private async Task RunArchiveDecryptAsync(int progressRunId)
     {
+        string password = Password;
+        Password = string.Empty;
+
         ArchiveDecryptRequest request = new(
             SourcePaths.Single(),
             OutputDirectory,
-            Password,
+            password,
             NeverOverwriteExistingFiles,
             string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath);
 

@@ -547,10 +547,13 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
 
         try
         {
+            string password = Password;
+            Password = string.Empty;
+
             EncryptFileRequest request = new(
                 SourcePath,
                 string.IsNullOrWhiteSpace(OutputPath) ? null : OutputPath,
-                Password,
+                password,
                 EnableCompression,
                 NeverOverwriteExistingFiles,
                 string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath,

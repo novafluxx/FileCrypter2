@@ -504,6 +504,9 @@ public sealed class BatchViewModelTests
         await workflow.Started.Task;
 
         Assert.True(viewModel.IsRunning);
+        Assert.Empty(viewModel.Password);
+        Assert.NotNull(workflow.Request);
+        Assert.Equal("secret", workflow.Request.Password);
         Assert.False(viewModel.StartBatchCommand.CanExecute(null));
         Assert.False(viewModel.ClearFilesCommand.CanExecute(null));
 
@@ -867,6 +870,8 @@ public sealed class BatchViewModelTests
 
         public TaskCompletionSource Started { get; } = new();
 
+        public BatchTransformRequest? Request { get; private set; }
+
         public Task<EncryptFileResult> EncryptFileAsync(
             EncryptFileRequest request,
             IProgress<FileCrypterProgress>? progress,
@@ -904,6 +909,7 @@ public sealed class BatchViewModelTests
             IProgress<BatchOperationProgress>? progress,
             CancellationToken cancellationToken)
         {
+            Request = request;
             Started.SetResult();
             return completion.Task;
         }
@@ -913,6 +919,7 @@ public sealed class BatchViewModelTests
             IProgress<BatchOperationProgress>? progress,
             CancellationToken cancellationToken)
         {
+            Request = request;
             Started.SetResult();
             return completion.Task;
         }

@@ -391,10 +391,13 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
         try
         {
+            string password = Password;
+            Password = string.Empty;
+
             DecryptFileRequest request = new(
                 SourcePath,
                 string.IsNullOrWhiteSpace(OutputPath) ? null : OutputPath,
-                Password,
+                password,
                 NeverOverwriteExistingFiles,
                 string.IsNullOrWhiteSpace(KeyFilePath) ? null : KeyFilePath);
 
