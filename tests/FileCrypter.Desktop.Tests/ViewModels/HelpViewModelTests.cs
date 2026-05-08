@@ -21,7 +21,8 @@ public sealed class HelpViewModelTests
         Assert.Equal("Encrypted file format v4", viewModel.FormatVersionText);
         Assert.Contains("local-first", viewModel.AboutSummaryText, StringComparison.Ordinal);
         Assert.Contains("record it before starting the run", viewModel.RecoveryWarningText, StringComparison.Ordinal);
-        Assert.Contains("clears it after the attempt", viewModel.RecoveryWarningText, StringComparison.Ordinal);
+        Assert.Contains("clears the password field as the run starts", viewModel.RecoveryWarningText, StringComparison.Ordinal);
+        Assert.Contains("does not restore it after failures", viewModel.RecoveryWarningText, StringComparison.Ordinal);
         Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeSummary, StringComparison.Ordinal);
         Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
         Assert.Contains("Copyright (c) Microsoft Corporation", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
@@ -51,14 +52,16 @@ public sealed class HelpViewModelTests
         Assert.Contains("random password", generatorTopic.Description, StringComparison.Ordinal);
         Assert.Contains("maximum entropy", generatorTopic.Description, StringComparison.Ordinal);
         Assert.Contains("memorable passphrase", generatorTopic.Description, StringComparison.Ordinal);
-        Assert.Contains("temporary", generatorTopic.Description, StringComparison.Ordinal);
-        Assert.Contains("cleared after an encrypt or batch attempt", generatorTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("placed in the password field", generatorTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("clear the field as soon as the workflow starts", generatorTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("failed operations do not restore it", generatorTopic.Description, StringComparison.Ordinal);
 
         HelpTopicViewModel recoveryTopic = Assert.Single(
             viewModel.SafetyTopics,
             topic => topic.Title == "Recovery limits");
         Assert.Contains("Generated passwords and passphrases are not saved", recoveryTopic.Description, StringComparison.Ordinal);
-        Assert.Contains("retained after a run", recoveryTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("retained after a workflow starts", recoveryTopic.Description, StringComparison.Ordinal);
+        Assert.Contains("failed operations do not put them back", recoveryTopic.Description, StringComparison.Ordinal);
         Assert.Contains("unless you record them yourself", recoveryTopic.Description, StringComparison.Ordinal);
     }
 

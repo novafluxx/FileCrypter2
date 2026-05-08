@@ -25,7 +25,8 @@ This checklist captures the security, quality, documentation, and dependency fol
   - `tests/FileCrypter.Desktop.Tests/ViewModels/EncryptViewModelTests.cs:98`
   - `tests/FileCrypter.Desktop.Tests/ViewModels/DecryptViewModelTests.cs:89`
   - `tests/FileCrypter.Desktop.Tests/ViewModels/BatchViewModelTests.cs:109`
-- Problem: `Password` is cleared on successful operations, but failed encryption/decryption/batch operations leave it in bindable view-model properties and UI controls.
+- Status: completed 2026-05-08. Desktop encrypt, decrypt, and batch workflows now copy the password into the request and clear the bindable `Password` field as the operation starts; failures do not restore it.
+- Problem: `Password` was cleared on successful operations, but failed encryption/decryption/batch operations left it in bindable view-model properties and UI controls.
 - Fix:
   - Clear `Password` in `finally` or immediately after constructing request objects.
   - Update tests that currently assert password retention after failure.
@@ -161,7 +162,8 @@ This checklist captures the security, quality, documentation, and dependency fol
   - `src/FileCrypter.Desktop/ViewModels/HelpViewModel.cs:89`
   - `src/FileCrypter.Desktop/ViewModels/EncryptViewModel.cs:467`
   - `src/FileCrypter.Desktop/ViewModels/BatchViewModel.cs:469`
-- Problem: help says generated values are "shown once" and not reusable unless recorded, but generated values are assigned to bindable `Password` strings, shown by default, and currently retained after failures.
+- Status: completed 2026-05-08. Help now says generated values are placed in the password field for recording, then the field is cleared when encrypt or batch work starts and failed operations do not restore it.
+- Problem: help said generated values were "shown once" and not reusable unless recorded, but generated values are assigned to bindable `Password` strings and shown by default until a run starts.
 - Fix:
   - First fix password clearing behavior.
   - Then update help text to accurately describe generated password lifetime.
