@@ -649,9 +649,22 @@ internal sealed class FileCrypterCommand
                 return WriteError("Compression default must be 'on' or 'off'.");
             }
 
+            FileCrypterSettings existingSettings;
+            try
+            {
+                existingSettings = await settingsStore.LoadAsync().ConfigureAwait(false);
+            }
+            catch (InvalidDataException)
+            {
+                existingSettings = new FileCrypterSettings();
+            }
+
             var settings = new FileCrypterSettings
             {
                 EnableCompressionByDefault = enableCompressionByDefault,
+                NeverOverwriteExistingFilesByDefault = existingSettings.NeverOverwriteExistingFilesByDefault,
+                DefaultOutputDirectory = existingSettings.DefaultOutputDirectory,
+                ThemePreference = existingSettings.ThemePreference,
             };
             await settingsStore.SaveAsync(settings).ConfigureAwait(false);
             console.Out.WriteLine($"Compression default: {FormatOnOff(settings.EnableCompressionByDefault)}");

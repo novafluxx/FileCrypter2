@@ -763,6 +763,35 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task SettingsSetCompressionDefault_PreservesUnrelatedSettings()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string defaultOutputDirectory = Path.Combine(directory.Path, "outputs");
+        FileCrypterSettingsStore settingsStore = CreateSettingsStore(settingsPath);
+        await settingsStore.SaveAsync(new FileCrypterSettings
+        {
+            EnableCompressionByDefault = true,
+            NeverOverwriteExistingFilesByDefault = false,
+            DefaultOutputDirectory = defaultOutputDirectory,
+            ThemePreference = FileCrypterThemePreference.Dark,
+        });
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: settingsStore)
+            .RunAsync(["settings", "set", "compression-default", "off"]);
+
+        FileCrypterSettings loadedSettings = await settingsStore.LoadAsync();
+        Assert.Equal(0, exitCode);
+        Assert.False(loadedSettings.EnableCompressionByDefault);
+        Assert.False(loadedSettings.NeverOverwriteExistingFilesByDefault);
+        Assert.Equal(defaultOutputDirectory, loadedSettings.DefaultOutputDirectory);
+        Assert.Equal(FileCrypterThemePreference.Dark, loadedSettings.ThemePreference);
+        Assert.Contains("Compression default: off", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
     public async Task Encrypt_WhenCompressionDefaultIsOn_CompressesWithoutCompressOption()
     {
         using var directory = new TemporaryDirectory();

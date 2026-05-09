@@ -117,6 +117,38 @@ public sealed class BatchViewModelTests
     }
 
     [Fact]
+    public async Task StartBatchCommand_WhenWorkflowFails_IgnoresQueuedProgress()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var workflow = new RecordingWorkflowService
+        {
+            Error = new IOException("The output directory is missing."),
+        };
+        var viewModel = CreateReadyViewModel(workflow, outputDirectory.Path);
+        SynchronizationContext? originalContext = SynchronizationContext.Current;
+        var context = new DrainableSynchronizationContext();
+        SynchronizationContext.SetSynchronizationContext(context);
+
+        try
+        {
+            await viewModel.StartBatchCommand.ExecuteAsync(null);
+            string failureProgressText = viewModel.ProgressText;
+            double failureProgressPercent = viewModel.ProgressPercent;
+
+            context.Drain();
+
+            Assert.Equal(failureProgressText, viewModel.ProgressText);
+            Assert.Equal(failureProgressPercent, viewModel.ProgressPercent);
+            Assert.Equal("Batch encryption failed", viewModel.StatusText);
+            Assert.True(viewModel.HasError);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(originalContext);
+        }
+    }
+
+    [Fact]
     public void StartBatchCommand_InArchiveDecryptMode_RequiresExactlyOneArchive()
     {
         using var outputDirectory = new TemporaryDirectory();
@@ -765,6 +797,25 @@ public sealed class BatchViewModelTests
             }
             catch
             {
+            }
+        }
+    }
+
+    private sealed class DrainableSynchronizationContext : SynchronizationContext
+    {
+        private readonly Queue<(SendOrPostCallback Callback, object? State)> workItems = new();
+
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            workItems.Enqueue((d, state));
+        }
+
+        public void Drain()
+        {
+            while (workItems.Count > 0)
+            {
+                (SendOrPostCallback callback, object? state) = workItems.Dequeue();
+                callback(state);
             }
         }
     }

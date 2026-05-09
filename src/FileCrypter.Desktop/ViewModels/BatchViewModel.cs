@@ -637,6 +637,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         }
         catch (Exception exception)
         {
+            CompleteProgressRun(progressRunId);
             runStopwatch.Stop();
             string message = WorkflowErrorMessageFormatter.GetTroubleshootingMessage(exception);
             ErrorMessage = message;
