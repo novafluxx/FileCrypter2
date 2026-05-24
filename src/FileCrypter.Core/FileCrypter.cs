@@ -1698,6 +1698,11 @@ public static class FileCrypter
 
     private static FileStream CreateOutputFileStream(string path)
     {
+        if (path == null || path.Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path");
+        }
+
         return OperatingSystem.IsWindows()
             ? CreateWindowsOutputFileStream(path)
             : new FileStream(path, CreateOutputFileStreamOptions());
@@ -1706,6 +1711,11 @@ public static class FileCrypter
     [SupportedOSPlatform("windows")]
     private static FileStream CreateWindowsOutputFileStream(string path)
     {
+        if (path == null || path.Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path");
+        }
+
         SecurityIdentifier? currentUser = WindowsIdentity.GetCurrent().User;
         if (currentUser is null)
         {
@@ -1732,6 +1742,15 @@ public static class FileCrypter
 
     private static void MoveStagedOutput(string stagingPath, string finalPath, bool overwrite)
     {
+        if (stagingPath == null || stagingPath.Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path");
+        }
+        if (finalPath == null || finalPath.Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path");
+        }
+
         try
         {
             File.Move(stagingPath, finalPath, overwrite);
@@ -1812,6 +1831,11 @@ public static class FileCrypter
 
     private static bool IsSymbolicLinkOrReparsePoint(string path)
     {
+        if (path == null || path.Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path");
+        }
+
         return IsSymbolicLinkOrReparsePoint(new FileInfo(path)) ||
             IsSymbolicLinkOrReparsePoint(new DirectoryInfo(path));
     }
@@ -1976,6 +2000,11 @@ public static class FileCrypter
 
     private static string? GetResolvedSymbolicLinkTarget(string path)
     {
+        if (path == null || path.Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path");
+        }
+
         var fileInfo = new FileInfo(path);
         if (fileInfo.LinkTarget is not null)
         {
@@ -2023,6 +2052,11 @@ public static class FileCrypter
 
     private static void TryDeleteFile(string path)
     {
+        if (path == null || path.Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path");
+        }
+
         try
         {
             File.Delete(path);
