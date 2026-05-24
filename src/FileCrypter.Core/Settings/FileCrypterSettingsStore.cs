@@ -5,10 +5,12 @@ namespace FileCrypter.Core.Settings;
 public sealed class FileCrypterSettingsStore
 {
     private readonly string settingsPath;
+    private readonly string settingsDirectory;
 
     public FileCrypterSettingsStore(string? settingsPath = null)
     {
         this.settingsPath = Path.GetFullPath(settingsPath ?? GetDefaultSettingsPath());
+        this.settingsDirectory = ResolveSettingsDirectory(this.settingsPath);
     }
 
     public string SettingsPath => settingsPath;
@@ -45,11 +47,7 @@ public sealed class FileCrypterSettingsStore
         ArgumentNullException.ThrowIfNull(settings);
         settings = settings.Normalize();
 
-        string? directory = Path.GetDirectoryName(settingsPath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        Directory.CreateDirectory(settingsDirectory);
 
         string stagingPath = CreateStagingPath(settingsPath);
         bool completed = false;
@@ -80,7 +78,7 @@ public sealed class FileCrypterSettingsStore
         {
             if (!completed)
             {
-                TryDeleteFile(stagingPath);
+                TryDeleteStagingFile(stagingPath, settingsDirectory);
             }
         }
     }
@@ -111,7 +109,30 @@ public sealed class FileCrypterSettingsStore
             throw new ArgumentException("The settings path must include a file name.", nameof(path));
         }
 
+        ValidateSafeFileName(fileName, nameof(path));
+
         return Path.Combine(directory, $".{fileName}.{Guid.NewGuid():N}.tmp");
+    }
+
+    private static string ResolveSettingsDirectory(string path)
+    {
+        string? directory = Path.GetDirectoryName(path);
+        string fileName = Path.GetFileName(path);
+        if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(fileName))
+        {
+            throw new ArgumentException("The settings path must include a directory and file name.", nameof(path));
+        }
+
+        ValidateSafeFileName(fileName, nameof(path));
+
+        string fullDirectory = Path.GetFullPath(directory);
+        string fullPath = Path.GetFullPath(Path.Combine(fullDirectory, fileName));
+        if (!IsPathInsideDirectory(fullPath, fullDirectory))
+        {
+            throw new ArgumentException("The settings path must stay within its settings directory.", nameof(path));
+        }
+
+        return fullDirectory;
     }
 
     private static bool IsSymbolicLink(string path)
@@ -131,14 +152,48 @@ public sealed class FileCrypterSettingsStore
         return directoryInfo.LinkTarget is not null;
     }
 
-    private static void TryDeleteFile(string path)
+    private static void TryDeleteStagingFile(string path, string expectedDirectory)
     {
         try
         {
-            File.Delete(path);
+            string fullPath = Path.GetFullPath(path);
+            string fullExpectedDirectory = Path.GetFullPath(expectedDirectory);
+            string fileName = Path.GetFileName(fullPath);
+            if (!IsPathInsideDirectory(fullPath, fullExpectedDirectory)
+                || !IsSafeFileName(fileName)
+                || !fileName.StartsWith(".", StringComparison.Ordinal)
+                || !fileName.EndsWith(".tmp", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            File.Delete(fullPath);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
         }
+    }
+
+    private static bool IsPathInsideDirectory(string path, string directory)
+    {
+        string comparisonDirectory = Path.TrimEndingDirectorySeparator(directory) + Path.DirectorySeparatorChar;
+        string comparisonPath = Path.GetFullPath(path);
+        return comparisonPath.StartsWith(comparisonDirectory, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void ValidateSafeFileName(string fileName, string parameterName)
+    {
+        if (!IsSafeFileName(fileName))
+        {
+            throw new ArgumentException("The settings file name must not contain path traversal or directory separators.", parameterName);
+        }
+    }
+
+    private static bool IsSafeFileName(string fileName)
+    {
+        return !string.IsNullOrWhiteSpace(fileName)
+            && !fileName.Contains("..", StringComparison.Ordinal)
+            && !fileName.Contains('/', StringComparison.Ordinal)
+            && !fileName.Contains('\\', StringComparison.Ordinal);
     }
 }

@@ -69,6 +69,17 @@ public sealed class FileCrypterSettingsStoreTests
         Assert.Empty(Directory.GetFiles(tempDirectory.Path, "*.tmp"));
     }
 
+    [Fact]
+    public void Constructor_WhenSettingsFileNameContainsTraversalSegment_Throws()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings..json");
+
+        ArgumentException exception = Assert.Throws<ArgumentException>(() => new FileCrypterSettingsStore(settingsPath));
+
+        Assert.Contains("path traversal", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool TryCreateFileSymbolicLink(string linkPath, string targetPath)
     {
         try

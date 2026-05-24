@@ -4,6 +4,13 @@ namespace FileCrypter.Desktop.Services;
 
 public sealed class DesktopPathRevealService : IPathRevealService
 {
+    private enum PathRevealCommand
+    {
+        WindowsExplorer,
+        MacOpen,
+        LinuxXdgOpen,
+    }
+
     public Task<bool> TryRevealPathAsync(string path, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -35,14 +42,14 @@ public sealed class DesktopPathRevealService : IPathRevealService
     {
         if (File.Exists(fullPath))
         {
-            StartProcess("explorer.exe", $"/select,\"{fullPath}\"");
+            StartProcess(PathRevealCommand.WindowsExplorer, "/select,", fullPath);
             return true;
         }
 
         string targetDirectory = ResolveDirectoryTarget(fullPath);
         if (!string.IsNullOrWhiteSpace(targetDirectory))
         {
-            StartProcess("explorer.exe", $"\"{targetDirectory}\"");
+            StartProcess(PathRevealCommand.WindowsExplorer, targetDirectory);
             return true;
         }
 
@@ -53,14 +60,14 @@ public sealed class DesktopPathRevealService : IPathRevealService
     {
         if (File.Exists(fullPath))
         {
-            StartProcess("open", $"-R \"{fullPath}\"");
+            StartProcess(PathRevealCommand.MacOpen, "-R", fullPath);
             return true;
         }
 
         string targetDirectory = ResolveDirectoryTarget(fullPath);
         if (!string.IsNullOrWhiteSpace(targetDirectory))
         {
-            StartProcess("open", $"\"{targetDirectory}\"");
+            StartProcess(PathRevealCommand.MacOpen, targetDirectory);
             return true;
         }
 
@@ -72,7 +79,7 @@ public sealed class DesktopPathRevealService : IPathRevealService
         string targetDirectory = ResolveDirectoryTarget(fullPath);
         if (!string.IsNullOrWhiteSpace(targetDirectory))
         {
-            StartProcess("xdg-open", $"\"{targetDirectory}\"");
+            StartProcess(PathRevealCommand.LinuxXdgOpen, targetDirectory);
             return true;
         }
 
@@ -92,13 +99,31 @@ public sealed class DesktopPathRevealService : IPathRevealService
             : string.Empty;
     }
 
-    private static void StartProcess(string fileName, string arguments)
+    private static void StartProcess(PathRevealCommand command, params string[] arguments)
     {
-        Process.Start(new ProcessStartInfo
+        var startInfo = new ProcessStartInfo
         {
-            FileName = fileName,
-            Arguments = arguments,
+            FileName = GetAllowedExecutable(command),
             UseShellExecute = false,
-        });
+        };
+
+        foreach (string argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        // nosec AIK_csharp_CommandInjection: executable is selected from PathRevealCommand allow-list; paths are normalized, existence-checked, and passed via ArgumentList.
+        Process.Start(startInfo);
+    }
+
+    private static string GetAllowedExecutable(PathRevealCommand command)
+    {
+        return command switch
+        {
+            PathRevealCommand.WindowsExplorer => "explorer.exe",
+            PathRevealCommand.MacOpen => "open",
+            PathRevealCommand.LinuxXdgOpen => "xdg-open",
+            _ => throw new ArgumentOutOfRangeException(nameof(command), command, "Unsupported path reveal command."),
+        };
     }
 }
