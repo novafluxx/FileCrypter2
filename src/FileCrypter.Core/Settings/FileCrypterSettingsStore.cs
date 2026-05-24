@@ -167,6 +167,7 @@ public sealed class FileCrypterSettingsStore
                 return;
             }
 
+            // nosec AIK_csharp_path_rule_PathTraversal: staging path is canonicalized, constrained to settingsDirectory, and filename rejects '..', '/', and '\'.
             File.Delete(fullPath);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
