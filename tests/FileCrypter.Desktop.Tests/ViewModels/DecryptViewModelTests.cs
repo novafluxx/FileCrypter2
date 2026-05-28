@@ -112,7 +112,7 @@ public sealed class DecryptViewModelTests
         await viewModel.StartDecryptCommand.ExecuteAsync(null);
         Assert.True(viewModel.HasError);
 
-        viewModel.Password = "different-secret";
+        viewModel.Password = TestPasswordSamples.Changed;
 
         Assert.False(viewModel.HasError);
         Assert.Equal(string.Empty, viewModel.ErrorMessage);

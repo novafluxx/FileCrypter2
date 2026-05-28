@@ -628,7 +628,7 @@ public sealed class BatchViewModelTests
     {
         var generator = new RecordingPasswordGeneratorService
         {
-            RandomPassword = "Generated!Password123456",
+            RandomPassword = TestPasswordSamples.GeneratedRandom,
         };
         var viewModel = new BatchViewModel(
             new RecordingWorkflowService(),
@@ -636,7 +636,7 @@ public sealed class BatchViewModelTests
 
         viewModel.GenerateRandomPasswordCommand.Execute(null);
 
-        Assert.Equal("Generated!Password123456", viewModel.Password);
+        Assert.Equal(TestPasswordSamples.GeneratedRandom, viewModel.Password);
         Assert.True(viewModel.ShowPassword);
         Assert.False(viewModel.ShowMaskedPasswordInput);
         Assert.Equal(4, viewModel.PasswordStrengthScore);
@@ -649,7 +649,7 @@ public sealed class BatchViewModelTests
     {
         var generator = new RecordingPasswordGeneratorService
         {
-            MemorablePassphrase = "river-lantern-copper-signal-violet",
+            MemorablePassphrase = TestPasswordSamples.MemorablePassphrase,
         };
         var viewModel = new BatchViewModel(
             new RecordingWorkflowService(),
@@ -657,7 +657,7 @@ public sealed class BatchViewModelTests
 
         viewModel.GenerateMemorablePassphraseCommand.Execute(null);
 
-        Assert.Equal("river-lantern-copper-signal-violet", viewModel.Password);
+        Assert.Equal(TestPasswordSamples.MemorablePassphrase, viewModel.Password);
         Assert.True(viewModel.ShowPassword);
         Assert.False(viewModel.ShowMaskedPasswordInput);
         Assert.Equal(4, viewModel.PasswordStrengthScore);
@@ -675,7 +675,7 @@ public sealed class BatchViewModelTests
         Assert.Equal(0, viewModel.PasswordStrengthScore);
         Assert.Equal("Enter a password", viewModel.PasswordStrengthLabel);
 
-        viewModel.Password = "Strong!Pass123";
+        viewModel.Password = TestPasswordSamples.Strong;
 
         Assert.Equal(4, viewModel.PasswordStrengthScore);
         Assert.Equal(100d, viewModel.PasswordStrengthPercent);
@@ -1036,9 +1036,9 @@ public sealed class BatchViewModelTests
 
     private sealed class RecordingPasswordGeneratorService : IPasswordGeneratorService
     {
-        public string RandomPassword { get; init; } = "Random!Password123456789";
+        public string RandomPassword { get; init; } = TestPasswordSamples.GeneratedRandom;
 
-        public string MemorablePassphrase { get; init; } = "river-lantern-copper-signal-violet";
+        public string MemorablePassphrase { get; init; } = TestPasswordSamples.MemorablePassphrase;
 
         public string GenerateRandomPassword()
         {

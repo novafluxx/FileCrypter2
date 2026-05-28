@@ -120,7 +120,7 @@ public sealed class EncryptViewModelTests
         await viewModel.StartEncryptCommand.ExecuteAsync(null);
         Assert.True(viewModel.HasError);
 
-        viewModel.Password = "different-secret";
+        viewModel.Password = TestPasswordSamples.Changed;
 
         Assert.False(viewModel.HasError);
         Assert.Equal(string.Empty, viewModel.ErrorMessage);
@@ -435,7 +435,7 @@ public sealed class EncryptViewModelTests
     {
         var viewModel = new EncryptViewModel(new RecordingWorkflowService())
         {
-            Password = "Strong!Pass123",
+            Password = TestPasswordSamples.Strong,
         };
 
         Assert.Equal(4, viewModel.PasswordStrengthScore);
@@ -455,7 +455,7 @@ public sealed class EncryptViewModelTests
         Assert.Equal(0, viewModel.PasswordStrengthScore);
         Assert.Equal("Enter a passphrase", viewModel.PasswordStrengthLabel);
 
-        viewModel.Password = "Strong!Pass123";
+        viewModel.Password = TestPasswordSamples.Strong;
 
         Assert.Equal(4, viewModel.PasswordStrengthScore);
         Assert.Equal(100d, viewModel.PasswordStrengthPercent);
@@ -468,7 +468,7 @@ public sealed class EncryptViewModelTests
     {
         var generator = new RecordingPasswordGeneratorService
         {
-            RandomPassword = "Generated!Password123456",
+            RandomPassword = TestPasswordSamples.GeneratedRandom,
         };
         var viewModel = new EncryptViewModel(new RecordingWorkflowService(), passwordGeneratorService: generator)
         {
@@ -477,7 +477,7 @@ public sealed class EncryptViewModelTests
 
         viewModel.GenerateRandomPasswordCommand.Execute(null);
 
-        Assert.Equal("Generated!Password123456", viewModel.Password);
+        Assert.Equal(TestPasswordSamples.GeneratedRandom, viewModel.Password);
         Assert.True(viewModel.ShowPassword);
         Assert.False(viewModel.ShowMaskedPasswordInput);
         Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
@@ -489,7 +489,7 @@ public sealed class EncryptViewModelTests
     {
         var generator = new RecordingPasswordGeneratorService
         {
-            MemorablePassphrase = "river-lantern-copper-signal-violet",
+            MemorablePassphrase = TestPasswordSamples.MemorablePassphrase,
         };
         var viewModel = new EncryptViewModel(new RecordingWorkflowService(), passwordGeneratorService: generator)
         {
@@ -498,7 +498,7 @@ public sealed class EncryptViewModelTests
 
         viewModel.GenerateMemorablePassphraseCommand.Execute(null);
 
-        Assert.Equal("river-lantern-copper-signal-violet", viewModel.Password);
+        Assert.Equal(TestPasswordSamples.MemorablePassphrase, viewModel.Password);
         Assert.True(viewModel.ShowPassword);
         Assert.False(viewModel.ShowMaskedPasswordInput);
         Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
@@ -643,9 +643,9 @@ public sealed class EncryptViewModelTests
 
     private sealed class RecordingPasswordGeneratorService : IPasswordGeneratorService
     {
-        public string RandomPassword { get; init; } = "Random!Password123456789";
+        public string RandomPassword { get; init; } = TestPasswordSamples.GeneratedRandom;
 
-        public string MemorablePassphrase { get; init; } = "river-lantern-copper-signal-violet";
+        public string MemorablePassphrase { get; init; } = TestPasswordSamples.MemorablePassphrase;
 
         public string GenerateRandomPassword()
         {
