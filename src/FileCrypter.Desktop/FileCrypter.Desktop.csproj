@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>osx-arm64;win-x64</RuntimeIdentifiers>
     <AssemblyName>FileCrypter.Desktop</AssemblyName>
     <RootNamespace>FileCrypter.Desktop</RootNamespace>
     <Nullable>enable</Nullable>
