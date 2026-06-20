@@ -525,6 +525,11 @@
                             <TextBlock Text="{Binding ProgressText}"
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
+                            <Button Classes="aurora-secondary"
+                                    Content="Cancel"
+                                    Command="{Binding CancelCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center" />
                         </StackPanel>
                     </Border>
 

@@ -505,6 +505,57 @@ public sealed class EncryptViewModelTests
         Assert.Equal(4, viewModel.PasswordStrengthScore);
     }
 
+    [Fact]
+    public void CancelCommand_WhileIdle_IsDisabled()
+    {
+        var viewModel = CreateReadyViewModel(new RecordingWorkflowService());
+
+        Assert.False(viewModel.CancelCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task CancelCommand_WhileRunning_IsEnabledAndCancelsTokenPassedToWorkflow()
+    {
+        var workflow = new CancellableEncryptWorkflowService();
+        var viewModel = CreateReadyViewModel(workflow);
+
+        Task runTask = viewModel.StartEncryptCommand.ExecuteAsync(null);
+        await workflow.Started.Task;
+
+        Assert.True(viewModel.IsRunning);
+        Assert.True(viewModel.CancelCommand.CanExecute(null));
+        Assert.False(workflow.ReceivedToken.IsCancellationRequested);
+
+        viewModel.CancelCommand.Execute(null);
+
+        Assert.True(workflow.ReceivedToken.IsCancellationRequested);
+        await runTask;
+
+        Assert.False(viewModel.IsRunning);
+    }
+
+    [Fact]
+    public async Task StartEncryptCommand_WhenCancelled_SetsCancelledStatusAndClearsPasswordWithoutError()
+    {
+        var workflow = new CancellableEncryptWorkflowService();
+        var viewModel = CreateReadyViewModel(workflow);
+
+        Task runTask = viewModel.StartEncryptCommand.ExecuteAsync(null);
+        await workflow.Started.Task;
+        viewModel.CancelCommand.Execute(null);
+        await runTask;
+
+        Assert.False(viewModel.IsRunning);
+        Assert.Empty(viewModel.Password);
+        Assert.False(viewModel.HasError);
+        Assert.Empty(viewModel.VisibleErrorMessage);
+        Assert.Equal("Cancelled", viewModel.StatusText);
+        Assert.Equal("Encryption cancelled.", viewModel.ProgressText);
+        Assert.Empty(viewModel.FooterActionText);
+        Assert.False(viewModel.HasResult);
+        Assert.False(viewModel.CancelCommand.CanExecute(null));
+    }
+
     private static EncryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)
     {
         return new EncryptViewModel(workflow)
@@ -638,6 +689,69 @@ public sealed class EncryptViewModelTests
         public void Finish(EncryptFileResult result)
         {
             completion.SetResult(result);
+        }
+    }
+
+    private sealed class CancellableEncryptWorkflowService : IFileCrypterWorkflowService
+    {
+        private readonly TaskCompletionSource<EncryptFileResult> completion = new();
+
+        public TaskCompletionSource Started { get; } = new();
+
+        public CancellationToken ReceivedToken { get; private set; }
+
+        public EncryptFileRequest? Request { get; private set; }
+
+        public Task<EncryptFileResult> EncryptFileAsync(
+            EncryptFileRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            Request = request;
+            ReceivedToken = cancellationToken;
+            Started.SetResult();
+            cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+            return completion.Task;
+        }
+
+        public Task<DecryptFileResult> DecryptFileAsync(
+            DecryptFileRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ArchiveEncryptResult> EncryptArchiveAsync(
+            ArchiveEncryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ArchiveDecryptResult> DecryptArchiveAsync(
+            ArchiveDecryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<BatchTransformResult> EncryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<BatchTransformResult> DecryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
         }
     }
 

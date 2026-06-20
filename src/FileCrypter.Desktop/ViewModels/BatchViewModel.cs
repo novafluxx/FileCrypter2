@@ -25,9 +25,13 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         : StringComparer.Ordinal;
     private OutputDirectoryOrigin outputDirectoryOrigin;
     private bool isUpdatingOutputDirectoryInternally;
+    // Argon2id key derivation is CPU-bound and cannot observe the token, so cancellation
+    // takes effect after derivation completes, during the chunked IO phase.
+    private CancellationTokenSource? runCancellation;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(BrowseFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseOutputDirectoryCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
     [NotifyCanExecuteChangedFor(nameof(RemoveSelectedFileCommand))]
@@ -609,6 +613,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         int progressRunId = BeginProgressRun();
         IsRunning = true;
+        runCancellation = new CancellationTokenSource();
         runStopwatch.Restart();
         ErrorMessage = string.Empty;
         ProgressPercent = 0;
@@ -623,17 +628,27 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             {
                 if (EncryptMode)
                 {
-                    await RunArchiveEncryptAsync(progressRunId);
+                    await RunArchiveEncryptAsync(progressRunId, runCancellation.Token);
                 }
                 else
                 {
-                    await RunArchiveDecryptAsync(progressRunId);
+                    await RunArchiveDecryptAsync(progressRunId, runCancellation.Token);
                 }
             }
             else
             {
-                await RunIndividualBatchAsync(progressRunId);
+                await RunIndividualBatchAsync(progressRunId, runCancellation.Token);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            CompleteProgressRun(progressRunId);
+            runStopwatch.Stop();
+            Password = string.Empty;
+            ProgressPercent = 0;
+            ProgressText = GetCancelledProgressText();
+            StatusText = "Cancelled";
+            FooterActionText = string.Empty;
         }
         catch (Exception exception)
         {
@@ -650,7 +665,15 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         finally
         {
             IsRunning = false;
+            runCancellation?.Dispose();
+            runCancellation = null;
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCancel))]
+    private void Cancel()
+    {
+        runCancellation?.Cancel();
     }
 
     [RelayCommand(CanExecute = nameof(CanCopyError))]
@@ -678,6 +701,11 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     private bool CanBrowseFiles()
     {
         return !IsRunning && filePickerService is not null;
+    }
+
+    private bool CanCancel()
+    {
+        return IsRunning;
     }
 
     private bool CanBrowseOutputDirectory()
@@ -823,7 +851,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         RefreshIdleValidationState();
     }
 
-    private async Task RunIndividualBatchAsync(int progressRunId)
+    private async Task RunIndividualBatchAsync(int progressRunId, CancellationToken cancellationToken)
     {
         string password = Password;
         Password = string.Empty;
@@ -837,8 +865,8 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
 
         Progress<BatchOperationProgress> progress = new(value => ReportBatchProgress(progressRunId, value));
         BatchTransformResult result = EncryptMode
-            ? await workflowService.EncryptFilesAsync(request, progress, CancellationToken.None)
-            : await workflowService.DecryptFilesAsync(request, progress, CancellationToken.None);
+            ? await workflowService.EncryptFilesAsync(request, progress, cancellationToken)
+            : await workflowService.DecryptFilesAsync(request, progress, cancellationToken);
 
         CompleteProgressRun(progressRunId);
         runStopwatch.Stop();
@@ -870,7 +898,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             OutputDirectory);
     }
 
-    private async Task RunArchiveEncryptAsync(int progressRunId)
+    private async Task RunArchiveEncryptAsync(int progressRunId, CancellationToken cancellationToken)
     {
         string password = Password;
         Password = string.Empty;
@@ -887,7 +915,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         ArchiveEncryptResult result = await workflowService.EncryptArchiveAsync(
             request,
             progress,
-            CancellationToken.None);
+            cancellationToken);
 
         CompleteProgressRun(progressRunId);
         runStopwatch.Stop();
@@ -914,7 +942,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             result.OutputPath);
     }
 
-    private async Task RunArchiveDecryptAsync(int progressRunId)
+    private async Task RunArchiveDecryptAsync(int progressRunId, CancellationToken cancellationToken)
     {
         string password = Password;
         Password = string.Empty;
@@ -930,7 +958,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
         ArchiveDecryptResult result = await workflowService.DecryptArchiveAsync(
             request,
             progress,
-            CancellationToken.None);
+            cancellationToken);
 
         CompleteProgressRun(progressRunId);
         runStopwatch.Stop();
@@ -1258,6 +1286,17 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             (false, false) => "Starting batch decryption...",
             (true, true) => "Starting archive encryption...",
             _ => "Starting archive extraction...",
+        };
+    }
+
+    private string GetCancelledProgressText()
+    {
+        return (ArchiveMode, EncryptMode) switch
+        {
+            (false, true) => "Batch encryption cancelled.",
+            (false, false) => "Batch decryption cancelled.",
+            (true, true) => "Archive encryption cancelled.",
+            _ => "Archive extraction cancelled.",
         };
     }
 

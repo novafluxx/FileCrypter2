@@ -23,9 +23,13 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private string defaultOutputDirectory = string.Empty;
     private OutputPathOrigin outputPathOrigin;
     private bool isUpdatingOutputPathInternally;
+    // Argon2id key derivation is CPU-bound and cannot observe the token, so cancellation
+    // takes effect after derivation completes, during the chunked IO phase.
+    private CancellationTokenSource? runCancellation;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartDecryptCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseSourceCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseOutputCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
@@ -381,6 +385,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     {
         int progressRunId = BeginProgressRun();
         IsRunning = true;
+        runCancellation = new CancellationTokenSource();
         runStopwatch.Restart();
         ErrorMessage = string.Empty;
         ResultPath = string.Empty;
@@ -405,7 +410,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
             DecryptFileResult result = await workflowService.DecryptFileAsync(
                 request,
                 progress,
-                CancellationToken.None);
+                runCancellation.Token);
 
             lock (progressGate)
             {
@@ -422,6 +427,19 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
                     "Decryption complete",
                     "Restored file saved.",
                     result.OutputPath);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            lock (progressGate)
+            {
+                CompleteProgressRun(progressRunId);
+                runStopwatch.Stop();
+                Password = string.Empty;
+                ProgressPercent = 0;
+                ProgressText = "Decryption cancelled.";
+                StatusText = "Cancelled";
+                FooterActionText = string.Empty;
             }
         }
         catch (Exception exception)
@@ -442,7 +460,15 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         finally
         {
             IsRunning = false;
+            runCancellation?.Dispose();
+            runCancellation = null;
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCancel))]
+    private void Cancel()
+    {
+        runCancellation?.Cancel();
     }
 
     [RelayCommand(CanExecute = nameof(CanCopyError))]
@@ -470,6 +496,11 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     private bool CanBrowse()
     {
         return !IsRunning;
+    }
+
+    private bool CanCancel()
+    {
+        return IsRunning;
     }
 
     private bool CanClearSource()

@@ -761,6 +761,94 @@ public sealed class BatchViewModelTests
         Assert.Equal("3 files selected - first.txt + 2 more", viewModel.ProgressText);
     }
 
+    [Fact]
+    public void CancelCommand_WhileIdle_IsDisabled()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var viewModel = CreateReadyViewModel(new RecordingWorkflowService(), outputDirectory.Path);
+
+        Assert.False(viewModel.CancelCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task CancelCommand_WhileIndividualBatchRunning_IsEnabledAndCancelsTokenPassedToWorkflow()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var workflow = new CancellableBatchWorkflowService();
+        var viewModel = CreateReadyViewModel(workflow, outputDirectory.Path);
+
+        Task runTask = viewModel.StartBatchCommand.ExecuteAsync(null);
+        await workflow.Started.Task;
+
+        Assert.True(viewModel.IsRunning);
+        Assert.True(viewModel.CancelCommand.CanExecute(null));
+        Assert.False(workflow.ReceivedToken.IsCancellationRequested);
+
+        viewModel.CancelCommand.Execute(null);
+
+        Assert.True(workflow.ReceivedToken.IsCancellationRequested);
+        await runTask;
+
+        Assert.False(viewModel.IsRunning);
+    }
+
+    [Fact]
+    public async Task StartBatchCommand_WhenIndividualBatchCancelled_SetsCancelledStatusAndClearsPasswordWithoutError()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var workflow = new CancellableBatchWorkflowService();
+        var viewModel = CreateReadyViewModel(workflow, outputDirectory.Path);
+
+        Task runTask = viewModel.StartBatchCommand.ExecuteAsync(null);
+        await workflow.Started.Task;
+        viewModel.CancelCommand.Execute(null);
+        await runTask;
+
+        Assert.False(viewModel.IsRunning);
+        Assert.Empty(viewModel.Password);
+        Assert.False(viewModel.HasError);
+        Assert.Empty(viewModel.VisibleErrorMessage);
+        Assert.Equal("Cancelled", viewModel.StatusText);
+        Assert.Equal("Batch encryption cancelled.", viewModel.ProgressText);
+        Assert.Empty(viewModel.FooterActionText);
+        Assert.False(viewModel.HasResults);
+        Assert.False(viewModel.CancelCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task CancelCommand_WhileArchiveEncryptRunning_CancelsTokenPassedToWorkflow()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var workflow = new CancellableBatchWorkflowService();
+        var viewModel = new BatchViewModel(workflow)
+        {
+            ArchiveMode = true,
+            EncryptMode = true,
+            OutputDirectory = outputDirectory.Path,
+            Password = "secret",
+            NeverOverwriteExistingFiles = true,
+        };
+        viewModel.SourcePaths.Add("/tmp/first.txt");
+        viewModel.SourcePaths.Add("/tmp/second.txt");
+
+        Task runTask = viewModel.StartBatchCommand.ExecuteAsync(null);
+        await workflow.Started.Task;
+
+        Assert.True(viewModel.IsRunning);
+        Assert.True(viewModel.CancelCommand.CanExecute(null));
+
+        viewModel.CancelCommand.Execute(null);
+
+        Assert.True(workflow.ReceivedToken.IsCancellationRequested);
+        await runTask;
+
+        Assert.False(viewModel.IsRunning);
+        Assert.Equal("Cancelled", viewModel.StatusText);
+        Assert.Equal("Archive encryption cancelled.", viewModel.ProgressText);
+        Assert.Empty(viewModel.Password);
+        Assert.False(viewModel.HasError);
+    }
+
     private static BatchViewModel CreateReadyViewModel(
         IFileCrypterWorkflowService workflowService,
         string outputDirectory)
@@ -978,6 +1066,70 @@ public sealed class BatchViewModelTests
         public void Finish(BatchTransformResult result)
         {
             completion.SetResult(result);
+        }
+    }
+
+    private sealed class CancellableBatchWorkflowService : IFileCrypterWorkflowService
+    {
+        public TaskCompletionSource Started { get; } = new();
+
+        public CancellationToken ReceivedToken { get; private set; }
+
+        public Task<EncryptFileResult> EncryptFileAsync(
+            EncryptFileRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<DecryptFileResult> DecryptFileAsync(
+            DecryptFileRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ArchiveEncryptResult> EncryptArchiveAsync(
+            ArchiveEncryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            return CreateCancellableTask<ArchiveEncryptResult>(cancellationToken);
+        }
+
+        public Task<ArchiveDecryptResult> DecryptArchiveAsync(
+            ArchiveDecryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            return CreateCancellableTask<ArchiveDecryptResult>(cancellationToken);
+        }
+
+        public Task<BatchTransformResult> EncryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            return CreateCancellableTask<BatchTransformResult>(cancellationToken);
+        }
+
+        public Task<BatchTransformResult> DecryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            return CreateCancellableTask<BatchTransformResult>(cancellationToken);
+        }
+
+        private Task<TResult> CreateCancellableTask<TResult>(CancellationToken cancellationToken)
+        {
+            ReceivedToken = cancellationToken;
+            Started.TrySetResult();
+            var tcs = new TaskCompletionSource<TResult>();
+            cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+            return tcs.Task;
         }
     }
 

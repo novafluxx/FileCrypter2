@@ -21,9 +21,13 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private string defaultOutputDirectory = string.Empty;
     private OutputPathOrigin outputPathOrigin;
     private bool isUpdatingOutputPathInternally;
+    // Argon2id key derivation is CPU-bound and cannot observe the token, so cancellation
+    // takes effect after derivation completes, during the chunked IO phase.
+    private CancellationTokenSource? runCancellation;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartEncryptCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseSourceCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseOutputCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseKeyFileCommand))]
@@ -392,6 +396,12 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         IsAdvancedOptionsExpanded = !IsAdvancedOptionsExpanded;
     }
 
+    [RelayCommand(CanExecute = nameof(CanCancel))]
+    private void Cancel()
+    {
+        runCancellation?.Cancel();
+    }
+
     [RelayCommand(CanExecute = nameof(CanBrowse))]
     private async Task BrowseSourceAsync()
     {
@@ -536,6 +546,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     {
         int progressRunId = BeginProgressRun();
         IsRunning = true;
+        runCancellation = new CancellationTokenSource();
         runStopwatch.Restart();
         ErrorMessage = string.Empty;
         ResultPath = string.Empty;
@@ -563,7 +574,7 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
             EncryptFileResult result = await workflowService.EncryptFileAsync(
                 request,
                 progress,
-                CancellationToken.None);
+                runCancellation.Token);
 
             lock (progressGate)
             {
@@ -584,6 +595,19 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
                 "Encrypted file saved.",
                 result.OutputPath);
         }
+        catch (OperationCanceledException)
+        {
+            lock (progressGate)
+            {
+                CompleteProgressRun(progressRunId);
+                runStopwatch.Stop();
+                Password = string.Empty;
+                ProgressPercent = 0;
+                ProgressText = "Encryption cancelled.";
+                StatusText = "Cancelled";
+                FooterActionText = string.Empty;
+            }
+        }
         catch (Exception exception)
         {
             lock (progressGate)
@@ -602,6 +626,8 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
         finally
         {
             IsRunning = false;
+            runCancellation?.Dispose();
+            runCancellation = null;
         }
     }
 
@@ -630,6 +656,11 @@ public sealed partial class EncryptViewModel : ViewModelBase, IWorkflowStatusVie
     private bool CanBrowse()
     {
         return !IsRunning;
+    }
+
+    private bool CanCancel()
+    {
+        return IsRunning;
     }
 
     private bool CanClearSource()
