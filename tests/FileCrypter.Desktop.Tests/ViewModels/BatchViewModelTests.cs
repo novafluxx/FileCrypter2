@@ -623,44 +623,33 @@ public sealed class BatchViewModelTests
         Assert.Equal("Hide", viewModel.PasswordVisibilityActionText);
     }
 
-    [Fact]
-    public void GenerateRandomPasswordCommand_FillsPasswordShowsItAndUpdatesStrength()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void GeneratePasswordCommand_FillsPasswordShowsItAndUpdatesStrength(bool useMemorablePassphrase)
     {
-        var generator = new RecordingPasswordGeneratorService
-        {
-            RandomPassword = TestPasswordSamples.GeneratedRandom,
-        };
+        var generator = new RecordingPasswordGeneratorService();
         var viewModel = new BatchViewModel(
             new RecordingWorkflowService(),
             passwordGeneratorService: generator);
 
-        viewModel.GenerateRandomPasswordCommand.Execute(null);
+        string expectedPassword;
+        if (useMemorablePassphrase)
+        {
+            expectedPassword = TestPasswordSamples.MemorablePassphrase;
+            viewModel.GenerateMemorablePassphraseCommand.Execute(null);
+        }
+        else
+        {
+            expectedPassword = TestPasswordSamples.GeneratedRandom;
+            viewModel.GenerateRandomPasswordCommand.Execute(null);
+        }
 
-        Assert.Equal(TestPasswordSamples.GeneratedRandom, viewModel.Password);
+        Assert.Equal(expectedPassword, viewModel.Password);
         Assert.True(viewModel.ShowPassword);
         Assert.False(viewModel.ShowMaskedPasswordInput);
         Assert.Equal(4, viewModel.PasswordStrengthScore);
         Assert.Equal(100d, viewModel.PasswordStrengthPercent);
-        Assert.Equal("Excellent", viewModel.PasswordStrengthLabel);
-    }
-
-    [Fact]
-    public void GenerateMemorablePassphraseCommand_FillsPasswordShowsItAndUpdatesStrength()
-    {
-        var generator = new RecordingPasswordGeneratorService
-        {
-            MemorablePassphrase = TestPasswordSamples.MemorablePassphrase,
-        };
-        var viewModel = new BatchViewModel(
-            new RecordingWorkflowService(),
-            passwordGeneratorService: generator);
-
-        viewModel.GenerateMemorablePassphraseCommand.Execute(null);
-
-        Assert.Equal(TestPasswordSamples.MemorablePassphrase, viewModel.Password);
-        Assert.True(viewModel.ShowPassword);
-        Assert.False(viewModel.ShowMaskedPasswordInput);
-        Assert.Equal(4, viewModel.PasswordStrengthScore);
         Assert.Equal("Excellent", viewModel.PasswordStrengthLabel);
     }
 

@@ -430,17 +430,26 @@ public sealed class EncryptViewModelTests
         Assert.Equal("Hide", viewModel.PasswordVisibilityActionText);
     }
 
-    [Fact]
-    public void PasswordStrengthProperties_FollowPasswordComplexity()
+    [Theory]
+    [InlineData("short", 0, 0d, "Enter a passphrase")]
+    [InlineData("password", 1, 25d, "Weak")]
+    [InlineData("Password", 2, 50d, "Fair")]
+    [InlineData("Password1234", 3, 75d, "Strong")]
+    [InlineData("Strong!Pass123", 4, 100d, "Excellent")]
+    public void PasswordStrengthProperties_FollowPasswordComplexity(
+        string password,
+        int expectedScore,
+        double expectedPercent,
+        string expectedLabel)
     {
         var viewModel = new EncryptViewModel(new RecordingWorkflowService())
         {
-            Password = TestPasswordSamples.Strong,
+            Password = password,
         };
 
-        Assert.Equal(4, viewModel.PasswordStrengthScore);
-        Assert.Equal(100d, viewModel.PasswordStrengthPercent);
-        Assert.Equal("Excellent", viewModel.PasswordStrengthLabel);
+        Assert.Equal(expectedScore, viewModel.PasswordStrengthScore);
+        Assert.Equal(expectedPercent, viewModel.PasswordStrengthPercent);
+        Assert.Equal(expectedLabel, viewModel.PasswordStrengthLabel);
         Assert.Contains("bits of estimated entropy", viewModel.PasswordStrengthDetail, StringComparison.Ordinal);
     }
 
@@ -463,42 +472,30 @@ public sealed class EncryptViewModelTests
         Assert.Contains("bits of estimated entropy", viewModel.PasswordStrengthDetail, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void GenerateRandomPasswordCommand_FillsPasswordShowsItAndEnablesEncrypt()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void GeneratePasswordCommand_FillsPasswordShowsItAndEnablesEncrypt(bool useMemorablePassphrase)
     {
-        var generator = new RecordingPasswordGeneratorService
-        {
-            RandomPassword = TestPasswordSamples.GeneratedRandom,
-        };
+        var generator = new RecordingPasswordGeneratorService();
         var viewModel = new EncryptViewModel(new RecordingWorkflowService(), passwordGeneratorService: generator)
         {
             SourcePath = "/tmp/plain.txt",
         };
 
-        viewModel.GenerateRandomPasswordCommand.Execute(null);
-
-        Assert.Equal(TestPasswordSamples.GeneratedRandom, viewModel.Password);
-        Assert.True(viewModel.ShowPassword);
-        Assert.False(viewModel.ShowMaskedPasswordInput);
-        Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
-        Assert.Equal(4, viewModel.PasswordStrengthScore);
-    }
-
-    [Fact]
-    public void GenerateMemorablePassphraseCommand_FillsPasswordShowsItAndEnablesEncrypt()
-    {
-        var generator = new RecordingPasswordGeneratorService
+        string expectedPassword;
+        if (useMemorablePassphrase)
         {
-            MemorablePassphrase = TestPasswordSamples.MemorablePassphrase,
-        };
-        var viewModel = new EncryptViewModel(new RecordingWorkflowService(), passwordGeneratorService: generator)
+            expectedPassword = TestPasswordSamples.MemorablePassphrase;
+            viewModel.GenerateMemorablePassphraseCommand.Execute(null);
+        }
+        else
         {
-            SourcePath = "/tmp/plain.txt",
-        };
+            expectedPassword = TestPasswordSamples.GeneratedRandom;
+            viewModel.GenerateRandomPasswordCommand.Execute(null);
+        }
 
-        viewModel.GenerateMemorablePassphraseCommand.Execute(null);
-
-        Assert.Equal(TestPasswordSamples.MemorablePassphrase, viewModel.Password);
+        Assert.Equal(expectedPassword, viewModel.Password);
         Assert.True(viewModel.ShowPassword);
         Assert.False(viewModel.ShowMaskedPasswordInput);
         Assert.True(viewModel.StartEncryptCommand.CanExecute(null));
