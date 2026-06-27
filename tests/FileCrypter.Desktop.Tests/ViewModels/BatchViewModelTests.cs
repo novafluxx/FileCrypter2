@@ -421,7 +421,7 @@ public sealed class BatchViewModelTests
     }
 
     [Fact]
-    public async Task CopyResultsCommand_CopiesSummaryAndItemDetails()
+    public void CopyResultsCommand_CopiesSummaryAndItemDetails()
     {
         using var outputDirectory = new TemporaryDirectory();
         var clipboard = new RecordingClipboardService();
@@ -451,9 +451,16 @@ public sealed class BatchViewModelTests
         WorkflowToastNotification? toast = null;
         viewModel.ToastNotificationRequested += (_, notification) => toast = notification;
 
-        await viewModel.StartBatchCommand.ExecuteAsync(null);
-        string progressTextAfterRun = viewModel.ProgressText;
-        await viewModel.CopyResultsCommand.ExecuteAsync(null);
+        // Run under a single-threaded pumping context so the workflow's async progress callbacks
+        // are serialized on one thread (as Avalonia does on the UI thread). Without it, a late
+        // Progress<T> callback can race onto the thread pool and overwrite the final summary text.
+        string progressTextAfterRun = string.Empty;
+        PumpingSynchronizationContext.Run(async () =>
+        {
+            await viewModel.StartBatchCommand.ExecuteAsync(null);
+            progressTextAfterRun = viewModel.ProgressText;
+            await viewModel.CopyResultsCommand.ExecuteAsync(null);
+        });
 
         Assert.NotNull(clipboard.LastText);
         Assert.Contains("Batch encryption finished with 1 failure", clipboard.LastText, StringComparison.Ordinal);
