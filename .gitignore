@@ -3,8 +3,34 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
-# dotenv files
+# Environment and local credential files
 .env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+credentials.json
+*.credentials.json
+secrets.json
+*.secrets.json
+
+# FileCrypter outputs and key material
+*.encrypted
+*.key
+*.keyfile
+
+# Private keys, signing material, and credential stores
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdbx
+*.snk
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
 
 # User-specific files
 *.rsuser
@@ -244,13 +270,8 @@ ClientBin/
 *.dbmdl
 *.dbproj.schemaview
 *.jfm
-*.pfx
 *.publishsettings
 orleans.codegen.cs
-
-# Including strong name files can present a security risk
-# (https://github.com/github/gitignore/pull/2483#issue-259490424)
-#*.snk
 
 # Since there are multiple workflows, uncomment next line to ignore bower_components
 # (https://github.com/github/gitignore/pull/1529#issuecomment-104372622)

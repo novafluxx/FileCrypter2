@@ -17,6 +17,7 @@ public sealed class MacAppBundleTests
         string bundlePath = Path.Combine(repoRoot, "artifacts", "macos", "FileCrypter.app");
         string infoPlistPath = Path.Combine(bundlePath, "Contents", "Info.plist");
         string macOsPath = Path.Combine(bundlePath, "Contents", "MacOS");
+        string resourcesPath = Path.Combine(bundlePath, "Contents", "Resources");
         string executablePath = Path.Combine(macOsPath, "FileCrypter.Desktop");
 
         Assert.True(File.Exists(scriptPath), $"Expected packaging script at {scriptPath}");
@@ -45,7 +46,14 @@ public sealed class MacAppBundleTests
         Assert.Contains("Created macOS app bundle:", standardOutput, StringComparison.Ordinal);
         Assert.True(Directory.Exists(bundlePath), $"Expected bundle at {bundlePath}");
         Assert.True(File.Exists(infoPlistPath), $"Expected Info.plist at {infoPlistPath}");
-        Assert.True(Directory.Exists(Path.Combine(bundlePath, "Contents", "Resources")));
+        Assert.True(Directory.Exists(resourcesPath));
+        Assert.True(File.Exists(Path.Combine(resourcesPath, "LICENSE")));
+        Assert.True(File.Exists(Path.Combine(resourcesPath, "NOTICE")));
+        Assert.True(File.Exists(Path.Combine(resourcesPath, "THIRD-PARTY-NOTICES.md")));
+        Assert.True(File.Exists(Path.Combine(resourcesPath, "SkiaSharp-LICENSE.txt")));
+        Assert.True(File.Exists(Path.Combine(resourcesPath, "SkiaSharp-THIRD-PARTY-NOTICES.txt")));
+        Assert.True(File.Exists(Path.Combine(resourcesPath, "HarfBuzzSharp-LICENSE.txt")));
+        Assert.True(File.Exists(Path.Combine(resourcesPath, "HarfBuzzSharp-THIRD-PARTY-NOTICES.txt")));
         Assert.True(Directory.Exists(macOsPath), $"Expected MacOS directory at {macOsPath}");
         Assert.True(File.Exists(executablePath), $"Expected executable at {executablePath}");
 

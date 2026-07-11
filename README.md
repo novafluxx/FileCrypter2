@@ -26,6 +26,9 @@ The CLI writes final output paths to stdout and progress, warnings, and errors t
 ```text
 FileCrypterDotNet/
   FileCrypterDotNet.slnx
+  LICENSE
+  NOTICE
+  THIRD-PARTY-NOTICES.md
   src/
     FileCrypter.Core/
     FileCrypter.Cli/
@@ -35,14 +38,19 @@ FileCrypterDotNet/
     FileCrypter.Cli.Tests/
     FileCrypter.Desktop.Tests/
   docs/
-    planning-brief.md
     file-format.md
-    current-status.md
-    gui-plan.md
+    product.md
     security.md
     security-todos.md
-  product.md
 ```
+
+## Documentation
+
+- [Product outline](docs/product.md)
+- [Encrypted file format](docs/file-format.md)
+- [Security implementation notes](docs/security.md)
+- [Accepted residual security risks](docs/security-todos.md)
+- [Third-party notices](THIRD-PARTY-NOTICES.md)
 
 ## Requirements
 
@@ -51,7 +59,7 @@ The repository targets .NET 10 and pins the SDK through `global.json`.
 ## Build And Test
 
 ```bash
-dotnet restore
+dotnet restore --locked-mode
 dotnet build --no-restore
 dotnet test --no-build
 ```
@@ -232,3 +240,9 @@ Notes:
 - the script applies an ad-hoc code signature for local launch and verification
 - notarization, icon conversion, and DMG packaging are intentionally deferred for a later slice
 - Avalonia Parcel remains an optional later path if the project moves to richer macOS distribution automation
+
+## License
+
+FileCrypter is licensed under the [Apache License 2.0](LICENSE). Third-party
+libraries and assets retain their respective licenses as documented in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

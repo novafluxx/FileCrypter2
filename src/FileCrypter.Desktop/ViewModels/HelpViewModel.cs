@@ -38,7 +38,7 @@ public sealed partial class HelpViewModel : ViewModelBase, IWorkflowStatusViewMo
         RecoveryWarningText =
             "Keep the password and any key file together in a way you trust. If you generate a random password or memorable passphrase, record it before starting the run because FileCrypter clears the password field as the run starts and does not restore it after failures. FileCrypter cannot recover forgotten passwords or lost or changed key files.";
         ThirdPartyNoticeSummary =
-            "Sidebar icons use path data adapted from Fluent UI System Icons, licensed under the MIT License.";
+            "FileCrypter includes permissively licensed third-party libraries, native components, fonts, and icon assets. The canonical notices shown below also ship with release bundles.";
 
         WorkflowTopics =
         [
@@ -188,38 +188,15 @@ public sealed partial class HelpViewModel : ViewModelBase, IWorkflowStatusViewMo
         };
     }
 
-    private const string ThirdPartyNoticeTextValue =
-        """
-        # Third-Party Notices
+    private static readonly string ThirdPartyNoticeTextValue = LoadThirdPartyNoticeText();
 
-        ## Fluent UI System Icons
+    private static string LoadThirdPartyNoticeText()
+    {
+        const string resourceName = "FileCrypter.Desktop.Resources.THIRD-PARTY-NOTICES.md";
 
-        Some sidebar icon path data is adapted from Fluent UI System Icons.
-
-        Source: https://github.com/microsoft/fluentui-system-icons
-        License: MIT
-
-        Fluent UI System Icons
-        Copyright (c) Microsoft Corporation.
-
-        MIT License
-
-        Permission is hereby granted, free of charge, to any person obtaining a copy
-        of this software and associated documentation files (the "Software"), to deal
-        in the Software without restriction, including without limitation the rights
-        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-        copies of the Software, and to permit persons to whom the Software is
-        furnished to do so, subject to the following conditions:
-
-        The above copyright notice and this permission notice shall be included in all
-        copies or substantial portions of the Software.
-
-        THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-        SOFTWARE.
-        """;
+        using Stream stream = typeof(HelpViewModel).Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException($"Embedded resource '{resourceName}' was not found.");
+        using StreamReader reader = new(stream);
+        return reader.ReadToEnd();
+    }
 }

@@ -6,9 +6,27 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "${script_dir}/.." && pwd)"
 project_path="${repo_root}/src/FileCrypter.Desktop/FileCrypter.Desktop.csproj"
 artifacts_root="${repo_root}/artifacts/macos"
+license_path="${repo_root}/LICENSE"
+notice_path="${repo_root}/NOTICE"
+third_party_notices_path="${repo_root}/THIRD-PARTY-NOTICES.md"
 
 if [[ ! -f "${project_path}" ]]; then
     echo "Could not find FileCrypter.Desktop.csproj at ${project_path}" >&2
+    exit 1
+fi
+
+if [[ ! -f "${license_path}" ]]; then
+    echo "Could not find project license at ${license_path}" >&2
+    exit 1
+fi
+
+if [[ ! -f "${notice_path}" ]]; then
+    echo "Could not find project notice at ${notice_path}" >&2
+    exit 1
+fi
+
+if [[ ! -f "${third_party_notices_path}" ]]; then
+    echo "Could not find third-party notices at ${third_party_notices_path}" >&2
     exit 1
 fi
 
@@ -16,6 +34,41 @@ get_msbuild_property() {
     local property_name="$1"
 
     dotnet msbuild "${project_path}" -nologo "-getProperty:${property_name}"
+}
+
+copy_native_package_notices() {
+    local package_id="$1"
+    local package_directory_name="$2"
+    local output_prefix="$3"
+    local escaped_package_id="${package_id//./\.}"
+    local package_version
+    local package_directory
+
+    package_version="$(
+        grep -m 1 -F "\"${package_id}/" "${publish_output}/${bundle_executable}.deps.json" \
+            | sed -E "s@.*\"${escaped_package_id}/([^\"]+)\".*@\1@"
+    )"
+
+    if [[ -z "${package_version}" ]]; then
+        echo "Could not resolve ${package_id} from the published dependency manifest." >&2
+        exit 1
+    fi
+
+    package_directory="${global_packages_root}/${package_directory_name}/${package_version}"
+
+    if [[ ! -f "${package_directory}/LICENSE.txt" ]]; then
+        echo "Could not find ${package_id} license in ${package_directory}" >&2
+        exit 1
+    fi
+
+    if [[ ! -f "${package_directory}/THIRD-PARTY-NOTICES.txt" ]]; then
+        echo "Could not find ${package_id} third-party notices in ${package_directory}" >&2
+        exit 1
+    fi
+
+    cp "${package_directory}/LICENSE.txt" "${resources_dir}/${output_prefix}-LICENSE.txt"
+    cp "${package_directory}/THIRD-PARTY-NOTICES.txt" \
+        "${resources_dir}/${output_prefix}-THIRD-PARTY-NOTICES.txt"
 }
 
 architecture="$(uname -m)"
@@ -39,6 +92,9 @@ bundle_identifier="$(get_msbuild_property MacBundleIdentifier)"
 minimum_system_version="$(get_msbuild_property MacMinimumSystemVersion)"
 bundle_version="$(get_msbuild_property Version)"
 bundle_executable="$(get_msbuild_property AssemblyName)"
+global_packages_root="${NUGET_PACKAGES:-$(
+    dotnet nuget locals global-packages --list | sed -E 's/^global-packages:[[:space:]]*//'
+)}"
 
 mkdir -p "${artifacts_root}"
 
@@ -56,10 +112,14 @@ cleanup() {
 
 trap cleanup EXIT
 
+echo "Restoring ${project_path} in locked mode..."
+dotnet restore "${project_path}" --locked-mode
+
 echo "Publishing ${project_path} for ${runtime_identifier}..."
 dotnet publish "${project_path}" \
     -c Release \
     -r "${runtime_identifier}" \
+    --no-restore \
     --self-contained false \
     -p:UseAppHost=true \
     -o "${publish_output}"
@@ -71,6 +131,17 @@ fi
 
 mkdir -p "${macos_dir}" "${resources_dir}"
 cp -R "${publish_output}/." "${macos_dir}/"
+cp "${license_path}" "${resources_dir}/LICENSE"
+cp "${notice_path}" "${resources_dir}/NOTICE"
+cp "${third_party_notices_path}" "${resources_dir}/THIRD-PARTY-NOTICES.md"
+copy_native_package_notices \
+    "SkiaSharp.NativeAssets.macOS" \
+    "skiasharp.nativeassets.macos" \
+    "SkiaSharp"
+copy_native_package_notices \
+    "HarfBuzzSharp.NativeAssets.macOS" \
+    "harfbuzzsharp.nativeassets.macos" \
+    "HarfBuzzSharp"
 chmod +x "${macos_dir}/${bundle_executable}"
 
 cat > "${contents_dir}/Info.plist" <<EOF

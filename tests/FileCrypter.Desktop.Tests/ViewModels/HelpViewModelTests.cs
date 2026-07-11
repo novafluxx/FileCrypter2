@@ -23,10 +23,12 @@ public sealed class HelpViewModelTests
         Assert.Contains("record it before starting the run", viewModel.RecoveryWarningText, StringComparison.Ordinal);
         Assert.Contains("clears the password field as the run starts", viewModel.RecoveryWarningText, StringComparison.Ordinal);
         Assert.Contains("does not restore it after failures", viewModel.RecoveryWarningText, StringComparison.Ordinal);
-        Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeSummary, StringComparison.Ordinal);
+        Assert.Contains("canonical notices", viewModel.ThirdPartyNoticeSummary, StringComparison.Ordinal);
         Assert.Contains("Fluent UI System Icons", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
         Assert.Contains("Copyright (c) Microsoft Corporation", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
         Assert.Contains("MIT License", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
+        Assert.Contains("Inter Font", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
+        Assert.Contains("Tmds.DBus.Protocol", viewModel.ThirdPartyNoticeText, StringComparison.Ordinal);
         Assert.Equal("Update checks are not configured for this build.", viewModel.UpdateSummaryText);
         Assert.Equal("Help and recovery", viewModel.StatusText);
         Assert.Equal("Update checks are not configured for this build.", viewModel.ProgressText);
