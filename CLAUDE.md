@@ -6,7 +6,7 @@ FileCrypter is a local-first .NET 10 file encryption product: a reusable crypto 
 
 ## Toolchain
 
-- SDK is pinned to `10.0.300` with `rollForward: latestFeature` in `global.json`; a matching SDK must be installed or builds fail.
+- SDK is pinned to `10.0.300` with `rollForward: latestFeature` in `global.json`; a matching SDK must be installed or builds fail. Licensed Apache-2.0 (`LICENSE`, `NOTICE`); third-party attribution lives in `THIRD-PARTY-NOTICES.md`, which the desktop project embeds as a resource.
 - Solution is `FileCrypterDotNet.slnx` (XML `.slnx`, not `.sln`); root-level `dotnet build` / `dotnet test` resolve it automatically.
 - Central Package Management: all versions live in `Directory.Packages.props` — never pin versions in a `.csproj`. `RestorePackagesWithLockFile=true`, and per-project `packages.lock.json` files are committed; regenerate and commit them whenever a version changes.
 - `Directory.Build.props` sets `TreatWarningsAsErrors=true`, `AnalysisLevel=latest`, `Nullable=enable`, `ImplicitUsings=enable`, `Deterministic=true`. A new analyzer warning fails the build — fix the cause rather than suppressing.
@@ -22,8 +22,8 @@ dotnet test --no-build               # full suite (build first)
 dotnet test tests/FileCrypter.Core.Tests --no-build
 dotnet test tests/FileCrypter.Core.Tests --no-build --filter "FullyQualifiedName~EncryptFileAsyncDecryptFileAsync_RoundTrips"
 
-dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- --help
-dotnet run --project src/FileCrypter.Desktop/FileCrypter.Desktop.csproj
+dotnet run --project src/FileCrypter.Cli -- --help
+dotnet run --project src/FileCrypter.Desktop
 ./scripts/package-macos-app.sh       # -> artifacts/macos/FileCrypter.app (gitignored)
 ```
 
@@ -36,6 +36,10 @@ Order matters: `restore -> build -> test`; `--no-build` assumes a prior build.
 - `src/FileCrypter.Desktop/` — Avalonia 12 + `CommunityToolkit.Mvvm`. `Views/` (`.axaml` + code-behind), `ViewModels/` (Encrypt, Decrypt, Batch, Settings, Help, MainWindow), and `Services/` — the seam between UI and core. Every service is interface-first (`IFileCrypterWorkflowService`, `IFilePickerService`, `IClipboardService`, `IAppThemeService`, `IFileCrypterSettingsService`, `IAppUpdateService`, `IPathRevealService`, `IPasswordGeneratorService`) with request/result record types per workflow, so view models are testable headlessly; add new UI capabilities behind an interface with a No-Op/Development implementation rather than calling platform APIs from a view model. `ViewLocator.cs` maps view models to views. Compiled bindings are on by default. `RuntimeIdentifiers` are `osx-arm64;win-x64`; `UseAppHost=false` in Debug.
 - Tests mirror each project under `tests/*.Tests/`, including subfolders (`Format/`, `Services/`, `ViewModels/`, `Packaging/`). Name test files after the type or workflow under test (`FileCrypterCommandTests.cs`, `EncryptViewModelTests.cs`, `MacAppBundleTests.cs`).
 - `docs/file-format.md` is the source of truth for the v1 encrypted file format (64-byte header, AES-256-GCM chunked payload, Argon2id). Any change to header constants, algorithm ids, Argon2 bounds, or chunk framing requires updating that doc and its deterministic test vectors.
+
+## Style
+
+Four-space indentation, file-scoped namespaces where already used, PascalCase for types and public members, camelCase for locals and parameters, `I`-prefixed interfaces. Keep compiled Avalonia bindings valid and pair every `.axaml` view with its code-behind. Fix analyzer findings rather than suppressing them.
 
 ## Testing quirks
 
@@ -58,8 +62,7 @@ Order matters: `restore -> build -> test`; `--no-build` assumes a prior build.
 
 ## Commit & PR
 
-- Short, specific, imperative subjects, one line (`Add workflow service integration tests`, `Harden Argon2 bounds and output path security`). Some security fixes use `fix(security):` prefixes; Aikido autofix PRs use `fix/aikido-security-sast-...` branches.
-- There is no CI — verification is local: build, then test.
-- PRs should list tests run, link related docs/issues, include screenshots for visible Avalonia changes, and call out any encryption-format, password, key-file, or output-path security implications.
-- `.github/instructions/aikido_rules.instructions.md` directs running `aikido_full_scan` (Aikido MCP server) on generated/modified first-party code, fixing and rescanning until clean. Run it when that MCP server is available; otherwise tell the user to install it.
+- Short, specific, imperative subjects, one line (`Add desktop workflow cancellation`, `Harden settings storage and path reveal process launches`).
+- There is no CI and no `.github/` directory — verification is local: restore, build, then test.
+- PRs should summarize behavior and security impact, list the build/test commands run, link relevant docs/issues, and include screenshots for visible Avalonia changes.
 - `bin/`, `obj/`, and `artifacts/` are gitignored; `packages.lock.json` files are tracked.
