@@ -10,6 +10,7 @@ internal sealed class FileCrypterCommand
     private const string GeneratedArchiveNamePrefix = "filecrypter-archive-";
     private const string ArchiveTimestampFormat = "yyyyMMdd-HHmmss";
     private const string CrossPlatformInvalidArchiveNameCharacters = "<>:\"/\\|?*";
+    private const int FileCrypterHeaderLength = 64;
 
     private readonly IFileCrypterConsole console;
     private readonly FileCrypterOptions? options;
@@ -39,12 +40,14 @@ internal sealed class FileCrypterCommand
             {
                 "encrypt" => await RunTransformAsync(args, encrypt: true).ConfigureAwait(false),
                 "decrypt" => await RunTransformAsync(args, encrypt: false).ConfigureAwait(false),
+                "inspect" => await RunInspectAsync(args).ConfigureAwait(false),
+                "verify" => await RunVerifyAsync(args).ConfigureAwait(false),
                 "batch-encrypt" => await RunBatchAsync(args, encrypt: true).ConfigureAwait(false),
                 "batch-decrypt" => await RunBatchAsync(args, encrypt: false).ConfigureAwait(false),
                 "archive-encrypt" => await RunArchiveEncryptAsync(args).ConfigureAwait(false),
                 "archive-decrypt" => await RunArchiveDecryptAsync(args).ConfigureAwait(false),
                 "settings" => await RunSettingsAsync(args).ConfigureAwait(false),
-                _ => WriteError("Unknown command. Use 'encrypt', 'decrypt', 'batch-encrypt', 'batch-decrypt', 'archive-encrypt', 'archive-decrypt', or 'settings'."),
+                _ => WriteError("Unknown command. Use 'encrypt', 'decrypt', 'inspect', 'verify', 'batch-encrypt', 'batch-decrypt', 'archive-encrypt', 'archive-decrypt', or 'settings'."),
             };
         }
         catch (FileCrypterFormatException exception)
@@ -627,6 +630,151 @@ internal sealed class FileCrypterCommand
         return 0;
     }
 
+    private async Task<int> RunInspectAsync(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            return WriteError("Missing input path.");
+        }
+
+        string inputPath = args[1];
+
+        if (args.Length > 2)
+        {
+            string extraArgument = args[2];
+            return extraArgument.StartsWith("-", StringComparison.Ordinal)
+                ? WriteError($"Unknown option '{extraArgument}'.")
+                : WriteError("inspect accepts exactly one input path.");
+        }
+
+        if (!File.Exists(inputPath))
+        {
+            return WritePathError("The input file does not exist.");
+        }
+
+        if (await IsTooSmallToBeFileCrypterFileAsync(inputPath).ConfigureAwait(false))
+        {
+            return WriteTooSmallForFileCrypterHeaderError();
+        }
+
+        FileCrypterFileInfo fileInfo = await FileCrypter.Core.FileCrypter
+            .InspectAsync(inputPath)
+            .ConfigureAwait(false);
+
+        console.Out.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Format version: {fileInfo.FormatVersion}"));
+        console.Out.WriteLine($"Payload kind: {FormatPayloadKind(fileInfo.PayloadKind)}");
+        console.Out.WriteLine($"Compression: {FormatCompressionAlgorithm(fileInfo.CompressionAlgorithm)}");
+        console.Out.WriteLine($"Key file required: {FormatYesNo(fileInfo.IsKeyFileRequired)}");
+        console.Out.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Chunk size bytes: {fileInfo.ChunkSize}"));
+        console.Out.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Argon2id memory KiB: {fileInfo.Argon2MemoryKiB}"));
+        console.Out.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Argon2id iterations: {fileInfo.Argon2Iterations}"));
+        console.Out.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Argon2id parallelism: {fileInfo.Argon2Parallelism}"));
+        console.Out.WriteLine(
+            "Header status: unauthenticated. These values are only what the file claims. Run 'filecrypter verify <input>' to authenticate the payload.");
+        return 0;
+    }
+
+    private async Task<int> RunVerifyAsync(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            return WriteError("Missing input path.");
+        }
+
+        string inputPath = args[1];
+        string? password = null;
+        string? keyFilePath = null;
+
+        for (int index = 2; index < args.Length; index++)
+        {
+            string arg = args[index];
+            switch (arg)
+            {
+                case "--password":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --password.");
+                    }
+
+                    password = args[index];
+                    WritePasswordArgumentWarning();
+                    break;
+
+                case "--password-stdin":
+                    password = await console.In.ReadLineAsync().ConfigureAwait(false);
+                    break;
+
+                case "--key-file":
+                    if (++index >= args.Length)
+                    {
+                        return WriteError("Missing value for --key-file.");
+                    }
+
+                    keyFilePath = args[index];
+                    break;
+
+                default:
+                    return arg.StartsWith("-", StringComparison.Ordinal)
+                        ? WriteError($"Unknown option '{arg}'.")
+                        : WriteError("verify accepts exactly one input path.");
+            }
+        }
+
+        password ??= ReadPasswordFromInteractiveConsole();
+
+        if (string.IsNullOrEmpty(password))
+        {
+            return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
+        }
+
+        if (!File.Exists(inputPath))
+        {
+            return WritePathError("The input file does not exist.");
+        }
+
+        if (await IsTooSmallToBeFileCrypterFileAsync(inputPath).ConfigureAwait(false))
+        {
+            return WriteTooSmallForFileCrypterHeaderError();
+        }
+
+        if (keyFilePath is not null)
+        {
+            int keyFileValidationResult = ValidateExistingKeyFilePath(keyFilePath);
+            if (keyFileValidationResult != 0)
+            {
+                return keyFileValidationResult;
+            }
+        }
+
+        long inputLength = new FileInfo(inputPath).Length;
+        (FileCrypterOptions verifyOptions, CliProgressReporter progressReporter) =
+            CreateVerifyOptionsWithProgress(inputLength);
+
+        FileCrypterVerifyResult result = keyFilePath is null
+            ? await FileCrypter.Core.FileCrypter.VerifyFileAsync(
+                inputPath,
+                password,
+                verifyOptions).ConfigureAwait(false)
+            : await FileCrypter.Core.FileCrypter.VerifyFileAsync(
+                inputPath,
+                password,
+                keyFilePath,
+                verifyOptions).ConfigureAwait(false);
+
+        progressReporter.ReportComplete();
+        console.Out.WriteLine(
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"Verified: {Path.GetFullPath(inputPath)} ({result.PlaintextBytesVerified} plaintext bytes authenticated)"));
+        if (result.FileInfo.PayloadKind == FileCrypterPayloadKind.TarArchive)
+        {
+            console.Out.WriteLine(
+                "Archive entries: not checked. Verification authenticates the archive bytes, not the archive entry structure.");
+        }
+
+        return 0;
+    }
+
     private async Task<int> RunSettingsAsync(string[] args)
     {
         if (args.Length == 1 || args[1] == "show")
@@ -637,46 +785,185 @@ internal sealed class FileCrypterCommand
             }
 
             FileCrypterSettings settings = await settingsStore.LoadAsync().ConfigureAwait(false);
-            console.Out.WriteLine($"Compression default: {FormatOnOff(settings.EnableCompressionByDefault)}");
+            WriteCompressionDefault(settings);
+            WriteOverwriteDefault(settings);
+            WriteDefaultOutputDirectory(settings);
             console.Out.WriteLine($"Settings file: {settingsStore.SettingsPath}");
             return 0;
         }
 
         if (args[1] == "set")
         {
-            if (args.Length != 4 || args[2] != "compression-default")
+            if (args.Length != 4)
             {
-                return WriteError("Usage: filecrypter settings set compression-default <on|off>");
+                return WriteSettingsUsageError();
             }
 
-            if (!TryParseOnOff(args[3], out bool enableCompressionByDefault))
+            return args[2] switch
             {
-                return WriteError("Compression default must be 'on' or 'off'.");
-            }
-
-            FileCrypterSettings existingSettings;
-            try
-            {
-                existingSettings = await settingsStore.LoadAsync().ConfigureAwait(false);
-            }
-            catch (InvalidDataException)
-            {
-                existingSettings = new FileCrypterSettings();
-            }
-
-            var settings = new FileCrypterSettings
-            {
-                EnableCompressionByDefault = enableCompressionByDefault,
-                NeverOverwriteExistingFilesByDefault = existingSettings.NeverOverwriteExistingFilesByDefault,
-                DefaultOutputDirectory = existingSettings.DefaultOutputDirectory,
-                ThemePreference = existingSettings.ThemePreference,
+                "compression-default" => await SetCompressionDefaultAsync(args[3]).ConfigureAwait(false),
+                "overwrite-default" => await SetOverwriteDefaultAsync(args[3]).ConfigureAwait(false),
+                "output-directory" => await SetDefaultOutputDirectoryAsync(args[3]).ConfigureAwait(false),
+                _ => WriteSettingsUsageError(),
             };
-            await settingsStore.SaveAsync(settings).ConfigureAwait(false);
-            console.Out.WriteLine($"Compression default: {FormatOnOff(settings.EnableCompressionByDefault)}");
-            return 0;
         }
 
-        return WriteError("Unknown settings command. Use 'settings show' or 'settings set compression-default <on|off>'.");
+        return WriteSettingsUsageError();
+    }
+
+    private async Task<int> SetCompressionDefaultAsync(string value)
+    {
+        if (!TryParseOnOff(value, out bool enableCompressionByDefault))
+        {
+            return WriteError("Compression default must be 'on' or 'off'.");
+        }
+
+        FileCrypterSettings existingSettings;
+        try
+        {
+            existingSettings = await settingsStore.LoadAsync().ConfigureAwait(false);
+        }
+        catch (InvalidDataException)
+        {
+            return WriteSettingsWriteRefusedError();
+        }
+
+        var settings = new FileCrypterSettings
+        {
+            EnableCompressionByDefault = enableCompressionByDefault,
+            NeverOverwriteExistingFilesByDefault = existingSettings.NeverOverwriteExistingFilesByDefault,
+            DefaultOutputDirectory = existingSettings.DefaultOutputDirectory,
+            ThemePreference = existingSettings.ThemePreference,
+        };
+        await settingsStore.SaveAsync(settings).ConfigureAwait(false);
+        WriteCompressionDefault(settings);
+        return 0;
+    }
+
+    private async Task<int> SetOverwriteDefaultAsync(string value)
+    {
+        if (!TryParseOnOff(value, out bool overwriteByDefault))
+        {
+            return WriteError("Overwrite default must be 'on' or 'off'.");
+        }
+
+        FileCrypterSettings existingSettings;
+        try
+        {
+            existingSettings = await settingsStore.LoadAsync().ConfigureAwait(false);
+        }
+        catch (InvalidDataException)
+        {
+            return WriteSettingsWriteRefusedError();
+        }
+
+        var settings = new FileCrypterSettings
+        {
+            EnableCompressionByDefault = existingSettings.EnableCompressionByDefault,
+            NeverOverwriteExistingFilesByDefault = !overwriteByDefault,
+            DefaultOutputDirectory = existingSettings.DefaultOutputDirectory,
+            ThemePreference = existingSettings.ThemePreference,
+        };
+        await settingsStore.SaveAsync(settings).ConfigureAwait(false);
+        WriteOverwriteDefault(settings);
+        return 0;
+    }
+
+    private async Task<int> SetDefaultOutputDirectoryAsync(string value)
+    {
+        string defaultOutputDirectory;
+        if (value.Equals("clear", StringComparison.OrdinalIgnoreCase))
+        {
+            defaultOutputDirectory = string.Empty;
+        }
+        else
+        {
+            int validationResult = ValidateDefaultOutputDirectory(value, out defaultOutputDirectory);
+            if (validationResult != 0)
+            {
+                return validationResult;
+            }
+        }
+
+        FileCrypterSettings existingSettings;
+        try
+        {
+            existingSettings = await settingsStore.LoadAsync().ConfigureAwait(false);
+        }
+        catch (InvalidDataException)
+        {
+            return WriteSettingsWriteRefusedError();
+        }
+
+        var settings = new FileCrypterSettings
+        {
+            EnableCompressionByDefault = existingSettings.EnableCompressionByDefault,
+            NeverOverwriteExistingFilesByDefault = existingSettings.NeverOverwriteExistingFilesByDefault,
+            DefaultOutputDirectory = defaultOutputDirectory,
+            ThemePreference = existingSettings.ThemePreference,
+        };
+        await settingsStore.SaveAsync(settings).ConfigureAwait(false);
+        WriteDefaultOutputDirectory(settings);
+        return 0;
+    }
+
+    private int ValidateDefaultOutputDirectory(string value, out string defaultOutputDirectory)
+    {
+        defaultOutputDirectory = string.Empty;
+
+        string fullOutputDirectory;
+        try
+        {
+            fullOutputDirectory = Path.GetFullPath(value);
+        }
+        catch (Exception exception) when (exception is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return WritePathError("The output directory path is invalid or inaccessible.");
+        }
+
+        if (File.Exists(fullOutputDirectory))
+        {
+            return WritePathError("The output directory path points to a file.");
+        }
+
+        if (!Directory.Exists(fullOutputDirectory))
+        {
+            return WritePathError("The output directory does not exist.");
+        }
+
+        if (new DirectoryInfo(fullOutputDirectory).LinkTarget is not null)
+        {
+            return WritePathError("The output directory must not be a symbolic link or reparse point.");
+        }
+
+        defaultOutputDirectory = fullOutputDirectory;
+        return 0;
+    }
+
+    private void WriteCompressionDefault(FileCrypterSettings settings)
+    {
+        console.Out.WriteLine($"Compression default: {FormatOnOff(settings.EnableCompressionByDefault)}");
+    }
+
+    private void WriteOverwriteDefault(FileCrypterSettings settings)
+    {
+        console.Out.WriteLine($"Overwrite default: {FormatOnOff(!settings.NeverOverwriteExistingFilesByDefault)}");
+    }
+
+    private void WriteDefaultOutputDirectory(FileCrypterSettings settings)
+    {
+        console.Out.WriteLine(
+            $"Default output directory: {(settings.DefaultOutputDirectory.Length == 0 ? "(not set)" : settings.DefaultOutputDirectory)}");
+    }
+
+    private int WriteSettingsUsageError()
+    {
+        console.Error.WriteLine("Unknown settings command. Use one of:");
+        console.Error.WriteLine("  filecrypter settings show");
+        console.Error.WriteLine("  filecrypter settings set compression-default <on|off>");
+        console.Error.WriteLine("  filecrypter settings set overwrite-default <on|off>");
+        console.Error.WriteLine("  filecrypter settings set output-directory <path|clear>");
+        return 1;
     }
 
     private string? ReadPasswordFromInteractiveConsole()
@@ -791,6 +1078,59 @@ internal sealed class FileCrypterCommand
         return (transformOptions, progressReporter);
     }
 
+    private static ReadOnlySpan<byte> FileCrypterMagic => "FCRYPT\r\n"u8;
+
+    private static async Task<bool> IsTooSmallToBeFileCrypterFileAsync(string inputPath)
+    {
+        var inputFile = new FileInfo(inputPath);
+        if (inputFile.LinkTarget is not null || inputFile.Length >= FileCrypterHeaderLength)
+        {
+            return false;
+        }
+
+        if (inputFile.Length == 0)
+        {
+            return true;
+        }
+
+        byte[] prefix = new byte[(int)Math.Min(inputFile.Length, FileCrypterMagic.Length)];
+        await using (FileStream input = File.OpenRead(inputPath))
+        {
+            await input.ReadExactlyAsync(prefix).ConfigureAwait(false);
+        }
+
+        return !FileCrypterMagic[..prefix.Length].SequenceEqual(prefix);
+    }
+
+    private int WriteTooSmallForFileCrypterHeaderError()
+    {
+        console.Error.WriteLine("This file is too small to be a FileCrypter encrypted file. Every FileCrypter file starts with a 64-byte header.");
+        console.Error.WriteLine("Choose a FileCrypter .encrypted file produced by this app.");
+        return 1;
+    }
+
+    private (FileCrypterOptions Options, CliProgressReporter Reporter) CreateVerifyOptionsWithProgress(long inputLength)
+    {
+        FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
+        var progressReporter = new CliProgressReporter(
+            console.Error,
+            "Verifying",
+            inputLength,
+            sourceOptions.Progress);
+
+        var verifyOptions = new FileCrypterOptions
+        {
+            ChunkSize = sourceOptions.ChunkSize,
+            Argon2MemoryKiB = sourceOptions.Argon2MemoryKiB,
+            Argon2Iterations = sourceOptions.Argon2Iterations,
+            Argon2Parallelism = sourceOptions.Argon2Parallelism,
+            EnableCompression = sourceOptions.EnableCompression,
+            Progress = progressReporter,
+        };
+
+        return (verifyOptions, progressReporter);
+    }
+
     private FileCrypterOptions CreateArchiveOptionsWithProgress()
     {
         FileCrypterOptions sourceOptions = options ?? new FileCrypterOptions();
@@ -836,6 +1176,29 @@ internal sealed class FileCrypterCommand
     private static string FormatOnOff(bool value)
     {
         return value ? "on" : "off";
+    }
+
+    private static string FormatYesNo(bool value)
+    {
+        return value ? "yes" : "no";
+    }
+
+    private static string FormatPayloadKind(FileCrypterPayloadKind payloadKind)
+    {
+        return payloadKind switch
+        {
+            FileCrypterPayloadKind.TarArchive => "tar archive",
+            _ => "single file",
+        };
+    }
+
+    private static string FormatCompressionAlgorithm(FileCrypterCompressionAlgorithm compressionAlgorithm)
+    {
+        return compressionAlgorithm switch
+        {
+            FileCrypterCompressionAlgorithm.Zstd => "zstd",
+            _ => "none",
+        };
     }
 
     private static bool TryCreateArchiveFileName(
@@ -958,6 +1321,10 @@ internal sealed class FileCrypterCommand
                         "This batch item contains an archive. Use 'filecrypter archive-decrypt <input-archive> <output-directory>' to extract it.",
                     "archive-decrypt" =>
                         "This encrypted file contains a single file. Use 'filecrypter decrypt <input> [output]' to decrypt it.",
+                    "inspect" =>
+                        "This FileCrypter build does not recognize that payload kind, so it cannot describe the file. The file was probably written by a newer FileCrypter version.",
+                    "verify" =>
+                        "This FileCrypter build cannot open that payload kind, so it cannot verify the file. Verify it with the FileCrypter version that wrote it.",
                     _ => "This FileCrypter build cannot open that payload yet.",
                 },
             FileCrypterFormatErrorCode.UnsupportedVersion or
@@ -1034,7 +1401,15 @@ internal sealed class FileCrypterCommand
     private int WriteSettingsError()
     {
         console.Error.WriteLine("Settings error: FileCrypter could not read or write the local settings file.");
-        console.Error.WriteLine("Run 'filecrypter settings set compression-default on' or 'off' to recreate the settings file.");
+        console.Error.WriteLine("Repair or delete the settings file, then run 'filecrypter settings set compression-default on' or 'off' to recreate it.");
+        return 1;
+    }
+
+    private int WriteSettingsWriteRefusedError()
+    {
+        console.Error.WriteLine("Settings error: FileCrypter could not read or write the local settings file.");
+        console.Error.WriteLine("No setting was changed. Saving now would discard the stored settings FileCrypter cannot read.");
+        console.Error.WriteLine("Repair or delete the settings file, then run 'filecrypter settings set compression-default on' or 'off' to recreate it.");
         return 1;
     }
 
@@ -1077,19 +1452,32 @@ internal sealed class FileCrypterCommand
             Usage:
               filecrypter encrypt <input> [output] [--password-stdin | --password <password>] [--key-file <path> | --generate-key-file <path>] [--compress] [--overwrite]
               filecrypter decrypt <input> [output] [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+              filecrypter inspect <input>
+              filecrypter verify <input> [--password-stdin | --password <password>] [--key-file <path>]
               filecrypter batch-encrypt <output-directory> <input>... [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
               filecrypter batch-decrypt <output-directory> <input>... [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
               filecrypter archive-encrypt <output-archive-or-directory> <input>... [--archive-name <name>] [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
               filecrypter archive-decrypt <input-archive> <output-directory> [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
               filecrypter settings show
               filecrypter settings set compression-default <on|off>
+              filecrypter settings set overwrite-default <on|off>
+              filecrypter settings set output-directory <path|clear>
 
             If no password option is supplied, FileCrypter prompts without echoing the password when run interactively.
             For automation, pipe one password line to --password-stdin. Avoid --password when possible because command-line
             arguments can be exposed through shell history, process listings, logs, terminal scrollback, and crash reports.
             If output is omitted, encryption appends .encrypted and decryption removes .encrypted when present.
             Use --compress during encryption to reduce compatible payloads before encryption. Decryption detects compressed files automatically.
+            Use inspect to print the unencrypted header metadata of an encrypted file. It needs no password and reads only
+            the 64-byte header, so it reports what the file claims and never proves the file is intact or genuine.
+            Use verify to decrypt an encrypted file to nothing and confirm every chunk authenticates. It writes no files and
+            needs the same password and key file that decryption needs. For archives it authenticates the archive bytes but
+            does not check the archive entry structure.
             Set compression-default on to compress single-file encryption by default.
+            Set overwrite-default on to replace existing outputs by default; off keeps existing files and auto-renames instead.
+            Set output-directory to an existing directory to preselect it, or to 'clear' to remove it.
+            Settings are shared with the FileCrypter desktop app; overwrite-default and output-directory are stored for it and
+            do not change what an explicit CLI option does.
             Batch encryption compresses each file automatically and writes one output path per successful file to stdout.
             Archive encryption writes one compressed tar archive payload and archive decryption writes each extracted path to stdout.
             If archive-encrypt receives an output directory, it creates a timestamped .tar.zst.encrypted archive there.

@@ -405,6 +405,195 @@ public sealed class DecryptViewModelTests
         Assert.False(viewModel.CancelCommand.CanExecute(null));
     }
 
+    [Fact]
+    public void SourcePath_WhenInspectionSucceeds_ShowsInspectedPayloadDetails()
+    {
+        var workflow = new RecordingWorkflowService
+        {
+            InspectResult = new InspectFileResult(
+                FileCrypterPayloadKind.SingleFile,
+                IsKeyFileRequired: false,
+                IsCompressed: true,
+                FormatVersion: 1),
+        };
+        var viewModel = new DecryptViewModel(workflow);
+
+        viewModel.SourcePath = "/tmp/plain.txt.encrypted";
+
+        Assert.Equal(1, workflow.InspectCallCount);
+        Assert.NotNull(workflow.InspectRequest);
+        Assert.Equal("/tmp/plain.txt.encrypted", workflow.InspectRequest!.SourcePath);
+        Assert.True(viewModel.HasInspectedFile);
+        Assert.Equal("FILE DETAILS", viewModel.DetailsPanelTitle);
+        Assert.Contains("is a FileCrypter encrypted file.", viewModel.DetailsPanelBody, StringComparison.Ordinal);
+        Assert.Contains("no key file is required", viewModel.DetailsPanelDetailText, StringComparison.Ordinal);
+        Assert.Contains("payload is compressed", viewModel.DetailsPanelDetailText, StringComparison.Ordinal);
+        Assert.False(viewModel.HasError);
+    }
+
+    [Fact]
+    public void SourcePath_WhenInspectedPayloadRequiresKeyFile_MakesKeyFileStatusDefinitive()
+    {
+        var workflow = new RecordingWorkflowService
+        {
+            InspectResult = new InspectFileResult(
+                FileCrypterPayloadKind.SingleFile,
+                IsKeyFileRequired: true,
+                IsCompressed: false,
+                FormatVersion: 1),
+        };
+        var viewModel = new DecryptViewModel(workflow);
+
+        viewModel.SourcePath = "/tmp/plain.txt.encrypted";
+
+        Assert.Equal(
+            "This file requires a key file. Select the matching key file below to decrypt it.",
+            viewModel.KeyFileChoiceStatusText);
+        Assert.DoesNotContain("unless", viewModel.KeyFileChoiceStatusText, StringComparison.Ordinal);
+        Assert.Contains("requires the matching key file", viewModel.DetailsPanelDetailText, StringComparison.Ordinal);
+
+        viewModel.KeyFilePath = "/tmp/matching.key";
+
+        Assert.Equal(
+            "This file requires a key file. The selected key file will be used with the password.",
+            viewModel.KeyFileChoiceStatusText);
+    }
+
+    [Fact]
+    public void SourcePath_WhenInspectedPayloadIsArchive_SteersUserToBatchArchiveMode()
+    {
+        var workflow = new RecordingWorkflowService
+        {
+            InspectResult = new InspectFileResult(
+                FileCrypterPayloadKind.TarArchive,
+                IsKeyFileRequired: false,
+                IsCompressed: true,
+                FormatVersion: 1),
+        };
+        var viewModel = new DecryptViewModel(workflow);
+
+        viewModel.SourcePath = "/tmp/bundle.tar.zst.encrypted";
+
+        Assert.Contains("is a FileCrypter encrypted archive.", viewModel.DetailsPanelBody, StringComparison.Ordinal);
+        Assert.Contains("Batch page", viewModel.DetailsPanelDetailText, StringComparison.Ordinal);
+        Assert.Contains("archive mode", viewModel.DetailsPanelDetailText, StringComparison.Ordinal);
+        Assert.False(viewModel.HasError);
+    }
+
+    [Fact]
+    public void SourcePath_WhenFileIsNotFileCrypterFormat_ShowsCalmMessageWithoutErrorState()
+    {
+        var workflow = new RecordingWorkflowService
+        {
+            InspectError = new FileCrypterFormatException(
+                FileCrypterFormatErrorCode.InvalidMagic,
+                "The header magic bytes are not FileCrypter."),
+        };
+        var viewModel = new DecryptViewModel(workflow);
+
+        viewModel.SourcePath = "/tmp/holiday-photo.jpg";
+
+        Assert.False(viewModel.HasInspectedFile);
+        Assert.False(viewModel.HasError);
+        Assert.Empty(viewModel.VisibleErrorMessage);
+        Assert.Empty(viewModel.ErrorMessage);
+        Assert.Equal("Ready", viewModel.StatusText);
+        Assert.Contains("is not a FileCrypter encrypted file.", viewModel.DetailsPanelBody, StringComparison.Ordinal);
+        Assert.Contains("not encrypted by FileCrypter", viewModel.DetailsPanelDetailText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Exception", viewModel.DetailsPanelDetailText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SourcePath_WhenSecondSelectionInspectsFirst_IgnoresSlowerEarlierInspection()
+    {
+        PumpingSynchronizationContext.Run(async () =>
+        {
+            var workflow = new DeferredInspectWorkflowService();
+            var viewModel = new DecryptViewModel(workflow);
+
+            viewModel.SourcePath = "/tmp/first.txt.encrypted";
+            viewModel.SourcePath = "/tmp/second.tar.zst.encrypted";
+
+            workflow.Finish(
+                "/tmp/second.tar.zst.encrypted",
+                new InspectFileResult(
+                    FileCrypterPayloadKind.TarArchive,
+                    IsKeyFileRequired: false,
+                    IsCompressed: true,
+                    FormatVersion: 1));
+            await Task.Yield();
+
+            workflow.Finish(
+                "/tmp/first.txt.encrypted",
+                new InspectFileResult(
+                    FileCrypterPayloadKind.SingleFile,
+                    IsKeyFileRequired: true,
+                    IsCompressed: false,
+                    FormatVersion: 1));
+            await Task.Yield();
+
+            Assert.Contains("second.tar.zst.encrypted", viewModel.DetailsPanelBody, StringComparison.Ordinal);
+            Assert.Contains("is a FileCrypter encrypted archive.", viewModel.DetailsPanelBody, StringComparison.Ordinal);
+            Assert.Contains("Batch page", viewModel.DetailsPanelDetailText, StringComparison.Ordinal);
+            Assert.Equal(
+                "This file does not require a key file. The password alone unlocks it.",
+                viewModel.KeyFileChoiceStatusText);
+        });
+    }
+
+    [Fact]
+    public async Task SourcePath_WhenInspectionFails_StillAllowsDecrypt()
+    {
+        var workflow = new RecordingWorkflowService
+        {
+            InspectError = new IOException("The file is locked by another process."),
+            Result = new DecryptFileResult("/tmp/plain.txt"),
+        };
+        var viewModel = new DecryptViewModel(workflow)
+        {
+            SourcePath = "/tmp/plain.txt.encrypted",
+            Password = "secret",
+        };
+
+        Assert.False(viewModel.HasInspectedFile);
+        Assert.False(viewModel.HasError);
+        Assert.Contains("details could not be read", viewModel.DetailsPanelBody, StringComparison.Ordinal);
+        Assert.Contains("still enter the password", viewModel.DetailsPanelDetailText, StringComparison.Ordinal);
+        Assert.True(viewModel.StartDecryptCommand.CanExecute(null));
+
+        await viewModel.StartDecryptCommand.ExecuteAsync(null);
+
+        Assert.Equal("/tmp/plain.txt", viewModel.ResultPath);
+        Assert.False(viewModel.HasError);
+    }
+
+    [Fact]
+    public void ClearSourceCommand_AfterInspection_RestoresUninspectedPanelText()
+    {
+        var workflow = new RecordingWorkflowService
+        {
+            InspectResult = new InspectFileResult(
+                FileCrypterPayloadKind.SingleFile,
+                IsKeyFileRequired: true,
+                IsCompressed: false,
+                FormatVersion: 1),
+        };
+        var viewModel = new DecryptViewModel(workflow)
+        {
+            SourcePath = "/tmp/plain.txt.encrypted",
+        };
+
+        viewModel.ClearSourceCommand.Execute(null);
+
+        Assert.False(viewModel.HasInspectedFile);
+        Assert.Equal(
+            "Drop an encrypted file to inspect its filename, output target, and key-file requirements.",
+            viewModel.DetailsPanelBody);
+        Assert.Equal(
+            "No key file selected. Decryption will use only the password unless the file requires one.",
+            viewModel.KeyFileChoiceStatusText);
+    }
+
     private static DecryptViewModel CreateReadyViewModel(IFileCrypterWorkflowService workflow)
     {
         return new DecryptViewModel(workflow)
@@ -422,6 +611,18 @@ public sealed class DecryptViewModelTests
         public DecryptFileResult Result { get; init; } = new("/tmp/out.txt");
 
         public Exception? Error { get; init; }
+
+        public InspectFileResult InspectResult { get; init; } = new(
+            FileCrypterPayloadKind.SingleFile,
+            IsKeyFileRequired: false,
+            IsCompressed: false,
+            FormatVersion: 1);
+
+        public Exception? InspectError { get; init; }
+
+        public InspectFileRequest? InspectRequest { get; private set; }
+
+        public int InspectCallCount { get; private set; }
 
         public Task<EncryptFileResult> EncryptFileAsync(
             EncryptFileRequest request,
@@ -474,6 +675,18 @@ public sealed class DecryptViewModelTests
             CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
+            CancellationToken cancellationToken)
+        {
+            InspectRequest = request;
+            InspectCallCount++;
+
+            return InspectError is null
+                ? Task.FromResult(InspectResult)
+                : Task.FromException<InspectFileResult>(InspectError);
         }
     }
 
@@ -530,6 +743,13 @@ public sealed class DecryptViewModelTests
         public Task<BatchTransformResult> DecryptFilesAsync(
             BatchTransformRequest request,
             IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
             CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
@@ -601,6 +821,81 @@ public sealed class DecryptViewModelTests
             CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    private sealed class DeferredInspectWorkflowService : IFileCrypterWorkflowService
+    {
+        private readonly Dictionary<string, TaskCompletionSource<InspectFileResult>> pendingInspections =
+            new(StringComparer.Ordinal);
+
+        public Task<EncryptFileResult> EncryptFileAsync(
+            EncryptFileRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<DecryptFileResult> DecryptFileAsync(
+            DecryptFileRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ArchiveEncryptResult> EncryptArchiveAsync(
+            ArchiveEncryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ArchiveDecryptResult> DecryptArchiveAsync(
+            ArchiveDecryptRequest request,
+            IProgress<FileCrypterProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<BatchTransformResult> EncryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<BatchTransformResult> DecryptFilesAsync(
+            BatchTransformRequest request,
+            IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
+            CancellationToken cancellationToken)
+        {
+            TaskCompletionSource<InspectFileResult> completion = new();
+            pendingInspections[request.SourcePath] = completion;
+            return completion.Task;
+        }
+
+        public void Finish(string sourcePath, InspectFileResult result)
+        {
+            pendingInspections[sourcePath].SetResult(result);
         }
     }
 

@@ -40,6 +40,12 @@ Archive outputs may use `.tar.zst.encrypted` when the payload is a tar archive c
 | 59 | 1 | `KeyFileHashAlgorithmId` | `0` = none, `1` = SHA-256 |
 | 60 | 4 | `Reserved` | zero |
 
+## Header Readability
+
+The header is deliberately readable without any credential. Every field above is plaintext, so a host can determine the format version, payload kind, compression algorithm, and whether a key file is required before asking the user for a password. This is a supported guarantee, not an implementation detail: `FileCrypter.InspectAsync` exposes it through the public `FileCrypterFileInfo` projection, which omits the salt and nonce prefix because they are key-derivation and framing inputs with no host use.
+
+Header metadata is authenticated only as AAD during payload decryption. Reading it proves nothing about the payload — a header can be fabricated or edited, and tampering is detected when a chunk fails to authenticate, not when the header is parsed. Hosts must present inspected values as what the file claims. `FileCrypter.VerifyFileAsync` authenticates the payload itself by decrypting every chunk and discarding the plaintext; for tar-archive payloads it authenticates the archive bytes but does not walk the tar entry structure.
+
 ## Algorithm Defaults
 
 AES-256-GCM is the v1 AEAD. Each chunk uses a 12-byte nonce and a 16-byte authentication tag.

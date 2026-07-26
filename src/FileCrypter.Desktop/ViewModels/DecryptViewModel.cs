@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FileCrypter.Desktop.Services;
 using FileCrypter.Core;
+using FileCrypter.Core.Format;
 using FileCrypter.Core.Settings;
 using System.Diagnostics;
 using System.Text;
@@ -12,8 +13,13 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 {
     private const string DefaultEncryptedSuffix = ".encrypted";
     private const string DefaultDecryptedSuffix = ".decrypted";
+    private const string GenericKeyFileAdviceText =
+        "If a key file was used during encryption, the original unchanged file is required here too.";
 
     private int activeProgressRunId;
+    private int activeInspectionRunId;
+    private SourceInspectionState inspectionState;
+    private InspectFileResult? inspectedFile;
     private readonly IFileCrypterWorkflowService workflowService;
     private readonly IFilePickerService? filePickerService;
     private readonly IClipboardService? clipboardService;
@@ -142,9 +148,19 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
 
     public string PasswordVisibilityActionText => ShowPassword ? "Hide" : "Show";
 
-    public string KeyFileChoiceStatusText => HasKeyFileChoice
-        ? "Using the selected key file as the optional second factor."
-        : "No key file selected. Decryption will use only the password unless the file requires one.";
+    public bool HasInspectedFile => inspectionState == SourceInspectionState.Inspected && inspectedFile is not null;
+
+    public string KeyFileChoiceStatusText => HasInspectedFile
+        ? inspectedFile!.IsKeyFileRequired
+            ? HasKeyFileChoice
+                ? "This file requires a key file. The selected key file will be used with the password."
+                : "This file requires a key file. Select the matching key file below to decrypt it."
+            : HasKeyFileChoice
+                ? "This file does not require a key file. The selected key file will be ignored."
+                : "This file does not require a key file. The password alone unlocks it."
+        : HasKeyFileChoice
+            ? "Using the selected key file as the optional second factor."
+            : "No key file selected. Decryption will use only the password unless the file requires one.";
 
     public string DetailsPanelTitle => HasResult
         ? "RESTORED"
@@ -157,8 +173,14 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     public string DetailsPanelBody => HasResult
         ? ResultPath
         : HasSelectedFile && SourcePreview is not null
-            ? $"{SourcePreview.DisplayName} is staged for local decryption and safe output naming."
+            ? GetSelectedFileSummaryText(SourcePreview.DisplayName)
             : "Drop an encrypted file to inspect its filename, output target, and key-file requirements.";
+
+    public string DetailsPanelDetailText => HasResult
+        ? "The restored file is saved locally and the encrypted source is left unchanged."
+        : HasSelectedFile
+            ? GetSelectedFileDetailText()
+            : GenericKeyFileAdviceText;
 
     public string OutputDisplayText => string.IsNullOrWhiteSpace(OutputPath)
         ? "Auto-generated from input filename..."
@@ -203,9 +225,11 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         OnPropertyChanged(nameof(ShowEmptySourceState));
         OnPropertyChanged(nameof(DetailsPanelTitle));
         OnPropertyChanged(nameof(DetailsPanelBody));
+        OnPropertyChanged(nameof(DetailsPanelDetailText));
         OnPropertyChanged(nameof(ShowReadyAction));
         RefreshSuggestedOutputPath();
         ResetReadyFooter();
+        BeginSourceInspection(value);
     }
 
     partial void OnOutputPathChanged(string value)
@@ -239,6 +263,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
     {
         OnPropertyChanged(nameof(DetailsPanelTitle));
         OnPropertyChanged(nameof(DetailsPanelBody));
+        OnPropertyChanged(nameof(DetailsPanelDetailText));
         OnPropertyChanged(nameof(ShowReadyAction));
         ClearSourceCommand.NotifyCanExecuteChanged();
     }
@@ -248,6 +273,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         ClearVisibleError();
         OnPropertyChanged(nameof(HasKeyFileChoice));
         OnPropertyChanged(nameof(KeyFileChoiceStatusText));
+        OnPropertyChanged(nameof(DetailsPanelDetailText));
         ResetReadyFooter();
     }
 
@@ -261,6 +287,7 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         OnPropertyChanged(nameof(HasResult));
         OnPropertyChanged(nameof(DetailsPanelTitle));
         OnPropertyChanged(nameof(DetailsPanelBody));
+        OnPropertyChanged(nameof(DetailsPanelDetailText));
         OnPropertyChanged(nameof(ShowReadyAction));
     }
 
@@ -670,6 +697,109 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         return Volatile.Read(ref activeProgressRunId) == progressRunId;
     }
 
+    // Header inspection is fire-and-forget because the property setter that triggers it is
+    // synchronous. Every start claims a new run id, and only the newest run may write results,
+    // so a slow inspection of an earlier selection can never overwrite a newer one.
+    private void BeginSourceInspection(string sourcePath)
+    {
+        int inspectionRunId = Interlocked.Increment(ref activeInspectionRunId);
+
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            ApplyInspection(inspectionRunId, SourceInspectionState.None, null);
+            return;
+        }
+
+        ApplyInspection(inspectionRunId, SourceInspectionState.Pending, null);
+        _ = InspectSourceAsync(inspectionRunId, sourcePath);
+    }
+
+    private async Task InspectSourceAsync(int inspectionRunId, string sourcePath)
+    {
+        try
+        {
+            InspectFileResult result = await workflowService
+                .InspectFileAsync(new InspectFileRequest(sourcePath), CancellationToken.None)
+                .ConfigureAwait(true);
+            ApplyInspection(inspectionRunId, SourceInspectionState.Inspected, result);
+        }
+        catch (FileCrypterFormatException)
+        {
+            ApplyInspection(inspectionRunId, SourceInspectionState.NotEncryptedFile, null);
+        }
+        catch (Exception)
+        {
+            ApplyInspection(inspectionRunId, SourceInspectionState.Unavailable, null);
+        }
+    }
+
+    private void ApplyInspection(
+        int inspectionRunId,
+        SourceInspectionState state,
+        InspectFileResult? result)
+    {
+        if (Volatile.Read(ref activeInspectionRunId) != inspectionRunId)
+        {
+            return;
+        }
+
+        inspectionState = state;
+        inspectedFile = result;
+        OnPropertyChanged(nameof(HasInspectedFile));
+        OnPropertyChanged(nameof(DetailsPanelBody));
+        OnPropertyChanged(nameof(DetailsPanelDetailText));
+        OnPropertyChanged(nameof(KeyFileChoiceStatusText));
+    }
+
+    private string GetSelectedFileSummaryText(string displayName)
+    {
+        return inspectionState switch
+        {
+            SourceInspectionState.Inspected when inspectedFile is not null =>
+                inspectedFile.PayloadKind == FileCrypterPayloadKind.TarArchive
+                    ? $"{displayName} is a FileCrypter encrypted archive."
+                    : $"{displayName} is a FileCrypter encrypted file.",
+            SourceInspectionState.NotEncryptedFile =>
+                $"{displayName} is not a FileCrypter encrypted file.",
+            SourceInspectionState.Unavailable =>
+                $"{displayName} is staged, but its details could not be read.",
+            _ => $"{displayName} is staged for local decryption. Checking its details...",
+        };
+    }
+
+    private string GetSelectedFileDetailText()
+    {
+        if (inspectionState == SourceInspectionState.NotEncryptedFile)
+        {
+            return "FileCrypter did not find its file header here, so this file was almost certainly not encrypted by FileCrypter. Choose a file FileCrypter produced, usually one ending in .encrypted.";
+        }
+
+        if (inspectionState == SourceInspectionState.Unavailable)
+        {
+            return "FileCrypter could not read this file's details right now. You can still enter the password and try decrypting it.";
+        }
+
+        if (inspectedFile is null || inspectionState != SourceInspectionState.Inspected)
+        {
+            return GenericKeyFileAdviceText;
+        }
+
+        StringBuilder builder = new();
+        builder.Append(inspectedFile.IsKeyFileRequired
+            ? "It requires the matching key file in addition to the password."
+            : "It needs only the password; no key file is required.");
+        builder.Append(inspectedFile.IsCompressed
+            ? " The payload is compressed and is expanded automatically after decryption."
+            : " The payload is not compressed.");
+
+        if (inspectedFile.PayloadKind == FileCrypterPayloadKind.TarArchive)
+        {
+            builder.Append(" This page decrypts single files, so open the Batch page and turn on archive mode to extract this archive.");
+        }
+
+        return builder.ToString();
+    }
+
     private async Task CopyTextAsync(string text, string successMessage)
     {
         if (clipboardService is null || string.IsNullOrWhiteSpace(text))
@@ -740,5 +870,14 @@ public sealed partial class DecryptViewModel : ViewModelBase, IWorkflowStatusVie
         None,
         SettingsDefault,
         Manual,
+    }
+
+    private enum SourceInspectionState
+    {
+        None,
+        Pending,
+        Inspected,
+        NotEncryptedFile,
+        Unavailable,
     }
 }

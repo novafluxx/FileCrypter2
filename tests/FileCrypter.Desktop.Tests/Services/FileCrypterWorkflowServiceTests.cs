@@ -1,6 +1,7 @@
 using System.Text;
 using FileCrypter.Desktop.Services;
 using FileCrypter.Core;
+using FileCrypter.Core.Format;
 
 namespace FileCrypter.Desktop.Tests.Services;
 
@@ -220,6 +221,50 @@ public sealed class FileCrypterWorkflowServiceTests
         Assert.Equal(existingBytes, await File.ReadAllBytesAsync(encryptedPath));
         Assert.True(File.Exists(autoRenamedPath));
         Assert.Empty(Directory.GetFiles(directory.Path, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task InspectFileAsync_ForEncryptedFile_ReportsHeaderMetadata()
+    {
+        using var directory = new TemporaryDirectory();
+        var service = new FileCrypterWorkflowService();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "second-factor.key");
+        await File.WriteAllTextAsync(plaintextPath, "inspect me");
+
+        EncryptFileResult encryptResult = await service.EncryptFileAsync(
+            new EncryptFileRequest(
+                plaintextPath,
+                OutputPath: null,
+                Password,
+                EnableCompression: true,
+                NeverOverwriteExistingFiles: false,
+                KeyFilePath: null,
+                GenerateKeyFilePath: keyFilePath),
+            progress: null,
+            CancellationToken.None);
+        InspectFileResult inspectResult = await service.InspectFileAsync(
+            new InspectFileRequest(encryptResult.OutputPath),
+            CancellationToken.None);
+
+        Assert.Equal(FileCrypterPayloadKind.SingleFile, inspectResult.PayloadKind);
+        Assert.True(inspectResult.IsKeyFileRequired);
+        Assert.True(inspectResult.IsCompressed);
+        Assert.Equal(1, inspectResult.FormatVersion);
+    }
+
+    [Fact]
+    public async Task InspectFileAsync_ForFileWithoutFileCrypterHeader_ThrowsInvalidMagic()
+    {
+        using var directory = new TemporaryDirectory();
+        var service = new FileCrypterWorkflowService();
+        string unrelatedPath = Path.Combine(directory.Path, "holiday-photo.jpg");
+        await File.WriteAllBytesAsync(unrelatedPath, Encoding.UTF8.GetBytes(new string('j', 256)));
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => service.InspectFileAsync(new InspectFileRequest(unrelatedPath), CancellationToken.None));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidMagic, exception.Code);
     }
 
     private sealed class CallbackProgress : IProgress<FileCrypterProgress>

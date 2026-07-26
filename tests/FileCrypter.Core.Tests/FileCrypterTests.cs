@@ -12,6 +12,7 @@ namespace FileCrypter.Core.Tests;
 public sealed class FileCrypterTests
 {
     private const string Password = "correct horse battery staple";
+    private const long TarBlockSizeBytes = 512;
 
     [Fact]
     public async Task EncryptFileAsyncDecryptFileAsync_RoundTripsWithStagedOutput()
@@ -527,6 +528,328 @@ public sealed class FileCrypterTests
 
         Assert.Equal(FileCrypterFormatErrorCode.InvalidArchivePayload, exception.Code);
         Assert.Empty(Directory.GetFiles(outputDirectory));
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithPasswordOnlyPayload_ReturnsProjectedHeaderFields()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "inspect me");
+        _ = await FileCrypter.EncryptFileAsync(plaintextPath, encryptedPath, Password, CreateFastOptions());
+
+        FileCrypterFileInfo fileInfo = await FileCrypter.InspectAsync(encryptedPath);
+
+        Assert.Equal((int)FileCrypterFormatConstants.Version, fileInfo.FormatVersion);
+        Assert.Equal(FileCrypterPayloadKind.SingleFile, fileInfo.PayloadKind);
+        Assert.Equal(FileCrypterCompressionAlgorithm.None, fileInfo.CompressionAlgorithm);
+        Assert.False(fileInfo.IsKeyFileRequired);
+        Assert.Equal((int)FileCrypterFormatConstants.MinimumChunkSize, fileInfo.ChunkSize);
+        Assert.Equal((int)FileCrypterFormatConstants.MinimumArgon2MemoryKiB, fileInfo.Argon2MemoryKiB);
+        Assert.Equal((int)FileCrypterFormatConstants.MinimumArgon2Iterations, fileInfo.Argon2Iterations);
+        Assert.Equal((int)FileCrypterFormatConstants.MinimumArgon2Parallelism, fileInfo.Argon2Parallelism);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithCompressedPayload_ReportsZstdCompression()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "inspect compressed payload");
+        _ = await FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            CreateFastOptions(enableCompression: true));
+
+        FileCrypterFileInfo fileInfo = await FileCrypter.InspectAsync(encryptedPath);
+
+        Assert.Equal(FileCrypterCompressionAlgorithm.Zstd, fileInfo.CompressionAlgorithm);
+        Assert.Equal(FileCrypterPayloadKind.SingleFile, fileInfo.PayloadKind);
+        Assert.False(fileInfo.IsKeyFileRequired);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithKeyFilePayload_ReportsKeyFileRequired()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "inspect key file payload");
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        _ = await FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            keyFilePath,
+            CreateFastOptions());
+
+        FileCrypterFileInfo fileInfo = await FileCrypter.InspectAsync(encryptedPath);
+
+        Assert.True(fileInfo.IsKeyFileRequired);
+        Assert.Equal(FileCrypterPayloadKind.SingleFile, fileInfo.PayloadKind);
+        Assert.Equal(FileCrypterCompressionAlgorithm.None, fileInfo.CompressionAlgorithm);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithArchivePayload_ReportsTarArchivePayloadKind()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "inspect archive payload");
+        _ = await FileCrypter.EncryptArchiveAsync(
+            [plaintextPath],
+            encryptedArchivePath,
+            Password,
+            CreateFastOptions());
+
+        FileCrypterFileInfo fileInfo = await FileCrypter.InspectAsync(encryptedArchivePath);
+
+        Assert.Equal(FileCrypterPayloadKind.TarArchive, fileInfo.PayloadKind);
+        Assert.Equal(FileCrypterCompressionAlgorithm.Zstd, fileInfo.CompressionAlgorithm);
+        Assert.False(fileInfo.IsKeyFileRequired);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithFileShorterThanHeader_ThrowsTruncatedHeader()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "short.encrypted");
+        byte[] headerBytes = CreateSupportedHeader();
+        await File.WriteAllBytesAsync(
+            encryptedPath,
+            headerBytes.AsSpan(0, FileCrypterFormatConstants.HeaderLength - 1).ToArray());
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.InspectAsync(encryptedPath));
+
+        Assert.Equal(FileCrypterFormatErrorCode.TruncatedHeader, exception.Code);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithNonFileCrypterFile_ThrowsInvalidMagic()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "random.bin");
+        byte[] randomBytes = Enumerable
+            .Range(0, FileCrypterFormatConstants.HeaderLength * 2)
+            .Select(value => (byte)(value * 7))
+            .ToArray();
+        await File.WriteAllBytesAsync(encryptedPath, randomBytes);
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.InspectAsync(encryptedPath));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidMagic, exception.Code);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithTamperedChunkSizeField_ThrowsInvalidChunkSize()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "tampered.encrypted");
+        byte[] headerBytes = CreateSupportedHeader();
+        BinaryPrimitives.WriteUInt32LittleEndian(
+            headerBytes.AsSpan(FileCrypterFormatConstants.ChunkSizeOffset, sizeof(uint)),
+            FileCrypterFormatConstants.MaximumChunkSize + FileCrypterFormatConstants.ChunkSizeMultiple);
+        await File.WriteAllBytesAsync(encryptedPath, headerBytes);
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.InspectAsync(encryptedPath));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidChunkSize, exception.Code);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithHeaderOnlyFile_ReturnsMetadataWithoutReadingPayload()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string headerOnlyPath = Path.Combine(directory.Path, "header-only.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "the payload is discarded");
+        _ = await FileCrypter.EncryptFileAsync(plaintextPath, encryptedPath, Password, CreateFastOptions());
+        byte[] encryptedBytes = await File.ReadAllBytesAsync(encryptedPath);
+        await File.WriteAllBytesAsync(
+            headerOnlyPath,
+            encryptedBytes.AsSpan(0, FileCrypterFormatConstants.HeaderLength).ToArray());
+
+        FileCrypterFileInfo fileInfo = await FileCrypter.InspectAsync(headerOnlyPath);
+
+        Assert.Equal(FileCrypterPayloadKind.SingleFile, fileInfo.PayloadKind);
+        Assert.Equal((int)FileCrypterFormatConstants.MinimumChunkSize, fileInfo.ChunkSize);
+        Assert.Equal((long)FileCrypterFormatConstants.HeaderLength, new FileInfo(headerOnlyPath).Length);
+    }
+
+    [Fact]
+    public async Task VerifyFileAsync_WithSingleFilePayload_ReturnsPlaintextByteCount()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("verify this single file payload");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        _ = await FileCrypter.EncryptFileAsync(plaintextPath, encryptedPath, Password, CreateFastOptions());
+
+        FileCrypterVerifyResult result = await FileCrypter.VerifyFileAsync(
+            encryptedPath,
+            Password,
+            CreateFastOptions());
+
+        Assert.Equal(FileCrypterPayloadKind.SingleFile, result.FileInfo.PayloadKind);
+        Assert.Equal((long)plaintextBytes.Length, result.PlaintextBytesVerified);
+    }
+
+    [Fact]
+    public async Task VerifyFileAsync_WithCompressedPayload_ReturnsDecompressedByteCount()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes(new string('c', 4096));
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        _ = await FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            CreateFastOptions(enableCompression: true));
+
+        FileCrypterVerifyResult result = await FileCrypter.VerifyFileAsync(
+            encryptedPath,
+            Password,
+            CreateFastOptions());
+
+        Assert.Equal(FileCrypterCompressionAlgorithm.Zstd, result.FileInfo.CompressionAlgorithm);
+        Assert.Equal((long)plaintextBytes.Length, result.PlaintextBytesVerified);
+    }
+
+    [Fact]
+    public async Task VerifyFileAsync_WithArchivePayload_ReturnsTarPayloadKindAndByteCount()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "verify this archive payload");
+        _ = await FileCrypter.EncryptArchiveAsync(
+            [plaintextPath],
+            encryptedArchivePath,
+            Password,
+            CreateFastOptions());
+
+        FileCrypterVerifyResult result = await FileCrypter.VerifyFileAsync(
+            encryptedArchivePath,
+            Password,
+            CreateFastOptions());
+
+        Assert.Equal(FileCrypterPayloadKind.TarArchive, result.FileInfo.PayloadKind);
+        Assert.True(result.PlaintextBytesVerified > 0);
+        Assert.Equal(0L, result.PlaintextBytesVerified % TarBlockSizeBytes);
+    }
+
+    [Fact]
+    public async Task VerifyFileAsync_WithKeyFilePayload_ReturnsPlaintextByteCount()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("verify this key file payload");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        _ = await FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            keyFilePath,
+            CreateFastOptions());
+
+        FileCrypterVerifyResult result = await FileCrypter.VerifyFileAsync(
+            encryptedPath,
+            Password,
+            keyFilePath,
+            CreateFastOptions());
+
+        Assert.True(result.FileInfo.IsKeyFileRequired);
+        Assert.Equal((long)plaintextBytes.Length, result.PlaintextBytesVerified);
+    }
+
+    [Fact]
+    public async Task VerifyFileAsync_WithWrongPassword_ThrowsAuthenticationFailed()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "secret");
+        _ = await FileCrypter.EncryptFileAsync(plaintextPath, encryptedPath, Password, CreateFastOptions());
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.VerifyFileAsync(encryptedPath, "wrong password", CreateFastOptions()));
+
+        Assert.Equal(FileCrypterFormatErrorCode.AuthenticationFailed, exception.Code);
+    }
+
+    [Fact]
+    public async Task VerifyFileAsync_WithCorruptedCiphertext_ThrowsAuthenticationFailed()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        string corruptedPath = Path.Combine(directory.Path, "corrupted.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "corruption check");
+        _ = await FileCrypter.EncryptFileAsync(plaintextPath, encryptedPath, Password, CreateFastOptions());
+        byte[] encryptedBytes = await File.ReadAllBytesAsync(encryptedPath);
+        encryptedBytes[FileCrypterFormatConstants.HeaderLength + FileCrypterFormatConstants.ChunkFramePrefixLength] ^= 0x01;
+        await File.WriteAllBytesAsync(corruptedPath, encryptedBytes);
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.VerifyFileAsync(corruptedPath, Password, CreateFastOptions()));
+
+        Assert.Equal(FileCrypterFormatErrorCode.AuthenticationFailed, exception.Code);
+    }
+
+    [Fact]
+    public async Task VerifyFileAsync_WithKeyFilePayloadAndNoKeyFile_ThrowsKeyFileRequired()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "key file required");
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        _ = await FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            keyFilePath,
+            CreateFastOptions());
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.VerifyFileAsync(encryptedPath, Password, CreateFastOptions()));
+
+        Assert.Equal(FileCrypterFormatErrorCode.KeyFileRequired, exception.Code);
+    }
+
+    [Fact]
+    public async Task VerifyFileAsync_WhenVerificationSucceeds_WritesNoFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "nothing should be written");
+        _ = await FileCrypter.EncryptFileAsync(plaintextPath, encryptedPath, Password, CreateFastOptions());
+        string[] filesBeforeVerify = Directory.GetFileSystemEntries(directory.Path, "*", SearchOption.AllDirectories);
+        long encryptedLengthBeforeVerify = new FileInfo(encryptedPath).Length;
+
+        _ = await FileCrypter.VerifyFileAsync(encryptedPath, Password, CreateFastOptions());
+
+        Assert.Equal(
+            filesBeforeVerify,
+            Directory.GetFileSystemEntries(directory.Path, "*", SearchOption.AllDirectories));
+        Assert.Equal(encryptedLengthBeforeVerify, new FileInfo(encryptedPath).Length);
     }
 
     [Fact]

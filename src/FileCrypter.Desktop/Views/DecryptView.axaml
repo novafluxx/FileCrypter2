@@ -161,7 +161,7 @@
                                        FontFamily="Cascadia Mono, Consolas, monospace"
                                        Foreground="{DynamicResource AccentSecondaryForegroundBrush}"
                                        TextWrapping="Wrap" />
-                            <TextBlock Text="If a key file was used during encryption, the original unchanged file is required here too."
+                            <TextBlock Text="{Binding DetailsPanelDetailText}"
                                        Foreground="{DynamicResource MutedForegroundBrush}"
                                        TextWrapping="Wrap" />
                             <Button Classes="aurora-secondary"

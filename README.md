@@ -14,6 +14,8 @@ FileCrypter currently supports:
 - generated key files for encryption
 - batch individual-file encrypt and decrypt
 - encrypted compressed tar archives with archive extraction
+- header inspection without a password, reporting payload kind, compression, and key-file requirement
+- integrity verification that authenticates every chunk without writing any output
 - shared local settings for compression, overwrite behavior, output directory, and desktop theme preference
 - safe staged writes, overwrite protection, auto-renamed outputs, and CLI progress reporting
 - a documented v1 encrypted file format in `docs/file-format.md`
@@ -77,12 +79,16 @@ General command shape:
 ```text
 filecrypter encrypt <input> [output] [--password-stdin | --password <password>] [--key-file <path> | --generate-key-file <path>] [--compress] [--overwrite]
 filecrypter decrypt <input> [output] [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
+filecrypter inspect <input>
+filecrypter verify <input> [--password-stdin | --password <password>] [--key-file <path>]
 filecrypter batch-encrypt <output-directory> <input>... [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
 filecrypter batch-decrypt <output-directory> <input>... [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
 filecrypter archive-encrypt <output-archive-or-directory> <input>... [--archive-name <name>] [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
 filecrypter archive-decrypt <input-archive> <output-directory> [--password-stdin | --password <password>] [--key-file <path>] [--overwrite]
 filecrypter settings show
 filecrypter settings set compression-default <on|off>
+filecrypter settings set overwrite-default <on|off>
+filecrypter settings set output-directory <path|clear>
 ```
 
 If no password option is supplied, the CLI prompts interactively without echoing the password. For automation, pipe one password line to `--password-stdin`. Avoid `--password <password>` when possible because command-line arguments can be exposed through shell history, process listings, logs, terminal scrollback, and crash reports; FileCrypter prints a warning when it is used.
@@ -110,6 +116,24 @@ printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.cspro
 
 cmp /tmp/filecrypter-demo.txt /tmp/filecrypter-demo-restored.txt
 ```
+
+Inspect an encrypted file without a password:
+
+```bash
+dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+  inspect /tmp/filecrypter-demo.txt.encrypted
+```
+
+This reads only the 64-byte header and reports the format version, payload kind, compression, key-file requirement, chunk size, and Argon2id parameters. Those values are what the file claims; they are not authenticated. Use it to tell a single-file `.encrypted` apart from a `.tar.zst.encrypted` archive, or to check whether a key file is required, before committing to a decrypt.
+
+Verify integrity without writing output:
+
+```bash
+printf "demo\n" | dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- \
+  verify /tmp/filecrypter-demo.txt.encrypted --password-stdin
+```
+
+Verification decrypts to nothing and authenticates every chunk, so it detects a wrong password, a wrong key file, corruption, truncation, and tampering. It creates no files. For archive payloads it authenticates the archive bytes but does not check the archive entry structure.
 
 Compressed single-file encryption:
 
@@ -183,7 +207,12 @@ Settings:
 dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings show
 dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set compression-default on
 dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set compression-default off
+dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set overwrite-default off
+dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set output-directory /tmp/filecrypter-out
+dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set output-directory clear
 ```
+
+Settings are shared with the desktop app. `overwrite-default` and `output-directory` are stored for the desktop app and do not change what an explicit CLI option does; `overwrite-default on` means outputs replace existing files, and `off` keeps them and auto-renames instead.
 
 ## Safety Notes
 
@@ -192,7 +221,8 @@ dotnet run --project src/FileCrypter.Cli/FileCrypter.Cli.csproj -- settings set 
 - Existing key files are capped at 16 MiB to avoid accidental large-file selection.
 - Original input files are left unchanged.
 - Existing output files are not overwritten unless `--overwrite` is supplied; otherwise FileCrypter auto-renames the new output.
-- Use `archive-decrypt` for `.tar.zst.encrypted` archives and `decrypt` for single-file `.encrypted` files.
+- Use `archive-decrypt` for `.tar.zst.encrypted` archives and `decrypt` for single-file `.encrypted` files. Run `inspect` if you are unsure which one a file is; it needs no password.
+- `inspect` reports unauthenticated header metadata and never proves a file is intact. Use `verify` for that.
 
 ## Run The GUI
 
@@ -206,6 +236,7 @@ Current GUI scope:
 
 - windowed Avalonia 12 app with persistent sidebar navigation
 - implemented Encrypt and Decrypt pages for single-file workflows
+- automatic header inspection on the Decrypt page, reporting payload kind, compression, and key-file requirement as soon as a file is selected
 - implemented Batch page for individual-file and encrypted-archive workflows
 - implemented Settings page for compression, overwrite, output-directory, and theme preferences
 - implemented Help page with recovery guidance, troubleshooting, version details, and update-status messaging

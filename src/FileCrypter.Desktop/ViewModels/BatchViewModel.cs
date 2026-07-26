@@ -296,7 +296,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             }
 
             return ArchiveMode
-                ? $"{SourcePaths.Count} file(s) selected for one encrypted archive."
+                ? $"{SourcePaths.Count} file(s) selected for one encrypted archive. FileCrypter bundles up to {CoreFileCrypter.MaximumBatchFileCount} files per archive."
                 : $"{SourcePaths.Count} file(s) selected. FileCrypter processes up to {CoreFileCrypter.MaximumBatchFileCount} files per batch.";
         }
     }
@@ -1170,7 +1170,7 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
     {
         return HasSelectedFiles &&
             (!ArchiveMode || EncryptMode || SourcePaths.Count == 1) &&
-            (ArchiveMode || SourcePaths.Count <= CoreFileCrypter.MaximumBatchFileCount);
+            SourcePaths.Count <= CoreFileCrypter.MaximumBatchFileCount;
     }
 
     private bool HasValidOutputDirectory()
@@ -1203,9 +1203,11 @@ public sealed partial class BatchViewModel : ViewModelBase, IWorkflowStatusViewM
             return "Choose exactly one encrypted archive file to extract.";
         }
 
-        if (!ArchiveMode && SourcePaths.Count > CoreFileCrypter.MaximumBatchFileCount)
+        if (SourcePaths.Count > CoreFileCrypter.MaximumBatchFileCount)
         {
-            return $"Choose {CoreFileCrypter.MaximumBatchFileCount} files or fewer for one batch run.";
+            return ArchiveMode
+                ? $"Choose {CoreFileCrypter.MaximumBatchFileCount} files or fewer for one encrypted archive."
+                : $"Choose {CoreFileCrypter.MaximumBatchFileCount} files or fewer for one batch run.";
         }
 
         List<string> issues = [];

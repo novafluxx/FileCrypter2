@@ -1336,6 +1336,634 @@ public sealed class FileCrypterCommandTests
         Assert.DoesNotContain(Password, console.ErrorOutput, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Inspect_WithSingleFilePayload_ReportsHeaderMetadata()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "inspect single file");
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", encryptedPath]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Format version: 1", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Payload kind: single file", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Compression: none", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Key file required: no", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Chunk size bytes: 65536", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Argon2id memory KiB: 19456", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Argon2id iterations: 2", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Argon2id parallelism: 1", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Header status: unauthenticated.", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task Inspect_WithCompressedPayload_ReportsZstdCompression()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, string.Concat(Enumerable.Repeat("inspect compression\n", 512)));
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--compress"]);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", encryptedPath]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Compression: zstd", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Payload kind: single file", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task Inspect_WithKeyFilePayload_ReportsKeyFileRequired()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "inspect key file");
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--key-file", keyFilePath]);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", encryptedPath]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Key file required: yes", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task Inspect_WithArchivePayload_ReportsTarArchive()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "inspect archive");
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["archive-encrypt", encryptedArchivePath, plaintextPath, "--password", Password]);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", encryptedArchivePath]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Payload kind: tar archive", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Compression: zstd", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task Inspect_WhenNoPasswordIsSupplied_SucceedsWithoutPrompting()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "inspect needs no password");
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+        var console = TestConsole.CreateInteractive(Password);
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", encryptedPath]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Payload kind: single file", console.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("Password:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task Inspect_WithMalformedInput_FailsWithTroubleshooting()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "not-filecrypter.encrypted");
+        await File.WriteAllBytesAsync(encryptedPath, Enumerable.Range(0, 64).Select(value => (byte)value).ToArray());
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", encryptedPath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("InvalidMagic", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Choose a FileCrypter .encrypted file", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Inspect_WithShortNonFileCrypterInput_FailsWithoutClaimingDamage()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "demo.txt");
+        await File.WriteAllTextAsync(plaintextPath, "hello from FileCrypter\n");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", plaintextPath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("This file is too small to be a FileCrypter encrypted file.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Choose a FileCrypter .encrypted file", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("incomplete or damaged", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("TruncatedHeader", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Inspect_WithEmptyInput_FailsWithoutClaimingDamage()
+    {
+        using var directory = new TemporaryDirectory();
+        string emptyPath = Path.Combine(directory.Path, "empty.encrypted");
+        await File.WriteAllBytesAsync(emptyPath, []);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", emptyPath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("This file is too small to be a FileCrypter encrypted file.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("incomplete or damaged", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Inspect_WithTruncatedFileCrypterHeader_ReportsDamagedFile()
+    {
+        using var directory = new TemporaryDirectory();
+        string truncatedPath = Path.Combine(directory.Path, "truncated.encrypted");
+        byte[] truncatedBytes = [.. Encoding.UTF8.GetBytes("FCRYPT\r\n"), .. Enumerable.Repeat((byte)0, 24)];
+        await File.WriteAllBytesAsync(truncatedPath, truncatedBytes);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", truncatedPath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("TruncatedHeader", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The encrypted file appears incomplete or damaged.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("too small to be a FileCrypter encrypted file", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Verify_WithShortNonFileCrypterInput_FailsWithoutClaimingDamage()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "demo.txt");
+        await File.WriteAllTextAsync(plaintextPath, "hello from FileCrypter\n");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["verify", plaintextPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("This file is too small to be a FileCrypter encrypted file.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Choose a FileCrypter .encrypted file", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("incomplete or damaged", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("TruncatedHeader", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Verify_WithTruncatedFileCrypterHeader_ReportsDamagedFile()
+    {
+        using var directory = new TemporaryDirectory();
+        string truncatedPath = Path.Combine(directory.Path, "truncated.encrypted");
+        byte[] truncatedBytes = [.. Encoding.UTF8.GetBytes("FCRYPT\r\n"), .. Enumerable.Repeat((byte)0, 24)];
+        await File.WriteAllBytesAsync(truncatedPath, truncatedBytes);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["verify", truncatedPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("TruncatedHeader", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The encrypted file appears incomplete or damaged.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("too small to be a FileCrypter encrypted file", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Inspect_WhenInputFileIsMissing_Fails()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "missing.encrypted");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["inspect", encryptedPath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The input file does not exist.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Verify_WithSingleFilePayload_SucceedsAndReportsProgress()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("verify single file");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+        var console = TestConsole.CreateRedirected(Password + Environment.NewLine);
+
+        int exitCode = await CreateCommand(console).RunAsync(["verify", encryptedPath, "--password-stdin"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal(
+            $"Verified: {Path.GetFullPath(encryptedPath)} ({plaintextBytes.Length} plaintext bytes authenticated)" + Environment.NewLine,
+            console.Output);
+        Assert.Contains("Verifying: 100%", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("Warning: --password", console.ErrorOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Verify_WithArchivePayload_SucceedsAndReportsArchiveEntriesNotChecked()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedArchivePath = Path.Combine(directory.Path, "bundle.tar.zst.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "verify archive");
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["archive-encrypt", encryptedArchivePath, plaintextPath, "--password", Password]);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["verify", encryptedArchivePath, "--password", Password]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains($"Verified: {Path.GetFullPath(encryptedArchivePath)}", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Archive entries: not checked.", console.Output, StringComparison.Ordinal);
+        Assert.Contains("not the archive entry structure", console.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Verify_WithKeyFile_Succeeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "verify key file");
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--key-file", keyFilePath]);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(
+            ["verify", encryptedPath, "--password", Password, "--key-file", keyFilePath]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains($"Verified: {Path.GetFullPath(encryptedPath)}", console.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Verify_WithWrongPassword_Fails()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "verify wrong password");
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["verify", encryptedPath, "--password", "wrong"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("AuthenticationFailed", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Check the password and key file, then try again.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Verify_WhenKeyFileIsRequiredButMissing_FailsWithHint()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string keyFilePath = Path.Combine(directory.Path, "filecrypter.key");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "verify missing key file");
+        await File.WriteAllBytesAsync(keyFilePath, Enumerable.Range(1, 32).Select(value => (byte)value).ToArray());
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password, "--key-file", keyFilePath]);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["verify", encryptedPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("KeyFileRequired", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Provide the matching key file with --key-file.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Verify_WhenSucceeding_WritesNoFiles()
+    {
+        using var directory = new TemporaryDirectory();
+        string plaintextPath = Path.Combine(directory.Path, "plain.txt");
+        string encryptedPath = Path.Combine(directory.Path, "plain.txt.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "verify writes nothing");
+        await CreateCommand(TestConsole.CreateRedirected()).RunAsync(
+            ["encrypt", plaintextPath, encryptedPath, "--password", Password]);
+        string[] entriesBefore = Directory.GetFileSystemEntries(directory.Path, "*", SearchOption.AllDirectories);
+        Array.Sort(entriesBefore, StringComparer.Ordinal);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["verify", encryptedPath, "--password", Password]);
+
+        string[] entriesAfter = Directory.GetFileSystemEntries(directory.Path, "*", SearchOption.AllDirectories);
+        Array.Sort(entriesAfter, StringComparer.Ordinal);
+        Assert.Equal(0, exitCode);
+        Assert.Equal(entriesBefore, entriesAfter);
+    }
+
+    [Fact]
+    public async Task Verify_WhenInputFileIsMissing_Fails()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "missing.encrypted");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["verify", encryptedPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The input file does not exist.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task SettingsShow_ReportsEveryStoredSettingAndSettingsFile()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string defaultOutputDirectory = Path.Combine(directory.Path, "outputs");
+        Directory.CreateDirectory(defaultOutputDirectory);
+        FileCrypterSettingsStore settingsStore = CreateSettingsStore(settingsPath);
+        await settingsStore.SaveAsync(new FileCrypterSettings
+        {
+            EnableCompressionByDefault = true,
+            NeverOverwriteExistingFilesByDefault = false,
+            DefaultOutputDirectory = defaultOutputDirectory,
+            ThemePreference = FileCrypterThemePreference.Dark,
+        });
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: settingsStore).RunAsync(["settings", "show"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Compression default: on", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Overwrite default: on", console.Output, StringComparison.Ordinal);
+        Assert.Contains($"Default output directory: {defaultOutputDirectory}", console.Output, StringComparison.Ordinal);
+        Assert.Contains($"Settings file: {settingsPath}", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task SettingsShow_WhenSettingsFileIsMissing_ReportsDefaultsForEverySetting()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: CreateSettingsStore(settingsPath))
+            .RunAsync(["settings", "show"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Compression default: off", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Overwrite default: off", console.Output, StringComparison.Ordinal);
+        Assert.Contains("Default output directory: (not set)", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task SettingsSetOverwriteDefault_RoundTripsThroughShow()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        FileCrypterSettingsStore settingsStore = CreateSettingsStore(settingsPath);
+        var setConsole = TestConsole.CreateRedirected();
+        var showConsole = TestConsole.CreateRedirected();
+
+        int setExitCode = await CreateCommand(setConsole, settingsStore: settingsStore)
+            .RunAsync(["settings", "set", "overwrite-default", "on"]);
+        int showExitCode = await CreateCommand(showConsole, settingsStore: settingsStore)
+            .RunAsync(["settings", "show"]);
+
+        FileCrypterSettings loadedSettings = await settingsStore.LoadAsync();
+        Assert.Equal(0, setExitCode);
+        Assert.Equal(0, showExitCode);
+        Assert.False(loadedSettings.NeverOverwriteExistingFilesByDefault);
+        Assert.Contains("Overwrite default: on", setConsole.Output, StringComparison.Ordinal);
+        Assert.Contains("Overwrite default: on", showConsole.Output, StringComparison.Ordinal);
+        Assert.Empty(setConsole.ErrorOutput);
+        Assert.Empty(showConsole.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task SettingsSetOverwriteDefault_PreservesUnrelatedSettings()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string defaultOutputDirectory = Path.Combine(directory.Path, "outputs");
+        FileCrypterSettingsStore settingsStore = CreateSettingsStore(settingsPath);
+        await settingsStore.SaveAsync(new FileCrypterSettings
+        {
+            EnableCompressionByDefault = true,
+            NeverOverwriteExistingFilesByDefault = true,
+            DefaultOutputDirectory = defaultOutputDirectory,
+            ThemePreference = FileCrypterThemePreference.Dark,
+        });
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: settingsStore)
+            .RunAsync(["settings", "set", "overwrite-default", "on"]);
+
+        FileCrypterSettings loadedSettings = await settingsStore.LoadAsync();
+        Assert.Equal(0, exitCode);
+        Assert.False(loadedSettings.NeverOverwriteExistingFilesByDefault);
+        Assert.True(loadedSettings.EnableCompressionByDefault);
+        Assert.Equal(defaultOutputDirectory, loadedSettings.DefaultOutputDirectory);
+        Assert.Equal(FileCrypterThemePreference.Dark, loadedSettings.ThemePreference);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task SettingsSetOverwriteDefault_WithInvalidValue_Fails()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: CreateSettingsStore(settingsPath))
+            .RunAsync(["settings", "set", "overwrite-default", "maybe"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Overwrite default must be 'on' or 'off'.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(settingsPath));
+    }
+
+    [Fact]
+    public async Task SettingsSetOutputDirectory_PreservesUnrelatedSettings()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string defaultOutputDirectory = Path.Combine(directory.Path, "outputs");
+        Directory.CreateDirectory(defaultOutputDirectory);
+        FileCrypterSettingsStore settingsStore = CreateSettingsStore(settingsPath);
+        await settingsStore.SaveAsync(new FileCrypterSettings
+        {
+            EnableCompressionByDefault = true,
+            NeverOverwriteExistingFilesByDefault = false,
+            DefaultOutputDirectory = string.Empty,
+            ThemePreference = FileCrypterThemePreference.Dark,
+        });
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: settingsStore)
+            .RunAsync(["settings", "set", "output-directory", defaultOutputDirectory]);
+
+        FileCrypterSettings loadedSettings = await settingsStore.LoadAsync();
+        Assert.Equal(0, exitCode);
+        Assert.Equal(Path.GetFullPath(defaultOutputDirectory), loadedSettings.DefaultOutputDirectory);
+        Assert.True(loadedSettings.EnableCompressionByDefault);
+        Assert.False(loadedSettings.NeverOverwriteExistingFilesByDefault);
+        Assert.Equal(FileCrypterThemePreference.Dark, loadedSettings.ThemePreference);
+        Assert.Contains($"Default output directory: {Path.GetFullPath(defaultOutputDirectory)}", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task SettingsSetOutputDirectory_WithClear_EmptiesDefaultOutputDirectory()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string defaultOutputDirectory = Path.Combine(directory.Path, "outputs");
+        Directory.CreateDirectory(defaultOutputDirectory);
+        FileCrypterSettingsStore settingsStore = CreateSettingsStore(settingsPath);
+        await settingsStore.SaveAsync(new FileCrypterSettings { DefaultOutputDirectory = defaultOutputDirectory });
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: settingsStore)
+            .RunAsync(["settings", "set", "output-directory", "clear"]);
+
+        FileCrypterSettings loadedSettings = await settingsStore.LoadAsync();
+        Assert.Equal(0, exitCode);
+        Assert.Equal(string.Empty, loadedSettings.DefaultOutputDirectory);
+        Assert.Contains("Default output directory: (not set)", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task SettingsSetOutputDirectory_WhenDirectoryIsMissing_FailsWithoutWriting()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string missingDirectory = Path.Combine(directory.Path, "missing");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: CreateSettingsStore(settingsPath))
+            .RunAsync(["settings", "set", "output-directory", missingDirectory]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The output directory does not exist.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(settingsPath));
+    }
+
+    [Fact]
+    public async Task SettingsSetOutputDirectory_WhenPathIsAFile_FailsWithoutWriting()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string filePath = Path.Combine(directory.Path, "not-a-directory.txt");
+        await File.WriteAllTextAsync(filePath, "not a directory");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: CreateSettingsStore(settingsPath))
+            .RunAsync(["settings", "set", "output-directory", filePath]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Path error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("The output directory path points to a file.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(settingsPath));
+    }
+
+    [Fact]
+    public async Task SettingsSet_WhenSettingsFileIsInvalid_RefusesToWriteAndKeepsFile()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        string invalidSettings = "{ invalid json";
+        await File.WriteAllTextAsync(settingsPath, invalidSettings);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: CreateSettingsStore(settingsPath))
+            .RunAsync(["settings", "set", "compression-default", "on"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("Settings error:", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("No setting was changed.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Repair or delete the settings file", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.Equal(invalidSettings, await File.ReadAllTextAsync(settingsPath));
+    }
+
+    [Fact]
+    public async Task SettingsSet_WithUnknownSettingName_ListsSupportedSettings()
+    {
+        using var directory = new TemporaryDirectory();
+        string settingsPath = Path.Combine(directory.Path, "settings.json");
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console, settingsStore: CreateSettingsStore(settingsPath))
+            .RunAsync(["settings", "set", "theme-preference", "dark"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("settings set compression-default <on|off>", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("settings set overwrite-default <on|off>", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("settings set output-directory <path|clear>", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+        Assert.False(File.Exists(settingsPath));
+    }
+
+    [Fact]
+    public async Task Help_IncludesInspectVerifyAndNewSettings()
+    {
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["--help"]);
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("filecrypter inspect <input>", console.Output, StringComparison.Ordinal);
+        Assert.Contains("filecrypter verify <input>", console.Output, StringComparison.Ordinal);
+        Assert.Contains("never proves the file is intact or genuine", console.Output, StringComparison.Ordinal);
+        Assert.Contains("does not check the archive entry structure", console.Output, StringComparison.Ordinal);
+        Assert.Contains("settings set overwrite-default <on|off>", console.Output, StringComparison.Ordinal);
+        Assert.Contains("settings set output-directory <path|clear>", console.Output, StringComparison.Ordinal);
+        Assert.Empty(console.ErrorOutput);
+    }
+
+    [Fact]
+    public async Task Run_WithUnknownCommand_ListsInspectAndVerify()
+    {
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["nonsense"]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("'inspect'", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("'verify'", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
     private static FileCrypterCommand CreateCommand(
         TestConsole console,
         FileCrypterOptions? options = null,

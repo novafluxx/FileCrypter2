@@ -33,4 +33,8 @@ public interface IFileCrypterWorkflowService
         BatchTransformRequest request,
         IProgress<BatchOperationProgress>? progress,
         CancellationToken cancellationToken);
+
+    Task<InspectFileResult> InspectFileAsync(
+        InspectFileRequest request,
+        CancellationToken cancellationToken);
 }

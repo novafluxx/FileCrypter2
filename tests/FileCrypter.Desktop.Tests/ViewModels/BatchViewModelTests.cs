@@ -3,6 +3,7 @@ using FileCrypter.Desktop.Tests.TestDoubles;
 using FileCrypter.Desktop.ViewModels;
 using FileCrypter.Core;
 using FileCrypter.Core.Settings;
+using CoreFileCrypter = FileCrypter.Core.FileCrypter;
 
 namespace FileCrypter.Desktop.Tests.ViewModels;
 
@@ -92,6 +93,56 @@ public sealed class BatchViewModelTests
 
         viewModel.SourcePaths.RemoveAt(1);
         Assert.True(viewModel.ShowBatchReadyAction);
+    }
+
+    [Fact]
+    public void StartBatchCommand_InArchiveEncryptModeAboveFileCap_IsBlockedWithFileCountMessage()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var viewModel = new BatchViewModel(new RecordingWorkflowService())
+        {
+            ArchiveMode = true,
+            EncryptMode = true,
+            OutputDirectory = outputDirectory.Path,
+            Password = "secret",
+        };
+
+        for (int index = 0; index < CoreFileCrypter.MaximumBatchFileCount; index++)
+        {
+            viewModel.SourcePaths.Add($"/tmp/file-{index}.txt");
+        }
+
+        Assert.True(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.Equal(string.Empty, viewModel.ErrorMessage);
+
+        viewModel.SourcePaths.Add("/tmp/one-too-many.txt");
+
+        Assert.False(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.False(viewModel.ShowBatchReadyAction);
+        Assert.Equal(
+            $"Choose {CoreFileCrypter.MaximumBatchFileCount} files or fewer for one encrypted archive.",
+            viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public void StartBatchCommand_InFileBatchModeAboveFileCap_IsBlockedWithFileCountMessage()
+    {
+        using var outputDirectory = new TemporaryDirectory();
+        var viewModel = new BatchViewModel(new RecordingWorkflowService())
+        {
+            OutputDirectory = outputDirectory.Path,
+            Password = "secret",
+        };
+
+        for (int index = 0; index <= CoreFileCrypter.MaximumBatchFileCount; index++)
+        {
+            viewModel.SourcePaths.Add($"/tmp/file-{index}.txt");
+        }
+
+        Assert.False(viewModel.StartBatchCommand.CanExecute(null));
+        Assert.Equal(
+            $"Choose {CoreFileCrypter.MaximumBatchFileCount} files or fewer for one batch run.",
+            viewModel.ErrorMessage);
     }
 
     [Fact]
@@ -986,6 +1037,13 @@ public sealed class BatchViewModelTests
             return CompleteBatchAsync(request, progress);
         }
 
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
         private Task<BatchTransformResult> CompleteBatchAsync(
             BatchTransformRequest request,
             IProgress<BatchOperationProgress>? progress)
@@ -1059,6 +1117,13 @@ public sealed class BatchViewModelTests
             return completion.Task;
         }
 
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
         public void Finish(BatchTransformResult result)
         {
             completion.SetResult(result);
@@ -1117,6 +1182,13 @@ public sealed class BatchViewModelTests
             CancellationToken cancellationToken)
         {
             return CreateCancellableTask<BatchTransformResult>(cancellationToken);
+        }
+
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
         }
 
         private Task<TResult> CreateCancellableTask<TResult>(CancellationToken cancellationToken)

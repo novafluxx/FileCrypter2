@@ -201,6 +201,24 @@ public sealed class FileCrypterWorkflowService : IFileCrypterWorkflowService
         return TransformFilesAsync(request, progress, encrypt: false, cancellationToken);
     }
 
+    public async Task<InspectFileResult> InspectFileAsync(
+        InspectFileRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.SourcePath);
+
+        FileCrypterFileInfo fileInfo = await CoreFileCrypter.InspectAsync(
+            request.SourcePath,
+            cancellationToken).ConfigureAwait(false);
+
+        return new InspectFileResult(
+            fileInfo.PayloadKind,
+            fileInfo.IsKeyFileRequired,
+            fileInfo.CompressionAlgorithm != FileCrypterCompressionAlgorithm.None,
+            fileInfo.FormatVersion);
+    }
+
     private static string GetDefaultDecryptedOutputPath(string sourcePath)
     {
         string fileName = Path.GetFileName(sourcePath);

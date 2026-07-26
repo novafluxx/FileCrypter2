@@ -623,6 +623,13 @@ public sealed class EncryptViewModelTests
         {
             throw new NotSupportedException();
         }
+
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class WaitingWorkflowService : IFileCrypterWorkflowService
@@ -678,6 +685,13 @@ public sealed class EncryptViewModelTests
         public Task<BatchTransformResult> DecryptFilesAsync(
             BatchTransformRequest request,
             IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
             CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
@@ -746,6 +760,13 @@ public sealed class EncryptViewModelTests
         public Task<BatchTransformResult> DecryptFilesAsync(
             BatchTransformRequest request,
             IProgress<BatchOperationProgress>? progress,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
             CancellationToken cancellationToken)
         {
             throw new NotSupportedException();

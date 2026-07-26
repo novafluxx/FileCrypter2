@@ -26,6 +26,33 @@ internal static class WorkflowErrorMessageFormatter
                     "The encrypted file appears incomplete or damaged. Try a fresh copy of the file.",
                 FileCrypterFormatErrorCode.UnsupportedPayloadKind =>
                     "This file belongs to a different FileCrypter workflow. Use archive extraction for encrypted archives and standard decrypt for single-file outputs.",
+                FileCrypterFormatErrorCode.UnsupportedVersion =>
+                    "This file was written by a newer FileCrypter file format. Update FileCrypter, then try again.",
+                FileCrypterFormatErrorCode.UnsupportedAeadAlgorithm
+                    or FileCrypterFormatErrorCode.UnsupportedKdfAlgorithm
+                    or FileCrypterFormatErrorCode.UnsupportedCompressionAlgorithm
+                    or FileCrypterFormatErrorCode.UnsupportedArgon2Version =>
+                    "This file uses an algorithm this FileCrypter version cannot read. Update FileCrypter, then try again.",
+                FileCrypterFormatErrorCode.InvalidHeaderLength
+                    or FileCrypterFormatErrorCode.InvalidFlags
+                    or FileCrypterFormatErrorCode.InvalidReservedBytes
+                    or FileCrypterFormatErrorCode.InvalidKeyFileHashAlgorithm =>
+                    "The file header is not a valid FileCrypter header. The file was probably damaged or altered. Try a fresh copy of the file.",
+                FileCrypterFormatErrorCode.InvalidChunkSize
+                    or FileCrypterFormatErrorCode.InvalidArgon2Parameters =>
+                    "The file header asks for settings outside the range FileCrypter supports. The file was probably damaged or altered. Try a fresh copy of the file.",
+                FileCrypterFormatErrorCode.UnsupportedKeyFileRequirement =>
+                    "This file's key-file setting is not supported for this operation. Use the FileCrypter workflow that matches how the file was created.",
+                FileCrypterFormatErrorCode.InvalidChunkFlags
+                    or FileCrypterFormatErrorCode.InvalidChunkLength
+                    or FileCrypterFormatErrorCode.InvalidChunkReservedBytes
+                    or FileCrypterFormatErrorCode.TooManyChunks
+                    or FileCrypterFormatErrorCode.TrailingData =>
+                    "The encrypted payload is framed incorrectly and may have been damaged in transit. Try a fresh copy of the file.",
+                FileCrypterFormatErrorCode.InvalidCompressedPayload =>
+                    "The file decrypted, but its compressed contents could not be expanded. Try a fresh copy of the file.",
+                FileCrypterFormatErrorCode.InvalidArchivePayload =>
+                    "The archive contents are not a supported, safe FileCrypter archive. Try a fresh copy of the archive.",
                 _ => "The encrypted file metadata or payload is not valid for this FileCrypter version.",
             };
         }

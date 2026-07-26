@@ -594,6 +594,209 @@ public static class FileCrypter
     }
 
     /// <summary>
+    /// Reads the FileCrypter header of an encrypted file and projects its password-independent metadata.
+    /// </summary>
+    /// <param name="encryptedPath">The encrypted file to inspect.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous header read.</param>
+    /// <returns>The header metadata for the encrypted file.</returns>
+    /// <exception cref="ArgumentException"><paramref name="encryptedPath"/> is null or empty.</exception>
+    /// <exception cref="FileNotFoundException">The encrypted file does not exist.</exception>
+    /// <exception cref="IOException">The input path points to a directory or is a symbolic link or reparse point.</exception>
+    /// <exception cref="FileCrypterFormatException">
+    /// The file is shorter than one FileCrypter header, does not carry the FileCrypter magic bytes, or declares an
+    /// unsupported version, header length, flag, algorithm, payload kind, chunk size, or Argon2id parameter set.
+    /// </exception>
+    /// <remarks>
+    /// This method reads only the first 64 bytes of the file and never touches the encrypted payload. It requires no
+    /// password and performs no key derivation, so it is cheap and safe to call on files the caller cannot open. The
+    /// same symbolic-link and reparse-point rejection applied to decryption inputs is applied here before the file is
+    /// opened. Because the header is not authenticated on its own, the returned metadata reflects what the file
+    /// claims, not a verified fact: an attacker who can rewrite the file can change these values, and doing so simply
+    /// makes decryption fail. Do not present inspection results as proof that a file is intact or genuine; use
+    /// <see cref="VerifyFileAsync(string, string, FileCrypterOptions, CancellationToken)"/> for that.
+    /// </remarks>
+    public static async Task<FileCrypterFileInfo> InspectAsync(
+        string encryptedPath,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(encryptedPath);
+
+        string fullEncryptedPath = Path.GetFullPath(encryptedPath);
+        ValidateInputPath(fullEncryptedPath);
+
+        await using FileStream input = new(
+            fullEncryptedPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: FileCrypterFormatConstants.HeaderLength,
+            FileOptions.SequentialScan);
+
+        return await ReadFileInfoAsync(input, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Verifies that an encrypted file decrypts and authenticates with a password, without writing any plaintext.
+    /// </summary>
+    /// <param name="encryptedPath">The encrypted file to verify.</param>
+    /// <param name="password">The password used to derive the decryption key.</param>
+    /// <param name="options">Optional decryption settings, including progress reporting.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>The verified header metadata and the number of authenticated plaintext bytes.</returns>
+    /// <exception cref="ArgumentException"><paramref name="encryptedPath"/> is null or empty.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="password"/> is null.</exception>
+    /// <exception cref="FileCrypterFormatException">
+    /// The encrypted payload is unsupported, malformed, unauthenticated, compressed incorrectly, requires a key file,
+    /// or carries trailing data after its final chunk.
+    /// </exception>
+    /// <remarks>
+    /// Verification reads the header to learn the payload kind, then decrypts the whole payload to a discard sink: no
+    /// staging file is created and nothing is written to disk. It authenticates every AES-GCM chunk tag together with
+    /// the header and chunk frame as associated data, enforces the final-chunk framing rules, and rejects trailing
+    /// data after the final chunk. For a <see cref="FileCrypterPayloadKind.TarArchive"/> payload it authenticates the
+    /// tar bytes but does not parse, walk, or validate the tar entry structure, so it does not detect an authenticated
+    /// payload that is not a usable archive; that check requires the staging that archive decryption performs. Failure
+    /// is reported by exception rather than by a status value, and authentication failures intentionally do not
+    /// distinguish between a wrong password and corrupted ciphertext.
+    /// </remarks>
+    public static Task<FileCrypterVerifyResult> VerifyFileAsync(
+        string encryptedPath,
+        string password,
+        FileCrypterOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        return VerifyFileCoreAsync(
+            encryptedPath,
+            password,
+            keyFilePath: null,
+            options,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Verifies that an encrypted file decrypts and authenticates with a password and key file, without writing any
+    /// plaintext.
+    /// </summary>
+    /// <param name="encryptedPath">The encrypted file to verify.</param>
+    /// <param name="password">The password used with the key-file bytes to derive the decryption key.</param>
+    /// <param name="keyFilePath">The key file required by the encrypted payload.</param>
+    /// <param name="options">Optional decryption settings, including progress reporting.</param>
+    /// <param name="cancellationToken">A token that can cancel the asynchronous operation.</param>
+    /// <returns>The verified header metadata and the number of authenticated plaintext bytes.</returns>
+    /// <exception cref="ArgumentException"><paramref name="encryptedPath"/> or <paramref name="keyFilePath"/> is null or empty.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="password"/> is null.</exception>
+    /// <exception cref="FileCrypterFormatException">
+    /// The encrypted payload is unsupported, malformed, unauthenticated, compressed incorrectly, or carries trailing
+    /// data after its final chunk.
+    /// </exception>
+    /// <remarks>
+    /// Verification decrypts the whole payload to a discard sink and writes nothing to disk. The key file is read into
+    /// a temporary buffer and zeroed before returning. Every AES-GCM chunk tag is authenticated, the final-chunk
+    /// framing rules are enforced, and trailing data after the final chunk is rejected. For a
+    /// <see cref="FileCrypterPayloadKind.TarArchive"/> payload the tar bytes are authenticated but the tar entry
+    /// structure is not parsed, walked, or validated. Authentication failures do not distinguish between a wrong
+    /// password, a wrong key file, and corrupted ciphertext.
+    /// </remarks>
+    public static Task<FileCrypterVerifyResult> VerifyFileAsync(
+        string encryptedPath,
+        string password,
+        string keyFilePath,
+        FileCrypterOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        return VerifyFileCoreAsync(
+            encryptedPath,
+            password,
+            keyFilePath,
+            options,
+            cancellationToken);
+    }
+
+    private static async Task<FileCrypterVerifyResult> VerifyFileCoreAsync(
+        string encryptedPath,
+        string password,
+        string? keyFilePath,
+        FileCrypterOptions? options,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(encryptedPath);
+        ArgumentNullException.ThrowIfNull(password);
+
+        string fullEncryptedPath = Path.GetFullPath(encryptedPath);
+        string? fullKeyFilePath = keyFilePath is null ? null : Path.GetFullPath(keyFilePath);
+        if (fullKeyFilePath is not null)
+        {
+            ValidateKeyFilePath(fullKeyFilePath);
+        }
+
+        FileCrypterFileInfo fileInfo = await InspectAsync(fullEncryptedPath, cancellationToken).ConfigureAwait(false);
+        byte[]? keyFileBytes = null;
+
+        try
+        {
+            if (fullKeyFilePath is not null)
+            {
+                keyFileBytes = await ReadKeyFileAsync(fullKeyFilePath, cancellationToken).ConfigureAwait(false);
+            }
+
+            await using FileStream input = new(
+                fullEncryptedPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 81920,
+                FileOptions.SequentialScan);
+            using var discard = new CountingDiscardStream();
+
+            if (keyFileBytes is null)
+            {
+                await DecryptAsyncCore(
+                    input,
+                    discard,
+                    password,
+                    keyFileBytes: null,
+                    options,
+                    fileInfo.PayloadKindId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await DecryptAsyncCore(
+                    input,
+                    discard,
+                    password,
+                    keyFileBytes,
+                    options,
+                    fileInfo.PayloadKindId,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return new FileCrypterVerifyResult(fileInfo, discard.BytesWritten);
+        }
+        finally
+        {
+            if (keyFileBytes is not null)
+            {
+                CryptographicOperations.ZeroMemory(keyFileBytes);
+            }
+        }
+    }
+
+    private static async Task<FileCrypterFileInfo> ReadFileInfoAsync(
+        Stream encrypted,
+        CancellationToken cancellationToken)
+    {
+        byte[] headerBytes = new byte[FileCrypterFormatConstants.HeaderLength];
+        int headerBytesRead = await ReadChunkAsync(encrypted, headerBytes, cancellationToken).ConfigureAwait(false);
+        if (headerBytesRead < FileCrypterFormatConstants.HeaderLength)
+        {
+            FileCrypterHeaderParser.Parse(headerBytes.AsSpan(0, headerBytesRead));
+        }
+
+        return new FileCrypterFileInfo(FileCrypterHeaderParser.Parse(headerBytes));
+    }
+
+    /// <summary>
     /// Encrypts plaintext from one stream into a FileCrypter single-file payload on another stream.
     /// </summary>
     /// <param name="plaintext">The readable plaintext stream.</param>
@@ -2286,6 +2489,73 @@ public static class FileCrypter
         public override void Write(byte[] buffer, int offset, int count)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class CountingDiscardStream : Stream
+    {
+        public long BytesWritten { get; private set; }
+
+        public override bool CanRead => false;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => true;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override Task FlushAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            ArgumentNullException.ThrowIfNull(buffer);
+            Write(buffer.AsSpan(offset, count));
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            BytesWritten += buffer.Length;
+        }
+
+        public override ValueTask WriteAsync(
+            ReadOnlyMemory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return ValueTask.FromCanceled(cancellationToken);
+            }
+
+            BytesWritten += buffer.Length;
+            return ValueTask.CompletedTask;
         }
     }
 

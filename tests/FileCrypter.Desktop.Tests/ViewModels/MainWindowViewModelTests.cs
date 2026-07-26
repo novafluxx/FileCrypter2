@@ -347,6 +347,17 @@ public sealed class MainWindowViewModelTests
         {
             return Task.FromResult(new BatchTransformResult([]));
         }
+
+        public Task<InspectFileResult> InspectFileAsync(
+            InspectFileRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new InspectFileResult(
+                FileCrypter.Core.FileCrypterPayloadKind.SingleFile,
+                IsKeyFileRequired: false,
+                IsCompressed: false,
+                FormatVersion: 1));
+        }
     }
 
     private sealed class TemporaryDirectory : IDisposable
