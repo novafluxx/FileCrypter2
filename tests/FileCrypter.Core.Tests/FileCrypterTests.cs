@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Formats.Tar;
 using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
@@ -528,6 +529,90 @@ public sealed class FileCrypterTests
 
         Assert.Equal(FileCrypterFormatErrorCode.InvalidArchivePayload, exception.Code);
         Assert.Empty(Directory.GetFiles(outputDirectory));
+    }
+
+    [Theory]
+    [InlineData("../escape.txt")]
+    [InlineData("sub/dir/file.txt")]
+    [InlineData("/etc/passwd")]
+    [InlineData("C:\\Windows\\x.txt")]
+    [InlineData("..")]
+    [InlineData(".")]
+    [InlineData("/")]
+    [InlineData("\\")]
+    public async Task DecryptArchiveAsync_WithUnsafeAuthenticatedEntryName_RejectsPayloadAndLeavesNoOutput(
+        string entryName)
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedArchivePath = Path.Combine(directory.Path, "unsafe.tar.zst.encrypted");
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        string escapedPath = Path.Combine(directory.Path, "escape.txt");
+        Directory.CreateDirectory(outputDirectory);
+        byte[] encryptedBytes = EncryptSingleChunkPayload(
+            CreateTarPayload(entryName, Encoding.UTF8.GetBytes("unsafe archive entry")),
+            CreateFastOptions(),
+            FileCrypterFormatConstants.PayloadKindTarArchive);
+        await File.WriteAllBytesAsync(encryptedArchivePath, encryptedBytes);
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.DecryptArchiveAsync(
+                encryptedArchivePath,
+                outputDirectory,
+                Password,
+                CreateFastOptions()));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidArchivePayload, exception.Code);
+        Assert.Empty(Directory.GetFiles(outputDirectory, "*", SearchOption.AllDirectories));
+        Assert.False(File.Exists(escapedPath));
+    }
+
+    [Fact]
+    public async Task DecryptArchiveAsync_WithEmptyAuthenticatedEntryName_RejectsPayloadAndLeavesNoOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedArchivePath = Path.Combine(directory.Path, "empty-name.tar.zst.encrypted");
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        Directory.CreateDirectory(outputDirectory);
+        byte[] encryptedBytes = EncryptSingleChunkPayload(
+            CreateTarPayloadWithEmptyEntryName(),
+            CreateFastOptions(),
+            FileCrypterFormatConstants.PayloadKindTarArchive);
+        await File.WriteAllBytesAsync(encryptedArchivePath, encryptedBytes);
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.DecryptArchiveAsync(
+                encryptedArchivePath,
+                outputDirectory,
+                Password,
+                CreateFastOptions()));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidArchivePayload, exception.Code);
+        Assert.Empty(Directory.GetFiles(outputDirectory, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task DecryptArchiveAsync_WithSafeAuthenticatedEntryName_ExtractsFile()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedArchivePath = Path.Combine(directory.Path, "safe.tar.zst.encrypted");
+        string outputDirectory = Path.Combine(directory.Path, "output");
+        byte[] expectedBytes = Encoding.UTF8.GetBytes("safe archive entry");
+        Directory.CreateDirectory(outputDirectory);
+        byte[] encryptedBytes = EncryptSingleChunkPayload(
+            CreateTarPayload("file.txt", expectedBytes),
+            CreateFastOptions(),
+            FileCrypterFormatConstants.PayloadKindTarArchive);
+        await File.WriteAllBytesAsync(encryptedArchivePath, encryptedBytes);
+
+        IReadOnlyList<string> extractedPaths = await FileCrypter.DecryptArchiveAsync(
+            encryptedArchivePath,
+            outputDirectory,
+            Password,
+            CreateFastOptions());
+
+        string expectedPath = Path.Combine(outputDirectory, "file.txt");
+        Assert.Equal([expectedPath], extractedPaths);
+        Assert.Equal(expectedBytes, await File.ReadAllBytesAsync(expectedPath));
     }
 
     [Fact]
@@ -1697,6 +1782,38 @@ public sealed class FileCrypterTests
         byte[] noncePrefix = Enumerable.Range(101, FileCrypterFormatConstants.NoncePrefixLength).Select(value => (byte)value).ToArray();
         FileCrypterHeaderWriter.WritePasswordOnly(headerBytes, CreateFastOptions(), salt, noncePrefix);
         return headerBytes;
+    }
+
+    private static byte[] CreateTarPayload(string entryName, byte[] entryBytes)
+    {
+        using var payload = new MemoryStream();
+        using var entryData = new MemoryStream(entryBytes);
+        using (var writer = new TarWriter(payload, TarEntryFormat.Ustar, leaveOpen: true))
+        {
+            writer.WriteEntry(new UstarTarEntry(TarEntryType.RegularFile, entryName)
+            {
+                DataStream = entryData,
+            });
+        }
+
+        return payload.ToArray();
+    }
+
+    private static byte[] CreateTarPayloadWithEmptyEntryName()
+    {
+        byte[] payload = CreateTarPayload("placeholder", Encoding.UTF8.GetBytes("empty archive entry name"));
+        Array.Clear(payload, 0, 100);
+
+        const int checksumOffset = 148;
+        const int checksumLength = 8;
+        payload.AsSpan(checksumOffset, checksumLength).Fill((byte)' ');
+        int checksum = payload.AsSpan(0, (int)TarBlockSizeBytes).ToArray().Sum(value => value);
+        string checksumText = Convert.ToString(checksum, 8).PadLeft(6, '0');
+        Encoding.ASCII.GetBytes(checksumText).CopyTo(payload, checksumOffset);
+        payload[checksumOffset + 6] = 0;
+        payload[checksumOffset + 7] = (byte)' ';
+
+        return payload;
     }
 
     private static byte[] EncryptSingleChunkPayload(byte[] payload, FileCrypterOptions options)
