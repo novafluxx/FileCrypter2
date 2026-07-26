@@ -716,6 +716,47 @@ public sealed class FileCrypterTests
     }
 
     [Fact]
+    public async Task InspectAsync_WithPartialMagicPrefix_ThrowsTruncatedHeader()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "partial-magic.encrypted");
+        await File.WriteAllBytesAsync(
+            encryptedPath,
+            FileCrypterFormatConstants.Magic[..1].ToArray());
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.InspectAsync(encryptedPath));
+
+        Assert.Equal(FileCrypterFormatErrorCode.TruncatedHeader, exception.Code);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithShortNonFileCrypterFile_ThrowsInvalidMagic()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "short-random.bin");
+        await File.WriteAllBytesAsync(encryptedPath, "hello"u8.ToArray());
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.InspectAsync(encryptedPath));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidMagic, exception.Code);
+    }
+
+    [Fact]
+    public async Task InspectAsync_WithEmptyFile_ThrowsInvalidMagic()
+    {
+        using var directory = new TemporaryDirectory();
+        string encryptedPath = Path.Combine(directory.Path, "empty.encrypted");
+        await File.WriteAllBytesAsync(encryptedPath, []);
+
+        FileCrypterFormatException exception = await Assert.ThrowsAsync<FileCrypterFormatException>(
+            () => FileCrypter.InspectAsync(encryptedPath));
+
+        Assert.Equal(FileCrypterFormatErrorCode.InvalidMagic, exception.Code);
+    }
+
+    [Fact]
     public async Task InspectAsync_WithNonFileCrypterFile_ThrowsInvalidMagic()
     {
         using var directory = new TemporaryDirectory();

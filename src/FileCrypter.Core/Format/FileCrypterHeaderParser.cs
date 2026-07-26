@@ -6,22 +6,20 @@ internal static class FileCrypterHeaderParser
 {
     public static FileCrypterHeader Parse(ReadOnlySpan<byte> header)
     {
+        int availableMagicLength = Math.Min(header.Length, FileCrypterFormatConstants.Magic.Length);
+        if (availableMagicLength == 0 ||
+            !header[..availableMagicLength].SequenceEqual(FileCrypterFormatConstants.Magic[..availableMagicLength]))
+        {
+            throw new FileCrypterFormatException(
+                FileCrypterFormatErrorCode.InvalidMagic,
+                "The input is not a FileCrypter encrypted file.");
+        }
+
         if (header.Length < FileCrypterFormatConstants.HeaderLength)
         {
             throw new FileCrypterFormatException(
                 FileCrypterFormatErrorCode.TruncatedHeader,
                 "The FileCrypter header is truncated.");
-        }
-
-        ReadOnlySpan<byte> magic = header.Slice(
-            FileCrypterFormatConstants.MagicOffset,
-            FileCrypterFormatConstants.Magic.Length);
-
-        if (!magic.SequenceEqual(FileCrypterFormatConstants.Magic))
-        {
-            throw new FileCrypterFormatException(
-                FileCrypterFormatErrorCode.InvalidMagic,
-                "The input is not a FileCrypter encrypted file.");
         }
 
         ushort version = ReadUInt16(header, FileCrypterFormatConstants.VersionOffset);

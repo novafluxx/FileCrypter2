@@ -10,12 +10,12 @@ namespace FileCrypter.Core.Format;
 public enum FileCrypterFormatErrorCode
 {
     /// <summary>
-    /// The input ended before a complete FileCrypter header could be read.
+    /// The input begins with the available FileCrypter magic bytes but ends before a complete header can be read.
     /// </summary>
     TruncatedHeader,
 
     /// <summary>
-    /// The header magic bytes do not identify a FileCrypter payload.
+    /// The input is empty or its available leading bytes do not match the FileCrypter magic bytes.
     /// </summary>
     InvalidMagic,
 

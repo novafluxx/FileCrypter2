@@ -1466,7 +1466,7 @@ public sealed class FileCrypterCommandTests
         int exitCode = await CreateCommand(console).RunAsync(["inspect", plaintextPath]);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("This file is too small to be a FileCrypter encrypted file.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("InvalidMagic", console.ErrorOutput, StringComparison.Ordinal);
         Assert.Contains("Choose a FileCrypter .encrypted file", console.ErrorOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("incomplete or damaged", console.ErrorOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("TruncatedHeader", console.ErrorOutput, StringComparison.Ordinal);
@@ -1484,8 +1484,10 @@ public sealed class FileCrypterCommandTests
         int exitCode = await CreateCommand(console).RunAsync(["inspect", emptyPath]);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("This file is too small to be a FileCrypter encrypted file.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("InvalidMagic", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Choose a FileCrypter .encrypted file", console.ErrorOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("incomplete or damaged", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("TruncatedHeader", console.ErrorOutput, StringComparison.Ordinal);
         Assert.Empty(console.Output);
     }
 
@@ -1518,7 +1520,25 @@ public sealed class FileCrypterCommandTests
         int exitCode = await CreateCommand(console).RunAsync(["verify", plaintextPath, "--password", Password]);
 
         Assert.Equal(1, exitCode);
-        Assert.Contains("This file is too small to be a FileCrypter encrypted file.", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("InvalidMagic", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Contains("Choose a FileCrypter .encrypted file", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("incomplete or damaged", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("TruncatedHeader", console.ErrorOutput, StringComparison.Ordinal);
+        Assert.Empty(console.Output);
+    }
+
+    [Fact]
+    public async Task Verify_WithEmptyInput_FailsWithoutClaimingDamage()
+    {
+        using var directory = new TemporaryDirectory();
+        string emptyPath = Path.Combine(directory.Path, "empty.encrypted");
+        await File.WriteAllBytesAsync(emptyPath, []);
+        var console = TestConsole.CreateRedirected();
+
+        int exitCode = await CreateCommand(console).RunAsync(["verify", emptyPath, "--password", Password]);
+
+        Assert.Equal(1, exitCode);
+        Assert.Contains("InvalidMagic", console.ErrorOutput, StringComparison.Ordinal);
         Assert.Contains("Choose a FileCrypter .encrypted file", console.ErrorOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("incomplete or damaged", console.ErrorOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("TruncatedHeader", console.ErrorOutput, StringComparison.Ordinal);

@@ -10,7 +10,6 @@ internal sealed class FileCrypterCommand
     private const string GeneratedArchiveNamePrefix = "filecrypter-archive-";
     private const string ArchiveTimestampFormat = "yyyyMMdd-HHmmss";
     private const string CrossPlatformInvalidArchiveNameCharacters = "<>:\"/\\|?*";
-    private const int FileCrypterHeaderLength = 64;
 
     private readonly IFileCrypterConsole console;
     private readonly FileCrypterOptions? options;
@@ -652,11 +651,6 @@ internal sealed class FileCrypterCommand
             return WritePathError("The input file does not exist.");
         }
 
-        if (await IsTooSmallToBeFileCrypterFileAsync(inputPath).ConfigureAwait(false))
-        {
-            return WriteTooSmallForFileCrypterHeaderError();
-        }
-
         FileCrypterFileInfo fileInfo = await FileCrypter.Core.FileCrypter
             .InspectAsync(inputPath)
             .ConfigureAwait(false);
@@ -730,11 +724,6 @@ internal sealed class FileCrypterCommand
         if (!File.Exists(inputPath))
         {
             return WritePathError("The input file does not exist.");
-        }
-
-        if (await IsTooSmallToBeFileCrypterFileAsync(inputPath).ConfigureAwait(false))
-        {
-            return WriteTooSmallForFileCrypterHeaderError();
         }
 
         if (keyFilePath is not null)
@@ -1076,37 +1065,6 @@ internal sealed class FileCrypterCommand
         };
 
         return (transformOptions, progressReporter);
-    }
-
-    private static ReadOnlySpan<byte> FileCrypterMagic => "FCRYPT\r\n"u8;
-
-    private static async Task<bool> IsTooSmallToBeFileCrypterFileAsync(string inputPath)
-    {
-        var inputFile = new FileInfo(inputPath);
-        if (inputFile.LinkTarget is not null || inputFile.Length >= FileCrypterHeaderLength)
-        {
-            return false;
-        }
-
-        if (inputFile.Length == 0)
-        {
-            return true;
-        }
-
-        byte[] prefix = new byte[(int)Math.Min(inputFile.Length, FileCrypterMagic.Length)];
-        await using (FileStream input = File.OpenRead(inputPath))
-        {
-            await input.ReadExactlyAsync(prefix).ConfigureAwait(false);
-        }
-
-        return !FileCrypterMagic[..prefix.Length].SequenceEqual(prefix);
-    }
-
-    private int WriteTooSmallForFileCrypterHeaderError()
-    {
-        console.Error.WriteLine("This file is too small to be a FileCrypter encrypted file. Every FileCrypter file starts with a 64-byte header.");
-        console.Error.WriteLine("Choose a FileCrypter .encrypted file produced by this app.");
-        return 1;
     }
 
     private (FileCrypterOptions Options, CliProgressReporter Reporter) CreateVerifyOptionsWithProgress(long inputLength)

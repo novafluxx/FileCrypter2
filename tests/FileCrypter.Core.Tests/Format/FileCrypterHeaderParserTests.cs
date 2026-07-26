@@ -65,6 +65,26 @@ public sealed class FileCrypterHeaderParserTests
     }
 
     [Fact]
+    public void Parse_WithEmptyHeader_ThrowsInvalidMagic()
+    {
+        AssertFormatError(FileCrypterFormatErrorCode.InvalidMagic, []);
+    }
+
+    [Fact]
+    public void Parse_WithShortNonMagicPrefix_ThrowsInvalidMagic()
+    {
+        AssertFormatError(FileCrypterFormatErrorCode.InvalidMagic, "hello"u8.ToArray());
+    }
+
+    [Fact]
+    public void Parse_WithPartialMagicPrefix_ThrowsTruncatedHeader()
+    {
+        AssertFormatError(
+            FileCrypterFormatErrorCode.TruncatedHeader,
+            FileCrypterFormatConstants.Magic[..1].ToArray());
+    }
+
+    [Fact]
     public void Parse_WithUnsupportedVersion_ThrowsUnsupportedVersion()
     {
         byte[] headerBytes = CreateValidHeader();
