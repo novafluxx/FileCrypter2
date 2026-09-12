@@ -19,8 +19,8 @@ dotnet build --no-restore            # warnings are errors
 dotnet test --no-build               # full suite (build first)
 
 # single project / single test:
-dotnet test tests/FileCrypter.Core.Tests --no-build
-dotnet test tests/FileCrypter.Core.Tests --no-build --filter "FullyQualifiedName~EncryptFileAsyncDecryptFileAsync_RoundTrips"
+dotnet test --project tests/FileCrypter.Core.Tests --no-build
+dotnet test --project tests/FileCrypter.Core.Tests --no-build --filter "FullyQualifiedName~EncryptFileAsyncDecryptFileAsync_RoundTrips"
 
 dotnet run --project src/FileCrypter.Cli -- --help
 dotnet run --project src/FileCrypter.Desktop

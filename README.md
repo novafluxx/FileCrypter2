@@ -66,6 +66,20 @@ dotnet build --no-restore
 dotnet test --no-build
 ```
 
+Tests use Microsoft Testing Platform (MTP), selected in `global.json`. To run
+one project or collect coverage:
+
+```bash
+dotnet test --project tests/FileCrypter.Core.Tests --no-build
+dotnet test --no-build --coverlet --coverlet-output-format cobertura
+```
+
+When run from the repository root, coverage reports are written to `TestResults/`
+with a separate timestamped report for each test project.
+`tests/Directory.Build.targets` disables registration of the MTP telemetry
+extension and selects the MTP runner for direct test executable launches too.
+The VSTest adapter packages remain available for editor compatibility.
+
 ## Run The CLI
 
 From the repository root:

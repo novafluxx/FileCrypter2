@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Disable the transitive telemetry extension for every test entry point. -->
+    <TestingPlatformBuilderHook Remove="@(TestingPlatformBuilderHook->WithMetadataValue('DisplayName', 'Microsoft.Testing.Extensions.Telemetry'))" />
+  </ItemGroup>
+</Project>
