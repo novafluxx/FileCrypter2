@@ -8,7 +8,7 @@ Ordered by how much they cost to fix if left alone, not by urgency today.
 
 ---
 
-## F1 — Tar traversal rejection branches have no test coverage
+## F1 — Tar traversal rejection branches covered (completed 2026-07-26)
 
 **Severity:** highest-value item here. **Effort:** small (test-only). **Blocks:** F5.
 
@@ -21,45 +21,38 @@ under test is one FileCrypter itself wrote, and the writer never emits an unsafe
 The guard is currently correct as far as I can tell by reading it. That is not the same as knowing it, and it is the
 wrong place in the codebase to be relying on inspection.
 
-**Done looks like:** a test file that builds tars directly with `System.Formats.Tar.TarWriter`, encrypts them via the
-archive path, and asserts `DecryptArchiveAsync` throws `FileCrypterFormatException` with
-`FileCrypterFormatErrorCode.InvalidArchivePayload` for at least: `../escape.txt`, `sub/dir/file.txt`, `/etc/passwd`,
-`C:\Windows\x.txt`, `..`, `.`, an empty name, and a name that is only a separator. Add a positive control (a plain
-`file.txt` entry) so the test can't pass by rejecting everything.
+**Completed coverage:** `FileCrypterTests` now builds authenticated tar payloads directly with
+`System.Formats.Tar.TarWriter`, encrypts them through the test-only archive payload helper, and verifies
+`DecryptArchiveAsync` returns `InvalidArchivePayload` for `../escape.txt`, `sub/dir/file.txt`, `/etc/passwd`,
+`C:\Windows\x.txt`, `..`, `.`, an empty name, and separator-only names. The tests assert no extracted or staged files
+remain (including no escaped `../escape.txt`) and include a `file.txt` positive control that verifies the returned path
+and contents. The empty-name case serializes a valid Ustar entry, clears its name field, and recomputes the tar checksum.
 
-Write these **before** touching F5. They are the regression net that makes relaxing the validation survivable.
+This is the regression prerequisite for F5: any future path-validation relaxation must retain this hostile-input net.
 
 ---
 
-## F2 — Format constants duplicated into the CLI
+## F2 — Short-file format classification centralized in Core (completed 2026-07-26)
 
 **Severity:** low today, silent-drift risk later. **Effort:** small.
 
-The short-file pre-check added late in the Tier 1 work needed to know the header length and magic bytes, but
-`FileCrypter.Core.Format` is entirely `internal` and `InternalsVisibleTo` names only `FileCrypter.Core.Tests`. The CLI
-therefore carries its own copies:
+The short-file pre-check added late in the Tier 1 work needed to know the header length and magic bytes. The format
+implementation is internal, so the CLI carried its own copies:
 
 - `src/FileCrypter.Cli/FileCrypterCommand.cs:13` — `private const int FileCrypterHeaderLength = 64;`
 - `src/FileCrypter.Cli/FileCrypterCommand.cs:1081` — `private static ReadOnlySpan<byte> FileCrypterMagic => "FCRYPT\r\n"u8;`
 
-Both contradict `CLAUDE.md` and `docs/file-format.md`, which designate `Format/FileCrypterFormatConstants.cs` as the
-single source of truth for header constants.
+Both contradicted `CLAUDE.md` and `docs/file-format.md`, which designate
+`Format/FileCrypterFormatConstants.cs` as the single source of truth for header constants.
 
-Harmless while v1 is frozen — the parser hard-rejects any header length other than 64, so a mismatch cannot go
-undetected at runtime. It becomes a real bug the day a v2 header changes length, and it will not announce itself:
-the CLI would simply start misclassifying short v2 files as "not a FileCrypter file."
+**Completed resolution:** `FileCrypterHeaderParser` now checks the available magic prefix before requiring a complete
+header. Empty inputs and prefixes that contradict the FileCrypter magic return `InvalidMagic`; non-empty matching
+prefixes that end before the full header return `TruncatedHeader`. The CLI relies on those existing public error codes
+and its normal troubleshooting-message path, so the duplicated header length, magic bytes, pre-read helper, and special
+short-file error writer have been removed.
 
-**Two ways out, in order of preference:**
-
-1. Fix it in Core rather than working around it in a host. Give `InspectAsync` a sibling — or an error code on the
-   existing `FileCrypterFormatException` — that distinguishes *"this is not a FileCrypter file"* from *"this is a
-   truncated FileCrypter file."* That is genuinely Core's job: it owns the format, and today it cannot express the
-   distinction for inputs under 64 bytes because the magic check is unreachable. Both hosts benefit and the CLI
-   constants delete themselves.
-2. Failing that, expose the header length and magic as public constants on Core and have the CLI reference them.
-   Cheaper, but it widens the public surface for a host-convenience reason, which is the weaker trade.
-
-The desktop side needs nothing here — it catches `FileCrypterFormatException` broadly and never inspects byte counts.
+No public format constants or new APIs were added. Inspection, verification, and decryption now share the same Core
+classification, and the desktop requires no host-specific change.
 
 ---
 
@@ -107,12 +100,12 @@ Known blockers, all of which must be handled together:
   per-segment validation while keeping the final containment check.
 - `GetAvailableArchiveEntryName` — see F3.
 - `CreateStagingPath` / `ValidateOutputPath` assume the parent directory already exists.
-- Five separate blunt `path.Contains("..")` substring guards reject legitimate names such as `my..notes`.
+- The blunt `path.Contains("..")` substring guards — see F8, which should land first.
 - `IsRegularFileEntry` throws on tar `Directory` entries.
 - `FileDropDataHelper` silently discards dropped folders, and is shared by all three views.
 - `EncryptArchiveAsync_WithDuplicateInputFileNames_AutoRenamesArchiveEntries` asserts the current flattening behavior
   and would need rewriting by design.
-- F1 and F4 above.
+- F1's completed regression coverage is a prerequisite; F4 remains outstanding.
 
 This warrants a dedicated security review of its own, not a bolt-on to a feature PR.
 
@@ -123,8 +116,8 @@ This warrants a dedicated security review of its own, not a bolt-on to a feature
 **Severity:** none. **Effort:** small if ever wanted. Recorded so it isn't mistaken for an oversight.
 
 `FileCrypter.VerifyFileAsync` (both overloads) is public on Core and surfaced by the CLI `verify` command, but is
-deliberately absent from `IFileCrypterWorkflowService`. Reason: there is no UI consumer, and the interface has nine
-implementations across the test suite — adding an unused member would have meant nine no-op stubs for no behavior.
+deliberately absent from `IFileCrypterWorkflowService`. Reason: there is no UI consumer, and the interface has numerous
+test implementations across the test suite — adding an unused member would have meant no-op stubs for no behavior.
 
 If a desktop "Verify" action is ever wanted, add the member to the interface and implement it in
 `FileCrypterWorkflowService` alongside `InspectFileAsync` (`Services/FileCrypterWorkflowService.cs:204`); Core needs no
@@ -138,11 +131,42 @@ change.
 
 The stored setting is `NeverOverwriteExistingFilesByDefault` (negative sense). The CLI intentionally inverts it so
 `settings set overwrite-default on|off` reads the same direction as the existing `--overwrite` flag
-(`FileCrypterCommand.cs:863`, displayed at `:950`). The desktop settings checkbox uses the stored negative framing
+(`FileCrypterCommand.cs:852`, displayed at `:939`). The desktop settings checkbox uses the stored negative framing
 directly (`SettingsViewModel.cs:136`).
 
 Both are self-consistent and both write the same underlying value. Changing either in isolation would silently invert
 behavior for users of the other host.
+
+---
+
+## F8 — Substring `..` guards reject legitimate file names today
+
+**Severity:** user-visible bug, live now (not gated on F5). **Effort:** small. **Found:** 2026-09-30.
+
+Three `aikido-autofix[bot]` commits (`0073d72`, `747cd5a`, `91fb2cc`) added `path.Contains("..")` checks that throw
+`ArgumentException("Invalid file path")`. They run on every full input/output path, so any path containing two
+consecutive dots anywhere — `my..notes.txt`, a directory named `v1..2`, or a relative CLI argument like
+`../file.txt` — fails. Reproduced: `encrypt my..notes.txt` reports *"Path error: FileCrypter could not access one of
+the requested paths"*, which also misdirects the user toward permissions or a missing output directory.
+
+Locations (nine path guards):
+
+- `src/FileCrypter.Core/FileCrypter.cs` — `CreateOutputFileStream`, `CreateWindowsOutputFileStream`,
+  `MoveStagedOutput` (both arguments), `IsSymbolicLinkOrReparsePoint`, `GetResolvedSymbolicLinkTarget`, `TryDeleteFile`.
+- `src/FileCrypter.Core/Settings/FileCrypterSettingsStore.cs` — `IsSymbolicLink` (a profile path containing `..` would
+  break settings saves).
+- `src/FileCrypter.Cli/FileCrypterCommand.cs` — the encrypt/decrypt input-path check.
+
+They add no protection: every guarded value is already a full path from `Path.GetFullPath`, and the real defenses —
+symlink/reparse-point rejection and the per-segment checks plus containment check in
+`CreateArchiveExtractionOutputPath` — are independent of them. Keep `IsSafeFileName` in the settings store: it
+validates app-chosen settings and staging file *names* (no separators), not user paths, and carries a `nosec` rationale.
+
+**Done looks like:** remove the nine guards; add Core and CLI tests that encrypt/decrypt `my..notes.txt` and a file in a
+`dir..name` directory, plus a CLI test with a relative `..\` input path; confirm the symlink-rejection and F1 traversal
+tests still pass. Expect Aikido to re-flag the sinks — answer with `nosec` comments stating the canonicalization
+rationale, matching the existing one in `FileCrypterSettingsStore.TryDeleteStagingFile`, rather than restoring the
+substring checks. Needs explicit sign-off since it removes code a security tool added.
 
 ---
 
@@ -156,6 +180,6 @@ behavior for users of the other host.
 
 ## State at handoff
 
-The Tier 1 slice is complete and uncommitted: 21 files changed or added across Core, CLI, Desktop, plus `CLAUDE.md`,
-`README.md`, and `docs/file-format.md`. Build is clean at zero warnings (`TreatWarningsAsErrors` is on); the full suite
-is 344 tests passing (113 Core, 87 CLI, 144 Desktop), up from 301.
+The Tier 1 slice, F1, and F2 are committed. As of 2026-09-30 the build is clean at zero warnings
+(`TreatWarningsAsErrors` is on) and the full suite is 361 tests passing. Open items: F3 and F4 (both gated on F5),
+F5 (deferred), F8 (live bug).
