@@ -46,6 +46,21 @@ public sealed class FileCrypterSettingsStoreTests
     }
 
     [Fact]
+    public async Task SaveAsync_AndLoadAsync_WithDoubleDotsInDirectoryName_RoundTrips()
+    {
+        using var tempDirectory = new TemporaryDirectory();
+        string settingsDirectory = Path.Combine(tempDirectory.Path, "profile..name");
+        Directory.CreateDirectory(settingsDirectory);
+        string settingsPath = Path.Combine(settingsDirectory, "settings.json");
+        var store = new FileCrypterSettingsStore(settingsPath);
+
+        await store.SaveAsync(new FileCrypterSettings { ThemePreference = FileCrypterThemePreference.Dark });
+        FileCrypterSettings loadedSettings = await store.LoadAsync();
+
+        Assert.Equal(FileCrypterThemePreference.Dark, loadedSettings.ThemePreference);
+    }
+
+    [Fact]
     public async Task SaveAsync_WhenSettingsPathIsSymbolicLink_ThrowsAndPreservesTarget()
     {
         using var tempDirectory = new TemporaryDirectory();

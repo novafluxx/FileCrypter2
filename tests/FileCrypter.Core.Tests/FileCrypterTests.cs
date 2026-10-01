@@ -43,6 +43,60 @@ public sealed class FileCrypterTests
     }
 
     [Fact]
+    public async Task EncryptFileAsyncDecryptFileAsync_WithDoubleDotsInFileAndDirectoryNames_RoundTrips()
+    {
+        using var directory = new TemporaryDirectory();
+        string nestedDirectory = Path.Combine(directory.Path, "dir..name");
+        Directory.CreateDirectory(nestedDirectory);
+        string plaintextPath = Path.Combine(nestedDirectory, "my..notes.txt");
+        string encryptedPath = plaintextPath + ".encrypted";
+        string decryptedPath = Path.Combine(nestedDirectory, "my..notes.decrypted.txt");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("double dots are legal in names");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+
+        string finalEncryptedPath = await FileCrypter.EncryptFileAsync(
+            plaintextPath,
+            encryptedPath,
+            Password,
+            CreateFastOptions());
+        string finalDecryptedPath = await FileCrypter.DecryptFileAsync(
+            finalEncryptedPath,
+            decryptedPath,
+            Password,
+            CreateFastOptions());
+
+        Assert.Equal(encryptedPath, finalEncryptedPath);
+        Assert.Equal(decryptedPath, finalDecryptedPath);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(finalDecryptedPath));
+    }
+
+    [Fact]
+    public async Task EncryptArchiveAsyncDecryptArchiveAsync_WithDoubleDotsInNames_RoundTrips()
+    {
+        using var directory = new TemporaryDirectory();
+        string workDirectory = Path.Combine(directory.Path, "work..dir");
+        string outputDirectory = Path.Combine(workDirectory, "out..put");
+        Directory.CreateDirectory(outputDirectory);
+        string plaintextPath = Path.Combine(workDirectory, "my..notes.txt");
+        string encryptedArchivePath = Path.Combine(workDirectory, "bundle..v2.tar.zst.encrypted");
+        await File.WriteAllTextAsync(plaintextPath, "archive with double dots");
+
+        string finalArchivePath = await FileCrypter.EncryptArchiveAsync(
+            [plaintextPath],
+            encryptedArchivePath,
+            Password,
+            CreateFastOptions());
+        IReadOnlyList<string> extractedPaths = await FileCrypter.DecryptArchiveAsync(
+            finalArchivePath,
+            outputDirectory,
+            Password,
+            CreateFastOptions());
+
+        Assert.Equal([Path.Combine(outputDirectory, "my..notes.txt")], extractedPaths);
+        Assert.Equal("archive with double dots", await File.ReadAllTextAsync(extractedPaths[0]));
+    }
+
+    [Fact]
     public async Task EncryptFileAsyncDecryptFileAsync_WithKeyFile_RoundTripsAndMarksHeader()
     {
         using var directory = new TemporaryDirectory();

@@ -1901,10 +1901,7 @@ public static class FileCrypter
 
     private static FileStream CreateOutputFileStream(string path)
     {
-        if (path == null || path.Contains(".."))
-        {
-            throw new ArgumentException("Invalid file path");
-        }
+        FileCrypterPathGuard.ThrowIfContainsParentSegment(path);
 
         return OperatingSystem.IsWindows()
             ? CreateWindowsOutputFileStream(path)
@@ -1914,10 +1911,7 @@ public static class FileCrypter
     [SupportedOSPlatform("windows")]
     private static FileStream CreateWindowsOutputFileStream(string path)
     {
-        if (path == null || path.Contains(".."))
-        {
-            throw new ArgumentException("Invalid file path");
-        }
+        FileCrypterPathGuard.ThrowIfContainsParentSegment(path);
 
         SecurityIdentifier? currentUser = WindowsIdentity.GetCurrent().User;
         if (currentUser is null)
@@ -1945,14 +1939,8 @@ public static class FileCrypter
 
     private static void MoveStagedOutput(string stagingPath, string finalPath, bool overwrite)
     {
-        if (stagingPath == null || stagingPath.Contains(".."))
-        {
-            throw new ArgumentException("Invalid file path");
-        }
-        if (finalPath == null || finalPath.Contains(".."))
-        {
-            throw new ArgumentException("Invalid file path");
-        }
+        FileCrypterPathGuard.ThrowIfContainsParentSegment(stagingPath);
+        FileCrypterPathGuard.ThrowIfContainsParentSegment(finalPath);
 
         try
         {
@@ -2034,10 +2022,7 @@ public static class FileCrypter
 
     private static bool IsSymbolicLinkOrReparsePoint(string path)
     {
-        if (path == null || path.Contains(".."))
-        {
-            throw new ArgumentException("Invalid file path");
-        }
+        FileCrypterPathGuard.ThrowIfContainsParentSegment(path);
 
         return IsSymbolicLinkOrReparsePoint(new FileInfo(path)) ||
             IsSymbolicLinkOrReparsePoint(new DirectoryInfo(path));
@@ -2203,10 +2188,7 @@ public static class FileCrypter
 
     private static string? GetResolvedSymbolicLinkTarget(string path)
     {
-        if (path == null || path.Contains(".."))
-        {
-            throw new ArgumentException("Invalid file path");
-        }
+        FileCrypterPathGuard.ThrowIfContainsParentSegment(path);
 
         var fileInfo = new FileInfo(path);
         if (fileInfo.LinkTarget is not null)
@@ -2255,10 +2237,7 @@ public static class FileCrypter
 
     private static void TryDeleteFile(string path)
     {
-        if (path == null || path.Contains(".."))
-        {
-            throw new ArgumentException("Invalid file path");
-        }
+        FileCrypterPathGuard.ThrowIfContainsParentSegment(path);
 
         try
         {

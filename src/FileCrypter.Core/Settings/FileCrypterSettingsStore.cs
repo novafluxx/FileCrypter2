@@ -137,10 +137,7 @@ public sealed class FileCrypterSettingsStore
 
     private static bool IsSymbolicLink(string path)
     {
-        if (path == null || path.Contains(".."))
-        {
-            throw new ArgumentException("Invalid file path");
-        }
+        FileCrypterPathGuard.ThrowIfContainsParentSegment(path);
 
         var fileInfo = new FileInfo(path);
         if (fileInfo.LinkTarget is not null)

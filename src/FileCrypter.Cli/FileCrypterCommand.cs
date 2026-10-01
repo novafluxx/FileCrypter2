@@ -172,15 +172,12 @@ internal sealed class FileCrypterCommand
             return WriteError("A password is required. Use --password, --password-stdin, or run from an interactive terminal.");
         }
 
-        if (inputPath == null || inputPath.Contains(".."))
-        {
-            throw new ArgumentException("Invalid file path");
-        }
-
         if (!File.Exists(inputPath))
         {
             return WritePathError("The input file does not exist.");
         }
+
+        ThrowIfContainsParentSegment(Path.GetFullPath(inputPath));
 
         if (keyFilePath is not null)
         {
@@ -997,6 +994,15 @@ internal sealed class FileCrypterCommand
         return inputPath.EndsWith(DefaultEncryptedSuffix, StringComparison.OrdinalIgnoreCase)
             ? inputPath[..^DefaultEncryptedSuffix.Length]
             : inputPath + ".decrypted";
+    }
+
+    // Whole-segment match, so names such as "my..notes.txt" are allowed. Mirrors Core's internal FileCrypterPathGuard.
+    private static void ThrowIfContainsParentSegment(string path)
+    {
+        if (path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains(".."))
+        {
+            throw new ArgumentException("Invalid file path", nameof(path));
+        }
     }
 
     private static bool PathsEqual(string left, string right)

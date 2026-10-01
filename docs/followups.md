@@ -100,7 +100,7 @@ Known blockers, all of which must be handled together:
   per-segment validation while keeping the final containment check.
 - `GetAvailableArchiveEntryName` — see F3.
 - `CreateStagingPath` / `ValidateOutputPath` assume the parent directory already exists.
-- The blunt `path.Contains("..")` substring guards — see F8, which should land first.
+- ~~The blunt `path.Contains("..")` substring guards~~ — resolved by F8 (whole-segment checks).
 - `IsRegularFileEntry` throws on tar `Directory` entries.
 - `FileDropDataHelper` silently discards dropped folders, and is shared by all three views.
 - `EncryptArchiveAsync_WithDuplicateInputFileNames_AutoRenamesArchiveEntries` asserts the current flattening behavior
@@ -139,14 +139,14 @@ behavior for users of the other host.
 
 ---
 
-## F8 — Substring `..` guards reject legitimate file names today
+## F8 — Substring `..` guards rejected legitimate file names (completed 2026-09-30)
 
-**Severity:** user-visible bug, live now (not gated on F5). **Effort:** small. **Found:** 2026-09-30.
+**Severity:** user-visible bug (was not gated on F5). **Effort:** small. **Found:** 2026-09-30.
 
 Three `aikido-autofix[bot]` commits (`0073d72`, `747cd5a`, `91fb2cc`) added `path.Contains("..")` checks that throw
-`ArgumentException("Invalid file path")`. They run on every full input/output path, so any path containing two
+`ArgumentException("Invalid file path")`. They ran on every full input/output path, so any path containing two
 consecutive dots anywhere — `my..notes.txt`, a directory named `v1..2`, or a relative CLI argument like
-`../file.txt` — fails. Reproduced: `encrypt my..notes.txt` reports *"Path error: FileCrypter could not access one of
+`../file.txt` — failed. Reproduced: `encrypt my..notes.txt` reported *"Path error: FileCrypter could not access one of
 the requested paths"*, which also misdirects the user toward permissions or a missing output directory.
 
 Locations (nine path guards):
@@ -157,16 +157,22 @@ Locations (nine path guards):
   break settings saves).
 - `src/FileCrypter.Cli/FileCrypterCommand.cs` — the encrypt/decrypt input-path check.
 
-They add no protection: every guarded value is already a full path from `Path.GetFullPath`, and the real defenses —
-symlink/reparse-point rejection and the per-segment checks plus containment check in
-`CreateArchiveExtractionOutputPath` — are independent of them. Keep `IsSafeFileName` in the settings store: it
-validates app-chosen settings and staging file *names* (no separators), not user paths, and carries a `nosec` rationale.
+The substring checks added no real protection: every guarded value is already a full path from `Path.GetFullPath`,
+and the real defenses — symlink/reparse-point rejection and the per-segment checks plus containment check in
+`CreateArchiveExtractionOutputPath` — are independent of them.
 
-**Done looks like:** remove the nine guards; add Core and CLI tests that encrypt/decrypt `my..notes.txt` and a file in a
-`dir..name` directory, plus a CLI test with a relative `..\` input path; confirm the symlink-rejection and F1 traversal
-tests still pass. Expect Aikido to re-flag the sinks — answer with `nosec` comments stating the canonicalization
-rationale, matching the existing one in `FileCrypterSettingsStore.TryDeleteStagingFile`, rather than restoring the
-substring checks. Needs explicit sign-off since it removes code a security tool added.
+**Completed resolution:** rather than deleting the guards, each was replaced with a whole-segment check. Core uses the
+shared internal `FileCrypterPathGuard.ThrowIfContainsParentSegment`, which splits on the platform's directory separators
+and rejects only a segment that is exactly `..`. The CLI (which cannot see Core internals) has a private mirror and now
+applies it to `Path.GetFullPath(inputPath)` after the existence check, so relative arguments like `..\file.txt` work.
+The settings store's `IsSafeFileName` is unchanged: it validates app-chosen settings and staging file *names* (no
+separators), not user paths, and carries a `nosec` rationale.
+
+Coverage: `FileCrypterPathGuardTests` (parent segments rejected; `my..notes.txt`, `dir..name/`, `..hidden`, `...`
+allowed), Core single-file and archive round-trips under `dir..name`/`my..notes.txt`, a settings save/load under a
+`profile..name` directory, and a CLI encrypt/decrypt whose arguments contain unresolved `..` segments. Symlink-rejection
+and F1 traversal tests pass unchanged. If Aikido re-flags the sinks, answer with `nosec` comments stating the
+canonicalization rationale rather than restoring the substring checks.
 
 ---
 
@@ -180,6 +186,6 @@ substring checks. Needs explicit sign-off since it removes code a security tool 
 
 ## State at handoff
 
-The Tier 1 slice, F1, and F2 are committed. As of 2026-09-30 the build is clean at zero warnings
-(`TreatWarningsAsErrors` is on) and the full suite is 361 tests passing. Open items: F3 and F4 (both gated on F5),
-F5 (deferred), F8 (live bug).
+The Tier 1 slice, F1, F2, and F8 are committed. As of 2026-09-30 the build is clean at zero warnings
+(`TreatWarningsAsErrors` is on) and the full suite is 377 tests passing. Open items: F3 and F4 (both gated on F5) and
+F5 (deferred).

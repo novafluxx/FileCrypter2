@@ -64,6 +64,33 @@ public sealed class FileCrypterCommandTests
     }
 
     [Fact]
+    public async Task EncryptAndDecrypt_WithDoubleDotsInNamesAndParentSegmentArguments_Succeeds()
+    {
+        using var directory = new TemporaryDirectory();
+        string nestedDirectory = Path.Combine(directory.Path, "dir..name");
+        Directory.CreateDirectory(nestedDirectory);
+        string plaintextPath = Path.Combine(nestedDirectory, "my..notes.txt");
+        // Unresolved ".." segments, as a shell user would type relative to a subdirectory.
+        string plaintextArgument = Path.Combine(nestedDirectory, "..", "dir..name", "my..notes.txt");
+        string encryptedArgument = Path.Combine(nestedDirectory, "..", "dir..name", "my..notes.txt.encrypted");
+        string decryptedPath = Path.Combine(nestedDirectory, "my..notes.decrypted.txt");
+        byte[] plaintextBytes = Encoding.UTF8.GetBytes("double dots are legal in names");
+        await File.WriteAllBytesAsync(plaintextPath, plaintextBytes);
+        var encryptConsole = TestConsole.CreateRedirected(Password + Environment.NewLine);
+        var decryptConsole = TestConsole.CreateRedirected(Password + Environment.NewLine);
+
+        int encryptExitCode = await CreateCommand(encryptConsole).RunAsync(
+            ["encrypt", plaintextArgument, encryptedArgument, "--password-stdin"]);
+        int decryptExitCode = await CreateCommand(decryptConsole).RunAsync(
+            ["decrypt", encryptedArgument, decryptedPath, "--password-stdin"]);
+
+        Assert.Equal(0, encryptExitCode);
+        Assert.Equal(0, decryptExitCode);
+        Assert.Equal(plaintextPath + ".encrypted" + Environment.NewLine, encryptConsole.Output);
+        Assert.Equal(plaintextBytes, await File.ReadAllBytesAsync(decryptedPath));
+    }
+
+    [Fact]
     public async Task BatchEncryptAndBatchDecrypt_WithPasswordStdin_Succeeds()
     {
         using var directory = new TemporaryDirectory();
